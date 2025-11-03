@@ -1,0 +1,58 @@
+{
+  "ultralytics": {
+    "per_class": {},
+    "macro": {
+      "Precision": NaN,
+      "Recall": NaN,
+      "F1": NaN
+    },
+    "mAP50": NaN,
+    "mAP50_95": NaN
+  },
+  "custom": {
+    "per_class": {
+      "chip": {
+        "TP": 0,
+        "FP": 5,
+        "FN": 0,
+        "P": 0.0,
+        "R": 0.0,
+        "F1": 0.0,
+        "Acc": 0.0
+      },
+      "crack": {
+        "TP": 0,
+        "FP": 5,
+        "FN": 0,
+        "P": 0.0,
+        "R": 0.0,
+        "F1": 0.0,
+        "Acc": 0.0
+      },
+      "dent": {
+        "TP": 0,
+        "FP": 34,
+        "FN": 0,
+        "P": 0.0,
+        "R": 0.0,
+        "F1": 0.0,
+        "Acc": 0.0
+      },
+      "scratch": {
+        "TP": 0,
+        "FP": 0,
+        "FN": 0,
+        "P": 0.0,
+        "R": 0.0,
+        "F1": 0.0,
+        "Acc": 0.0
+      }
+    },
+    "macro": {
+      "Precision": 0.0,
+      "Recall": 0.0,
+      "F1": 0.0,
+      "Accuracy": 0.0
+    }
+  }
+}
