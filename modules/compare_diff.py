@@ -40,19 +40,19 @@ result = cv2.addWeighted(img_test, 0.7, overlay, 0.3, 0)
 
 
 save_dir = "."
-os.makedirs(save_dir, exist_ok=True)
+
 
 # 이진 마스크(픽셀 차이, 히트맵, 최종 결합)
-cv2.imwrite(os.path.join(save_dir, "mask_diff.png"),  mask_diff)   # 픽셀차 기반
-cv2.imwrite(os.path.join(save_dir, "mask_heat.png"),  mask_heat)   # 히트맵 기반
-cv2.imwrite(os.path.join(save_dir, "mask_final.png"), mask_final)  # 결합 마스크(권장)
+cv2.imwrite("mask_diff.png",  mask_diff)   # 픽셀차 기반
+cv2.imwrite( "mask_heat.png",  mask_heat)   # 히트맵 기반
+cv2.imwrite( "mask_final.png", mask_final)  # 결합 마스크(권장)
 
 # 오버레이(테스트 이미지 위에 빨간색으로 표시)
 overlay = img_test.copy()
 overlay[mask_final > 0] = [0, 0, 255]                   # 이상영역을 빨강
 result = cv2.addWeighted(img_test, 0.7, overlay, 0.3, 0)
-cv2.imwrite(os.path.join(save_dir, "overlay_result.png"), result)
+cv2.imwrite( "overlay_result.png", result)
 
 # (옵션) 이상영역만 분리된 컷아웃 저장
 cutout = np.where(mask_final[...,None] > 0, img_test, 0)
-cv2.imwrite(os.path.join(save_dir, "cutout_only_anomaly.png"), cutout)
+cv2.imwrite( "cutout_only_anomaly.png", cutout)
