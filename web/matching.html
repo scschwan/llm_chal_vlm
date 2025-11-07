@@ -168,9 +168,14 @@
             margin-top: 20px;
         }
 
-        .search-button:hover {
+        .search-button:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .search-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         .results-section {
@@ -251,6 +256,15 @@
             color: #333;
             font-size: 1.1em;
             padding: 8px 18px;
+        }
+
+        .image-name {
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .similarity-score {
@@ -340,9 +354,28 @@
             color: #155724;
         }
 
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
         .status-message.info {
             background: #d1ecf1;
             color: #0c5460;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         @media (max-width: 1024px) {
@@ -356,7 +389,7 @@
     <div class="container">
         <div class="header">
             <h1>🔍 유사이미지 매칭 시스템</h1>
-            <p>AI 기반 이미지 유사도 검색 및 매칭</p>
+            <p>CLIP 기반 이미지 유사도 검색</p>
         </div>
 
         <div class="nav">
@@ -419,6 +452,9 @@
     </div>
 
     <script>
+        // API 서버 주소 (필요시 수정)
+        const API_BASE_URL = 'http://localhost:8080';
+
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         const previewImage = document.getElementById('previewImage');
@@ -455,7 +491,7 @@
 
         function handleFileSelect(file) {
             if (!file || !file.type.startsWith('image/')) {
-                showStatus('이미지 파일만 업로드 가능합니다.', 'info');
+                showStatus('이미지 파일만 업로드 가능합니다.', 'error');
                 return;
             }
 
@@ -474,50 +510,81 @@
             topKValue.textContent = e.target.value;
         });
 
-        // 검색 실행 (데모)
-        searchButton.addEventListener('click', () => {
+        // 검색 실행 (실제 API 호출)
+        searchButton.addEventListener('click', async () => {
             if (!selectedFile) {
-                showStatus('먼저 이미지를 업로드하세요.', 'info');
+                showStatus('먼저 이미지를 업로드하세요.', 'error');
                 return;
             }
 
             const topK = parseInt(topKSlider.value);
-            showStatus('유사 이미지를 검색하는 중...', 'info');
             
-            // 데모 결과 생성
-            setTimeout(() => {
-                displayDemoResults(topK);
-                showStatus(`검색 완료! ${topK}개의 유사 이미지를 찾았습니다.`, 'success');
-            }, 1000);
+            // 버튼 비활성화
+            searchButton.disabled = true;
+            searchButton.innerHTML = '<span class="loading"></span> 검색 중...';
+            showStatus('유사 이미지를 검색하는 중...', 'info');
+
+            try {
+                // FormData 생성
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+
+                // API 호출
+                const response = await fetch(`${API_BASE_URL}/search/upload?top_k=${topK}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '검색 실패');
+                }
+
+                const data = await response.json();
+                
+                // 결과 표시
+                displayResults(data);
+                showStatus(`검색 완료! ${data.top_k_results.length}개의 유사 이미지를 찾았습니다.`, 'success');
+
+            } catch (error) {
+                console.error('검색 오류:', error);
+                showStatus(`검색 실패: ${error.message}`, 'error');
+            } finally {
+                // 버튼 활성화
+                searchButton.disabled = false;
+                searchButton.innerHTML = '🔍 유사 이미지 검색';
+            }
         });
 
-        function displayDemoResults(topK) {
-            const results = [];
-            for (let i = 1; i <= topK; i++) {
-                results.push({
-                    rank: i,
-                    similarity: (100 - i * 5 - Math.random() * 5).toFixed(1),
-                    image: previewImage.src
-                });
-            }
+        function displayResults(data) {
+            const results = data.top_k_results;
 
-            resultsStats.innerHTML = `검색된 이미지: <strong>${results.length}개</strong>`;
+            resultsStats.innerHTML = `
+                검색된 이미지: <strong>${results.length}개</strong> | 
+                전체 DB: <strong>${data.total_gallery_size}개</strong>
+            `;
 
             let html = '<div class="results-grid">';
             results.forEach((result, index) => {
                 const isMain = index === 0;
                 const cardClass = isMain ? 'result-card main-result' : 'result-card';
+                const similarity = (result.similarity_score * 100).toFixed(1);
                 
                 html += `
                     <div class="${cardClass}">
                         <span class="rank-badge">${isMain ? '🏆 TOP 1' : `#${result.rank}`}</span>
-                        <img src="${result.image}" alt="Result ${result.rank}">
+                        <img src="/api/image/${encodeURIComponent(result.image_path)}" 
+                             alt="Result ${result.rank}"
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22200%22><rect fill=%22%23ddd%22 width=%22300%22 height=%22200%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 fill=%22%23999%22>이미지 로드 실패</text></svg>'">
                         <div class="result-info">
+                            <div class="image-name" title="${result.image_name}">
+                                📁 ${result.image_name}
+                            </div>
                             <div class="similarity-score">
                                 <div class="similarity-bar">
-                                    <div class="similarity-fill" style="width: ${result.similarity}%"></div>
+                                    <div class="similarity-fill" style="width: ${similarity}%"></div>
                                 </div>
-                                <span class="similarity-value">${result.similarity}%</span>
+                                <span class="similarity-value">${similarity}%</span>
                             </div>
                             <div class="action-buttons">
                                 <button class="action-btn match" onclick="handleMatch(${result.rank}, true)">
@@ -556,6 +623,25 @@
             statusMessage.textContent = message;
             statusMessage.style.display = 'block';
         }
+
+        // 페이지 로드 시 API 서버 상태 확인
+        async function checkAPIStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                
+                if (data.status === 'healthy') {
+                    if (!data.index_built) {
+                        showStatus('⚠️ 인덱스가 구축되지 않았습니다. 서버 관리자에게 문의하세요.', 'info');
+                    }
+                }
+            } catch (error) {
+                showStatus('⚠️ API 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.', 'error');
+            }
+        }
+
+        // 페이지 로드 시 실행
+        window.addEventListener('load', checkAPIStatus);
     </script>
 </body>
 </html>

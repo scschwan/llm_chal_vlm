@@ -4,23 +4,22 @@ FastAPI 기반으로 외부 웹서버에서 호출 가능한 REST API 제공
 """
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import os
+import sys
 import shutil
 from pathlib import Path
 import uvicorn
-
-import sys
-from pathlib import Path
 
 # 프로젝트 루트를 Python 경로에 추가
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-# similarity_matcher 모듈 import
+# modules 폴더의 모듈 import
 from modules.similarity_matcher import TopKSimilarityMatcher, create_matcher
 
 
@@ -264,6 +263,36 @@ async def search_by_upload(
         raise HTTPException(status_code=500, detail=f"검색 실패: {str(e)}")
 
 
+@app.get("/api/image/{image_path:path}")
+async def serve_image(image_path: str):
+    """
+    이미지 파일 제공 엔드포인트
+    검색 결과 이미지를 브라우저에서 볼 수 있도록 제공
+    """
+    try:
+        # URL 디코딩된 경로
+        file_path = Path(image_path)
+        
+        # 파일 존재 확인
+        if not file_path.exists() or not file_path.is_file():
+            raise HTTPException(status_code=404, detail="이미지를 찾을 수 없습니다")
+        
+        # 이미지 파일인지 확인
+        allowed_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
+        if file_path.suffix.lower() not in allowed_extensions:
+            raise HTTPException(status_code=400, detail="이미지 파일이 아닙니다")
+        
+        return FileResponse(
+            file_path,
+            media_type=f"image/{file_path.suffix[1:]}"
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"이미지 로드 실패: {str(e)}")
+
+
 @app.get("/index/info")
 async def get_index_info():
     """
@@ -305,6 +334,14 @@ async def clean_uploads():
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"정리 실패: {str(e)}")
+
+
+# ====================
+# 정적 파일 서빙
+# ====================
+
+# HTML 파일들을 서빙하기 위한 정적 파일 마운트
+app.mount("/", StaticFiles(directory=".", html=True), name="static")
 
 
 # ====================
