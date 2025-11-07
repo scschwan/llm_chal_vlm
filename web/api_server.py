@@ -109,7 +109,8 @@ async def startup_event():
     matcher = create_matcher(
         model_id="ViT-B-32/openai",
         device="auto",
-        use_fp16=True,
+        #use_fp16=True,
+        use_fp16=False,
         verbose=True
     )
     
