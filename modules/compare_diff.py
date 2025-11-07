@@ -2,8 +2,9 @@ import cv2
 import numpy as np
 
 # === 파일 경로 설정 ===
-test_img_path = "./data/def_front/cast_def_0_0.jpeg"   # 테스트(이상) 이미지
-ref_img_path  = "./data/ok_front/cast_ok_0_423.jpeg"   # 기준(정상) 이미지
+test_img_path = "./data/def_front/cast_def_0_100.jpeg"   # 테스트(이상) 이미지
+#ref_img_path  = "./data/ok_front/cast_ok_0_423.jpeg"   # 기준(정상) 이미지
+ref_img_path  = "./data/ok_front/cast_ok_0_35.jpeg"   # 기준(정상) 이미지
 heatmap_path  = "./out_heatmap_gray.png"                # PatchCore의 회색 히트맵
 
 # === 이미지 로드 ===
