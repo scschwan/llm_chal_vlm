@@ -383,6 +383,17 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        .index-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transition: all 0.3s;
+        }
+
+        .index-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -415,6 +426,35 @@
                 </div>
 
                 <img id="previewImage" class="preview-image" alt="Preview">
+
+                <div class="index-management" style="margin-top: 20px; padding: 15px; background: white; border-radius: 10px;">
+                    <h4 style="margin-bottom: 10px; color: #343a40;">🔧 인덱스 관리</h4>
+    
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button class="index-btn" id="checkIndexBtn" style="flex: 1; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                            📊 상태 확인
+                        </button>
+                        <button class="index-btn" id="rebuildIndexBtn" style="flex: 1; padding: 10px; background: #ffc107; color: #333; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                            🔄 재구축
+                        </button>
+                    </div>
+                    
+                    <div id="indexStatus" style="font-size: 0.9em; color: #6c757d; padding: 8px; background: #f8f9fa; border-radius: 4px; display: none;">
+                    </div>
+                    
+                    <details style="margin-top: 10px;">
+                        <summary style="cursor: pointer; color: #667eea; font-weight: 600;">고급 설정</summary>
+                        <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                            <label style="display: block; margin-bottom: 5px; font-size: 0.9em;">
+                                갤러리 경로:
+                                <input type="text" id="galleryPath" value="../data/ok_front" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;">
+                            </label>
+                            <button id="customBuildBtn" style="width: 100%; padding: 8px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 8px;">
+                                ✓ 사용자 경로로 구축
+                            </button>
+                        </div>
+                    </details>
+                </div>
 
                 <div class="controls">
                     <div class="control-group">
@@ -467,6 +507,132 @@
         const statusMessage = document.getElementById('statusMessage');
 
         let selectedFile = null;
+
+
+        // 인덱스 상태 확인
+        checkIndexBtn.addEventListener('click', async () => {
+            checkIndexBtn.disabled = true;
+            checkIndexBtn.textContent = '확인 중...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/index/info`);
+                const data = await response.json();
+                
+                if (data.status === 'index_built') {
+                    indexStatus.innerHTML = `
+                        ✅ <strong>인덱스 구축됨</strong><br>
+                        📁 이미지 수: ${data.gallery_size}개<br>
+                        🤖 모델: ${data.model_id}<br>
+                        💻 디바이스: ${data.device}<br>
+                        ⚡ FAISS: ${data.faiss_enabled ? '활성화' : '비활성화'}
+                    `;
+                    indexStatus.style.display = 'block';
+                    indexStatus.style.background = '#d4edda';
+                    indexStatus.style.color = '#155724';
+                } else {
+                    indexStatus.innerHTML = '❌ 인덱스가 구축되지 않았습니다';
+                    indexStatus.style.display = 'block';
+                    indexStatus.style.background = '#f8d7da';
+                    indexStatus.style.color = '#721c24';
+                }
+            } catch (error) {
+                indexStatus.innerHTML = `❌ 상태 확인 실패: ${error.message}`;
+                indexStatus.style.display = 'block';
+                indexStatus.style.background = '#f8d7da';
+                indexStatus.style.color = '#721c24';
+            } finally {
+                checkIndexBtn.disabled = false;
+                checkIndexBtn.textContent = '📊 상태 확인';
+            }
+        });
+
+        // 기본 경로로 재구축
+        rebuildIndexBtn.addEventListener('click', async () => {
+            if (!confirm('인덱스를 재구축하시겠습니까? (시간이 걸릴 수 있습니다)')) {
+                return;
+            }
+            
+            await buildIndex('../data/ok_front');
+        });
+
+        // 사용자 지정 경로로 구축
+        customBuildBtn.addEventListener('click', async () => {
+            const path = galleryPath.value.trim();
+            if (!path) {
+                alert('갤러리 경로를 입력하세요');
+                return;
+            }
+            
+            if (!confirm(`"${path}" 경로로 인덱스를 구축하시겠습니까?`)) {
+                return;
+            }
+            
+            await buildIndex(path);
+        });
+
+        // 인덱스 구축 함수
+        async function buildIndex(galleryDir) {
+            rebuildIndexBtn.disabled = true;
+            customBuildBtn.disabled = true;
+            rebuildIndexBtn.textContent = '구축 중...';
+            
+            indexStatus.innerHTML = '🔄 인덱스 구축 중... (수분 소요될 수 있습니다)';
+            indexStatus.style.display = 'block';
+            indexStatus.style.background = '#d1ecf1';
+            indexStatus.style.color = '#0c5460';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/build_index`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        gallery_dir: galleryDir,
+                        save_index: true,
+                        index_save_dir: './index_cache'
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '인덱스 구축 실패');
+                }
+                
+                const data = await response.json();
+                
+                indexStatus.innerHTML = `
+                    ✅ <strong>인덱스 구축 완료!</strong><br>
+                    📁 이미지 수: ${data.num_images}개<br>
+                    💾 저장됨: ${data.index_saved ? 'Yes' : 'No'}
+                `;
+                indexStatus.style.background = '#d4edda';
+                indexStatus.style.color = '#155724';
+                
+                showStatus(`인덱스 구축 완료! ${data.num_images}개 이미지 인덱싱됨`, 'success');
+                
+                // 상태 자동 갱신
+                setTimeout(() => checkIndexBtn.click(), 1000);
+                
+            } catch (error) {
+                indexStatus.innerHTML = `❌ 구축 실패: ${error.message}`;
+                indexStatus.style.background = '#f8d7da';
+                indexStatus.style.color = '#721c24';
+                
+                showStatus(`인덱스 구축 실패: ${error.message}`, 'error');
+            } finally {
+                rebuildIndexBtn.disabled = false;
+                customBuildBtn.disabled = false;
+                rebuildIndexBtn.textContent = '🔄 재구축';
+            }
+        }
+
+        // 페이지 로드 시 자동으로 인덱스 상태 확인
+        window.addEventListener('load', () => {
+            checkAPIStatus();
+            // 2초 후 인덱스 상태 자동 확인
+            setTimeout(() => checkIndexBtn.click(), 2000);
+        });
 
         // 파일 업로드
         uploadArea.addEventListener('click', () => fileInput.click());

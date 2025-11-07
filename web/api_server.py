@@ -94,6 +94,8 @@ INDEX_DIR.mkdir(exist_ok=True)
 # 라이프사이클 이벤트
 # ====================
 
+# 기존 startup_event 함수 수정
+
 @app.on_event("startup")
 async def startup_event():
     """서버 시작 시 매처 초기화"""
@@ -119,7 +121,23 @@ async def startup_event():
         except Exception as e:
             print(f"⚠️  기존 인덱스 로드 실패: {e}")
     else:
-        print("ℹ️  저장된 인덱스 없음 - /build_index 엔드포인트로 인덱스 구축 필요")
+        print("ℹ️  저장된 인덱스 없음")
+    
+    # 인덱스가 없으면 자동 구축 시도
+    if not matcher.index_built:
+        default_gallery = Path("../data/ok_front")  # 기본 갤러리 경로
+        
+        if default_gallery.exists():
+            print(f"🔄 자동 인덱스 구축 시작: {default_gallery}")
+            try:
+                info = matcher.build_index(str(default_gallery))
+                matcher.save_index(str(INDEX_DIR))
+                print(f"✅ 자동 인덱스 구축 완료: {info['num_images']}개 이미지")
+            except Exception as e:
+                print(f"❌ 자동 인덱스 구축 실패: {e}")
+        else:
+            print(f"⚠️  기본 갤러리 디렉토리 없음: {default_gallery}")
+            print("   /build_index 엔드포인트로 수동 구축이 필요합니다")
     
     print("=" * 50)
 
