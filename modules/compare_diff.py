@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
 
 # === 파일 경로 설정 ===
 test_img_path = "./data/def_front/cast_def_0_0.jpeg"   # 테스트(이상) 이미지
