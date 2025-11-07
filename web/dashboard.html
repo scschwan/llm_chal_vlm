@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>통계 대시보드</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .nav {
+            background: #f8f9fa;
+            padding: 15px 30px;
+            border-bottom: 2px solid #dee2e6;
+            display: flex;
+            gap: 10px;
+        }
+        .nav-btn {
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .nav-btn:hover { background: #667eea; color: white; }
+        .nav-btn.active { background: #667eea; color: white; }
+        .main-content { padding: 30px; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+        .stat-icon { font-size: 3em; margin-bottom: 10px; }
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #343a40;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            color: #6c757d;
+            font-size: 1em;
+            font-weight: 600;
+        }
+        .stat-change {
+            margin-top: 10px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+        .stat-change.positive { color: #28a745; }
+        .stat-change.negative { color: #dc3545; }
+        .chart-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .chart-title {
+            font-size: 1.5em;
+            color: #343a40;
+            font-weight: 600;
+        }
+        .chart-filters { display: flex; gap: 10px; }
+        .filter-btn {
+            padding: 8px 16px;
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        .filter-btn:hover { background: #e9ecef; }
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            position: relative;
+        }
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            height: 100%;
+            gap: 15px;
+            padding: 20px 0;
+        }
+        .bar {
+            flex: 1;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px 8px 0 0;
+            position: relative;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .bar:hover { opacity: 0.8; }
+        .bar-value {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: 700;
+            color: #343a40;
+        }
+        .bar-label {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #6c757d;
+            font-weight: 600;
+        }
+        .pie-chart {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            gap: 40px;
+        }
+        .pie-visual {
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            background: conic-gradient(#28a745 0% 65%, #dc3545 65% 100%);
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .pie-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 150px;
+            height: 150px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .pie-center-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #343a40;
+        }
+        .pie-center-label {
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        .pie-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .legend-color {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+        }
+        .legend-info { flex-grow: 1; }
+        .legend-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 3px;
+        }
+        .legend-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #343a40;
+        }
+        .legend-percent {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        .recent-activity {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        .activity-item:hover { background: #e9ecef; }
+        .activity-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+        }
+        .activity-icon.success { background: #d4edda; }
+        .activity-icon.fail { background: #f8d7da; }
+        .activity-info { flex-grow: 1; }
+        .activity-title {
+            font-weight: 600;
+            color: #343a40;
+            margin-bottom: 3px;
+        }
+        .activity-desc {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        .activity-time {
+            color: #adb5bd;
+            font-size: 0.85em;
+        }
+        .export-section {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .export-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        @media (max-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .pie-chart { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 통계 대시보드</h1>
+            <p>유사이미지 검색 및 매칭 성능 분석</p>
+        </div>
+        <div class="nav">
+            <a href="matching.html" class="nav-btn">유사이미지 매칭</a>
+            <a href="manual_mapping.html" class="nav-btn">매뉴얼 매핑</a>
+            <a href="dashboard.html" class="nav-btn active">통계 대시보드</a>
+        </div>
+        <div class="main-content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🔍</div>
+                    <div class="stat-value" id="totalSearches">0</div>
+                    <div class="stat-label">총 검색 수</div>
+                    <div class="stat-change positive">↑ 12% (지난 주 대비)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-value" id="successMatches">0</div>
+                    <div class="stat-label">매칭 성공</div>
+                    <div class="stat-change positive">↑ 8% (지난 주 대비)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">❌</div>
+                    <div class="stat-value" id="failMatches">0</div>
+                    <div class="stat-label">매칭 실패</div>
+                    <div class="stat-change negative">↓ 15% (지난 주 대비)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-value" id="successRate">0%</div>
+                    <div class="stat-label">매칭 성공률</div>
+                    <div class="stat-change positive">↑ 5% (지난 주 대비)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-value" id="totalMappings">0</div>
+                    <div class="stat-label">매뉴얼 매핑 수</div>
+                    <div class="stat-change positive">↑ 23% (지난 주 대비)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⚡</div>
+                    <div class="stat-value">0.8s</div>
+                    <div class="stat-label">평균 검색 시간</div>
+                    <div class="stat-change positive">↓ 10% (향상)</div>
+                </div>
+            </div>
+            <div class="chart-section">
+                <div class="chart-header">
+                    <div class="chart-title">📅 일별 검색 추이</div>
+                    <div class="chart-filters">
+                        <button class="filter-btn active" onclick="changeTimeRange('7d')">7일</button>
+                        <button class="filter-btn" onclick="changeTimeRange('30d')">30일</button>
+                        <button class="filter-btn" onclick="changeTimeRange('90d')">90일</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div class="bar-chart" id="searchTrendChart"></div>
+                </div>
+            </div>
+            <div class="chart-section">
+                <div class="chart-header">
+                    <div class="chart-title">🎯 매칭 성공/실패 비율</div>
+                </div>
+                <div class="chart-container">
+                    <div class="pie-chart">
+                        <div class="pie-visual" id="pieChart">
+                            <div class="pie-center">
+                                <div class="pie-center-value" id="totalMatchesCenter">0</div>
+                                <div class="pie-center-label">총 매칭</div>
+                            </div>
+                        </div>
+                        <div class="pie-legend">
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #28a745;"></div>
+                                <div class="legend-info">
+                                    <div class="legend-label">매칭 성공</div>
+                                    <div>
+                                        <span class="legend-value" id="successValue">0</span>
+                                        <span class="legend-percent" id="successPercent">(0%)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #dc3545;"></div>
+                                <div class="legend-info">
+                                    <div class="legend-label">매칭 실패</div>
+                                    <div>
+                                        <span class="legend-value" id="failValue">0</span>
+                                        <span class="legend-percent" id="failPercent">(0%)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-section">
+                <div class="chart-header">
+                    <div class="chart-title">🔧 불량 유형별 통계</div>
+                </div>
+                <div class="chart-container">
+                    <div class="bar-chart" id="defectTypeChart"></div>
+                </div>
+            </div>
+            <div class="recent-activity">
+                <div class="chart-title" style="margin-bottom: 20px;">🕐 최근 활동</div>
+                <div class="activity-list" id="activityList"></div>
+            </div>
+            <div class="export-section">
+                <button class="export-btn" onclick="exportData()">📥 통계 데이터 내보내기 (CSV)</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        function loadStatistics() {
+            const matchStats = JSON.parse(localStorage.getItem('matchStats') || '{"success": 0, "fail": 0}');
+            const mappings = JSON.parse(localStorage.getItem('mappings') || '[]');
+            const totalSearches = matchStats.success + matchStats.fail;
+            const successRate = totalSearches > 0 ? ((matchStats.success / totalSearches) * 100).toFixed(1) : 0;
+            document.getElementById('totalSearches').textContent = totalSearches;
+            document.getElementById('successMatches').textContent = matchStats.success;
+            document.getElementById('failMatches').textContent = matchStats.fail;
+            document.getElementById('successRate').textContent = successRate + '%';
+            document.getElementById('totalMappings').textContent = mappings.length;
+            updatePieChart(matchStats.success, matchStats.fail);
+            updateSearchTrendChart();
+            updateDefectTypeChart(mappings);
+            updateRecentActivity();
+        }
+        function updatePieChart(success, fail) {
+            const total = success + fail;
+            if (total === 0) { success = 1; fail = 0; }
+            const successPercent = ((success / (success + fail)) * 100).toFixed(1);
+            const failPercent = ((fail / (success + fail)) * 100).toFixed(1);
+            const pieChart = document.getElementById('pieChart');
+            pieChart.style.background = `conic-gradient(#28a745 0% ${successPercent}%, #dc3545 ${successPercent}% 100%)`;
+            document.getElementById('totalMatchesCenter').textContent = success + fail;
+            document.getElementById('successValue').textContent = success;
+            document.getElementById('successPercent').textContent = `(${successPercent}%)`;
+            document.getElementById('failValue').textContent = fail;
+            document.getElementById('failPercent').textContent = `(${failPercent}%)`;
+        }
+        function updateSearchTrendChart() {
+            const container = document.getElementById('searchTrendChart');
+            const days = ['월', '화', '수', '목', '금', '토', '일'];
+            const values = [45, 52, 38, 65, 48, 72, 58];
+            const maxValue = Math.max(...values);
+            container.innerHTML = days.map((day, i) => {
+                const height = (values[i] / maxValue) * 100;
+                return `<div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+                    <div class="bar" style="height: ${height}%;"><div class="bar-value">${values[i]}</div></div>
+                    <div class="bar-label">${day}</div></div>`;
+            }).join('');
+        }
+        function updateDefectTypeChart(mappings) {
+            const container = document.getElementById('defectTypeChart');
+            const defectCounts = {};
+            mappings.forEach(m => { defectCounts[m.defectType] = (defectCounts[m.defectType] || 0) + 1; });
+            if (Object.keys(defectCounts).length === 0) {
+                defectCounts['표면_불량'] = 25;
+                defectCounts['형상_불량'] = 18;
+                defectCounts['치수_불량'] = 12;
+                defectCounts['변색'] = 8;
+                defectCounts['기타'] = 5;
+            }
+            const maxValue = Math.max(...Object.values(defectCounts));
+            container.innerHTML = Object.entries(defectCounts).map(([type, count]) => {
+                const height = (count / maxValue) * 100;
+                const displayName = type.replace('_', ' ');
+                return `<div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+                    <div class="bar" style="height: ${height}%;"><div class="bar-value">${count}</div></div>
+                    <div class="bar-label">${displayName}</div></div>`;
+            }).join('');
+        }
+        function updateRecentActivity() {
+            const container = document.getElementById('activityList');
+            const activities = [
+                { type: 'success', icon: '✅', title: '매칭 성공', desc: '표면 불량 이미지 (#IMG_001)', time: '5분 전' },
+                { type: 'fail', icon: '❌', title: '매칭 실패', desc: '형상 불량 이미지 (#IMG_023)', time: '12분 전' },
+                { type: 'success', icon: '📋', title: '매뉴얼 매핑', desc: '치수 불량 대응 매뉴얼 등록', time: '1시간 전' },
+                { type: 'success', icon: '✅', title: '매칭 성공', desc: '변색 불량 이미지 (#IMG_045)', time: '2시간 전' },
+                { type: 'success', icon: '🔍', title: '검색 완료', desc: 'TOP-5 유사 이미지 검색', time: '3시간 전' }
+            ];
+            container.innerHTML = activities.map(a => `
+                <div class="activity-item">
+                    <div class="activity-icon ${a.type}">${a.icon}</div>
+                    <div class="activity-info">
+                        <div class="activity-title">${a.title}</div>
+                        <div class="activity-desc">${a.desc}</div>
+                    </div>
+                    <div class="activity-time">${a.time}</div>
+                </div>`).join('');
+        }
+        function changeTimeRange(range) {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            updateSearchTrendChart();
+        }
+        function exportData() {
+            const matchStats = JSON.parse(localStorage.getItem('matchStats') || '{"success": 0, "fail": 0}');
+            const mappings = JSON.parse(localStorage.getItem('mappings') || '[]');
+            let csv = '날짜,총 검색,매칭 성공,매칭 실패,성공률\n';
+            csv += `${new Date().toISOString().split('T')[0]},${matchStats.success + matchStats.fail},${matchStats.success},${matchStats.fail},${((matchStats.success / (matchStats.success + matchStats.fail)) * 100).toFixed(1)}%\n`;
+            csv += '\n불량 유형,매핑 수\n';
+            const defectCounts = {};
+            mappings.forEach(m => { defectCounts[m.defectType] = (defectCounts[m.defectType] || 0) + 1; });
+            Object.entries(defectCounts).forEach(([type, count]) => { csv += `${type},${count}\n`; });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `통계_데이터_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+        loadStatistics();
+        setInterval(loadStatistics, 5000);
+    </script>
+</body>
+</html>

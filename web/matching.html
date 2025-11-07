@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>유사이미지 매칭 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .nav {
+            background: #f8f9fa;
+            padding: 15px 30px;
+            border-bottom: 2px solid #dee2e6;
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .nav-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f8f9ff;
+        }
+
+        .upload-area.dragover {
+            background: #e7e9ff;
+            border-color: #5a67d8;
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .preview-image {
+            width: 100%;
+            border-radius: 10px;
+            margin-top: 10px;
+            display: none;
+            max-height: 300px;
+            object-fit: cover;
+        }
+
+        .controls {
+            margin-top: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+        .value-display {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .search-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 20px;
+        }
+
+        .search-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .results-section {
+            min-height: 500px;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .results-header h2 {
+            color: #343a40;
+            font-size: 1.8em;
+        }
+
+        .results-stats {
+            color: #6c757d;
+            font-size: 0.95em;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+
+        .result-card.main-result {
+            grid-column: span 2;
+            grid-row: span 2;
+        }
+
+        .result-card img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+        }
+
+        .result-card.main-result img {
+            height: 520px;
+        }
+
+        .result-info {
+            padding: 15px;
+        }
+
+        .rank-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(102, 126, 234, 0.95);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9em;
+        }
+
+        .main-result .rank-badge {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #333;
+            font-size: 1.1em;
+            padding: 8px 18px;
+        }
+
+        .similarity-score {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 8px;
+        }
+
+        .similarity-bar {
+            flex-grow: 1;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-right: 10px;
+        }
+
+        .similarity-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.5s ease;
+        }
+
+        .similarity-value {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .action-btn.match {
+            background: #28a745;
+            color: white;
+        }
+
+        .action-btn.match:hover {
+            background: #218838;
+        }
+
+        .action-btn.nomatch {
+            background: #dc3545;
+            color: white;
+        }
+
+        .action-btn.nomatch:hover {
+            background: #c82333;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state-icon {
+            font-size: 5em;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .status-message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 유사이미지 매칭 시스템</h1>
+            <p>AI 기반 이미지 유사도 검색 및 매칭</p>
+        </div>
+
+        <div class="nav">
+            <a href="matching.html" class="nav-btn active">유사이미지 매칭</a>
+            <a href="manual_mapping.html" class="nav-btn">매뉴얼 매핑</a>
+            <a href="dashboard.html" class="nav-btn">통계 대시보드</a>
+        </div>
+
+        <div class="main-content">
+            <!-- 좌측: 업로드 및 컨트롤 -->
+            <div class="upload-section">
+                <h3 style="margin-bottom: 15px; color: #343a40;">이미지 업로드</h3>
+                
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📸</div>
+                    <p style="font-size: 1.1em; color: #495057; margin-bottom: 10px;">
+                        <strong>클릭</strong>하거나 <strong>드래그</strong>하여 이미지 업로드
+                    </p>
+                    <p style="font-size: 0.9em; color: #6c757d;">
+                        JPG, PNG, WEBP 지원
+                    </p>
+                    <input type="file" id="fileInput" accept="image/*">
+                </div>
+
+                <img id="previewImage" class="preview-image" alt="Preview">
+
+                <div class="controls">
+                    <div class="control-group">
+                        <label>
+                            검색할 유사 이미지 개수: 
+                            <span class="value-display" id="topKValue">5</span>
+                        </label>
+                        <input type="range" id="topKSlider" min="1" max="20" value="5">
+                    </div>
+                </div>
+
+                <button class="search-button" id="searchButton">
+                    🔍 유사 이미지 검색
+                </button>
+
+                <div id="statusMessage"></div>
+            </div>
+
+            <!-- 우측: 검색 결과 -->
+            <div class="results-section">
+                <div class="results-header">
+                    <h2>검색 결과</h2>
+                    <div class="results-stats" id="resultsStats"></div>
+                </div>
+
+                <div id="resultsContainer">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🖼️</div>
+                        <h3>검색 결과가 여기에 표시됩니다</h3>
+                        <p style="margin-top: 10px;">이미지를 업로드하고 검색 버튼을 클릭하세요</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const previewImage = document.getElementById('previewImage');
+        const searchButton = document.getElementById('searchButton');
+        const topKSlider = document.getElementById('topKSlider');
+        const topKValue = document.getElementById('topKValue');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const resultsStats = document.getElementById('resultsStats');
+        const statusMessage = document.getElementById('statusMessage');
+
+        let selectedFile = null;
+
+        // 파일 업로드
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', (e) => {
+            handleFileSelect(e.target.files[0]);
+        });
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFileSelect(e.dataTransfer.files[0]);
+        });
+
+        function handleFileSelect(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                showStatus('이미지 파일만 업로드 가능합니다.', 'info');
+                return;
+            }
+
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewImage.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+
+            showStatus('이미지가 업로드되었습니다. 검색 버튼을 클릭하세요.', 'success');
+        }
+
+        topKSlider.addEventListener('input', (e) => {
+            topKValue.textContent = e.target.value;
+        });
+
+        // 검색 실행 (데모)
+        searchButton.addEventListener('click', () => {
+            if (!selectedFile) {
+                showStatus('먼저 이미지를 업로드하세요.', 'info');
+                return;
+            }
+
+            const topK = parseInt(topKSlider.value);
+            showStatus('유사 이미지를 검색하는 중...', 'info');
+            
+            // 데모 결과 생성
+            setTimeout(() => {
+                displayDemoResults(topK);
+                showStatus(`검색 완료! ${topK}개의 유사 이미지를 찾았습니다.`, 'success');
+            }, 1000);
+        });
+
+        function displayDemoResults(topK) {
+            const results = [];
+            for (let i = 1; i <= topK; i++) {
+                results.push({
+                    rank: i,
+                    similarity: (100 - i * 5 - Math.random() * 5).toFixed(1),
+                    image: previewImage.src
+                });
+            }
+
+            resultsStats.innerHTML = `검색된 이미지: <strong>${results.length}개</strong>`;
+
+            let html = '<div class="results-grid">';
+            results.forEach((result, index) => {
+                const isMain = index === 0;
+                const cardClass = isMain ? 'result-card main-result' : 'result-card';
+                
+                html += `
+                    <div class="${cardClass}">
+                        <span class="rank-badge">${isMain ? '🏆 TOP 1' : `#${result.rank}`}</span>
+                        <img src="${result.image}" alt="Result ${result.rank}">
+                        <div class="result-info">
+                            <div class="similarity-score">
+                                <div class="similarity-bar">
+                                    <div class="similarity-fill" style="width: ${result.similarity}%"></div>
+                                </div>
+                                <span class="similarity-value">${result.similarity}%</span>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="action-btn match" onclick="handleMatch(${result.rank}, true)">
+                                    ✓ 매칭 성공
+                                </button>
+                                <button class="action-btn nomatch" onclick="handleMatch(${result.rank}, false)">
+                                    ✗ 매칭 실패
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            resultsContainer.innerHTML = html;
+        }
+
+        function handleMatch(rank, isMatch) {
+            const action = isMatch ? '매칭 성공' : '매칭 실패';
+            const color = isMatch ? 'success' : 'info';
+            showStatus(`#${rank} 이미지가 ${action}으로 기록되었습니다.`, color);
+            
+            // 로컬 스토리지에 저장
+            const stats = JSON.parse(localStorage.getItem('matchStats') || '{"success": 0, "fail": 0}');
+            if (isMatch) {
+                stats.success++;
+            } else {
+                stats.fail++;
+            }
+            localStorage.setItem('matchStats', JSON.stringify(stats));
+        }
+
+        function showStatus(message, type) {
+            statusMessage.className = `status-message ${type}`;
+            statusMessage.textContent = message;
+            statusMessage.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
