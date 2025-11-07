@@ -13,8 +13,15 @@ import shutil
 from pathlib import Path
 import uvicorn
 
+import sys
+from pathlib import Path
+
+# 프로젝트 루트를 Python 경로에 추가
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 # similarity_matcher 모듈 import
-from similarity_matcher import TopKSimilarityMatcher, create_matcher
+from modules.similarity_matcher import TopKSimilarityMatcher, create_matcher
 
 
 # ====================
