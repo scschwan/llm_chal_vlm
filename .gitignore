@@ -5,3 +5,4 @@ venv/
 runs/
 utils/
 results/*.png
+.venv-patchcore/
