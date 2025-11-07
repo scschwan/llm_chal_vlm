@@ -79,7 +79,29 @@ def l2_normalize(feat, eps=1e-6):
 # 3) 메모리(coreset) 구성
 # -----------------------------
 @torch.no_grad()
-def extract_patches(model, img_tensor, device):
+def extract_patches(model, img_tensor, device, stride=1, use_half=False):
+    # img_tensor: [1,3,H,W]
+    with torch.no_grad():
+        feats = model(img_tensor.to(device))
+        # 모든 계층을 공통 해상도로 upsample & concat
+        up = []
+        for f in feats:
+            u = F.interpolate(f, size=img_tensor.shape[-2:], mode="bilinear", align_corners=False)
+            u = l2_normalize(u)
+            up.append(u)
+        emb = torch.cat(up, dim=1)  # [1, Csum, H, W]
+
+        if stride > 1:
+            # 평균 풀링으로 패치 개수 감소
+            emb = F.avg_pool2d(emb, kernel_size=stride, stride=stride)  # [1,C,h',w']
+
+        if use_half:
+            emb = emb.half()
+
+        # [H*W, C]
+        emb = emb.squeeze(0).permute(1,2,0).reshape(-1, emb.size(1))
+        return emb  # torch tensor (device 그대로)
+
     # img_tensor: [1,3,H,W]
     feats = model(img_tensor.to(device))
     # 모든 계층을 공통 공간으로 upsample & concat
@@ -107,19 +129,73 @@ def kcenter_greedy(X, keep_ratio=0.05, seed=0):
         sel = np.append(sel, np.argmax(dist))
     return np.unique(sel)
 
-def build_memory_bank(model, img_paths, device, shorter=768, coreset_ratio=0.05):
+import random
+
+def reservoir_add(reservoir, x_np, k_max, rng):
+    """
+    표준 reservoir sampling (유니폼).
+    reservoir: list of np.ndarray chunks
+    x_np: [n, d] np.ndarray
+    k_max: 목표 총 패치 수 상한 (예: 100_000)
+    """
+    if x_np.size == 0:
+        return
+    # 초기에 빈 공간은 그냥 채움
+    total = sum(arr.shape[0] for arr in reservoir)
+    remain = max(0, k_max - total)
+    if remain > 0:
+        take = min(remain, x_np.shape[0])
+        reservoir.append(x_np[:take])
+        x_np = x_np[take:]
+        total += take
+    # 꽉 찼으면 확률적으로 교체
+    i = 0
+    while i < x_np.shape[0]:
+        total += 1
+        if rng.random() < (k_max / total):
+            # 교체: 임의 위치의 행을 바꿈
+            idx_chunk = rng.randrange(len(reservoir))
+            if reservoir[idx_chunk].shape[0] == 0:
+                idx_chunk = 0
+            r = rng.randrange(reservoir[idx_chunk].shape[0])
+            reservoir[idx_chunk][r] = x_np[i]
+        i += 1
+
+@torch.no_grad()
+def build_memory_bank(model, img_paths, device, shorter=512, coreset_ratio=0.02,
+                      stride=2, use_half=False, reservoir_max=100_000, seed=0):
+    """
+    - 전 이미지 특징을 cat하지 않고 reservoir에 최대 reservoir_max 패치만 유지
+    - 마지막에만 coreset(k-center greedy)을 reservoir 위에서 수행
+    """
     tfm = make_transform(shorter)
-    all_feats = []
-    for p in tqdm(img_paths, desc="Extract OK features"):
+    rng = random.Random(seed)
+    reservoir = []  # list of np arrays; 총합 <= reservoir_max
+
+    for p in tqdm(img_paths, desc="Extract OK features (streaming)"):
         img = load_image_bgr(p)
         x = to_tensor_rgb(img, tfm).unsqueeze(0)
-        emb = extract_patches(model, x, device)  # [Npatch, C]
-        all_feats.append(emb)
-    M = torch.cat(all_feats, dim=0).numpy()
-    idx = kcenter_greedy(M, keep_ratio=coreset_ratio, seed=0)
-    #memory = torch.from_numpy(M[idx]).float()  # [Msel, C]
-    memory = torch.from_numpy(M[idx]).float().to(device)
+        # GPU에서 추출 후 CPU로 내리되(또는 곧장 np로) 절약
+        emb = extract_patches(model, x, device, stride=stride, use_half=use_half)  # [N, C]
+        emb_cpu = emb.detach().to('cpu').float().numpy()  # coreset 전에 float32 기준화
+        # 이미지별로 너무 많으면 추가 추려서 reservoir에 넣기(이미지당 상한)
+        per_img_cap = max(2000 // max(1, stride-1), 2000)  # 필요 시 조정
+        if emb_cpu.shape[0] > per_img_cap:
+            idx = rng.sample(range(emb_cpu.shape[0]), per_img_cap)
+            emb_cpu = emb_cpu[idx]
+        reservoir_add(reservoir, emb_cpu, reservoir_max, rng)
+
+    if len(reservoir) == 0:
+        raise RuntimeError("Reservoir is empty; check OK images or transforms.")
+
+    R = np.concatenate(reservoir, axis=0)  # <= reservoir_max x C
+    # coreset 대상 수 결정
+    k = max(1, int(R.shape[0] * coreset_ratio))
+    # k-center greedy on R
+    sel_idx = kcenter_greedy(R, keep_ratio=k / R.shape[0], seed=seed)
+    memory = torch.from_numpy(R[sel_idx]).to(device).float()
     return memory
+
 
 # -----------------------------
 # 4) 추론: 최근접 거리 히트맵 + 이미지 점수
@@ -179,7 +255,11 @@ def main(args):
                                shorter=args.shorter, coreset_ratio=args.coreset)
 
     test_bgr = load_image_bgr(args.test)
-    heat, score = infer_anomaly(model, memory, test_bgr, device, shorter=args.shorter)
+    heat, score = infer_anomaly(model, memory, test_bgr, device,
+                            shorter=args.shorter,  # 512 또는 384
+                            # infer 함수 내부에서도 extract와 동일한 처리 적용
+                           )
+
 
     over = overlay_heatmap(test_bgr, heat)
     cv.imwrite(args.out, over)
