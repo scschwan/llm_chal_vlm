@@ -341,7 +341,32 @@ async def clean_uploads():
 # ====================
 
 # HTML 파일들을 서빙하기 위한 정적 파일 마운트
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
+
+# 현재 스크립트의 디렉토리 경로
+CURRENT_DIR = Path(__file__).parent
+
+# HTML 파일들을 서빙하기 위한 정적 파일 마운트
+try:
+    app.mount("/web", StaticFiles(directory=str(CURRENT_DIR), html=True), name="web")
+except Exception as e:
+    print(f"⚠️  정적 파일 마운트 실패: {e}")
+
+
+# 루트 경로에서 matching.html로 리다이렉트
+from fastapi.responses import RedirectResponse
+
+@app.get("/")
+async def root():
+    """루트 접근 시 matching.html로 리다이렉트"""
+    return RedirectResponse(url="/web/matching.html")
+
+@app.get("/matching.html")
+async def matching_page():
+    """matching.html 직접 서빙"""
+    html_path = CURRENT_DIR / "/web/matching.html"
+    if html_path.exists():
+        return FileResponse(html_path)
+    raise HTTPException(status_code=404, detail="matching.html을 찾을 수 없습니다")
 
 
 # ====================
