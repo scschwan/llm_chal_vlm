@@ -161,6 +161,23 @@ def reservoir_add(reservoir, x_np, k_max, rng):
             reservoir[idx_chunk][r] = x_np[i]
         i += 1
 
+def coreset_faiss_kmeans(R, k, use_gpu=True):
+    # R: np.ndarray [N, D], float32
+    import faiss
+    d = R.shape[1]
+    if use_gpu:
+        res = faiss.StandardGpuResources()
+        cfg = faiss.GpuIndexFlatConfig()
+        cfg.useFloat16 = True
+        # KMeans 자체는 CPU 구현이지만, faiss는 GPU KMeans도 제공합니다:
+        # 아래는 GPU KMeans API
+        kmeans = faiss.Kmeans(d, k, niter=20, verbose=True, gpu=True)
+    else:
+        kmeans = faiss.Kmeans(d, k, niter=20, verbose=True, gpu=False)
+    kmeans.train(R)
+    C = kmeans.centroids  # [k, d]
+    return C  # 센트로이드 자체를 memory bank로 사용
+
 @torch.no_grad()
 def build_memory_bank(model, img_paths, device, shorter=512, coreset_ratio=0.02,
                       stride=2, use_half=False, reservoir_max=100_000, seed=0):
@@ -188,12 +205,20 @@ def build_memory_bank(model, img_paths, device, shorter=512, coreset_ratio=0.02,
     if len(reservoir) == 0:
         raise RuntimeError("Reservoir is empty; check OK images or transforms.")
 
-    R = np.concatenate(reservoir, axis=0)  # <= reservoir_max x C
-    # coreset 대상 수 결정
+    R = np.concatenate(reservoir, axis=0).astype(np.float32)
     k = max(1, int(R.shape[0] * coreset_ratio))
+    try:
+        C = coreset_faiss_kmeans(R, k, use_gpu=True)  # GPU 있으면 True
+        memory = torch.from_numpy(C).to(device).float()
+        log_stage(f"faiss kmeans coreset: k={k}")
+    except Exception as e:
+        log_stage(f"faiss kmeans failed ({e}), falling back to greedy...")
+        sel_idx = kcenter_greedy(R, keep_ratio=k / R.shape[0], seed=seed)
+        memory = torch.from_numpy(R[sel_idx]).to(device).float()
+    
     # k-center greedy on R
-    sel_idx = kcenter_greedy(R, keep_ratio=k / R.shape[0], seed=seed)
-    memory = torch.from_numpy(R[sel_idx]).to(device).float()
+    #sel_idx = kcenter_greedy(R, keep_ratio=k / R.shape[0], seed=seed)
+    #memory = torch.from_numpy(R[sel_idx]).to(device).float()
     return memory
 
 
@@ -241,27 +266,47 @@ def overlay_heatmap(img_bgr, heat_gray, alpha=0.6):
     over = cv.addWeighted(img_bgr, 1-alpha, heat_color, alpha, 0)
     return over
 
+
+def log_stage(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
 # -----------------------------
 # 5) 메인
 # -----------------------------
 def main(args):
+    t0 = time.perf_counter()
+    log_stage("load model")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = ResNet50Embed().to(device).eval()
 
+    log_stage(f"scan ok_dir: {args.ok_dir}")
+
     ok_imgs = sorted(sum([glob.glob(os.path.join(args.ok_dir, f"*{ext}"))
                           for ext in [".jpg",".jpeg",".png",".bmp",".tif",".tiff"]], []))
+    log_stage(f"found {len(ok_imgs)} ok images")
     assert len(ok_imgs) > 0, "OK 이미지가 없습니다."
+    log_stage("build memory (streaming + reservoir)")
+    t1 = time.perf_counter()
     memory = build_memory_bank(model, ok_imgs, device,
                                shorter=args.shorter, coreset_ratio=args.coreset)
+    
+    log_stage(f"memory built in {time.perf_counter()-t1:.1f}s, size={tuple(memory.shape)} on {memory.device}")
+
+    
 
     test_bgr = load_image_bgr(args.test)
+
+    log_stage("infer anomaly")
     heat, score = infer_anomaly(model, memory, test_bgr, device,
                             shorter=args.shorter,  # 512 또는 384
                             # infer 함수 내부에서도 extract와 동일한 처리 적용
                            )
 
-
+    log_stage(f"done in {time.perf_counter()-t0:.1f}s total")
+    
     over = overlay_heatmap(test_bgr, heat)
+
+    log_stage(f"overlay_heatmap")
     cv.imwrite(args.out, over)
     # 마스크도 함께 저장(원하면)
     cv.imwrite(os.path.splitext(args.out)[0] + "_gray.png", heat)
@@ -272,6 +317,9 @@ def main(args):
     # 여기서는 임시로 스코어>0.5*255 기준을 프린트만 해둠
     # (실 배포 시 OK만 여러 장 넣고 스코어의 퍼센타일을 계산하세요.)
 
+import time
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--ok_dir", type=str, required=True)
@@ -281,5 +329,6 @@ if __name__ == "__main__":
     #ap.add_argument("--coreset", type=float, default=0.05)
     ap.add_argument("--shorter", type=int, default=512)
     ap.add_argument("--coreset", type=float, default=0.02)
+    ap.add_argument("--stride", type=int, default=2)
     args = ap.parse_args()
     main(args)
