@@ -161,22 +161,79 @@ def reservoir_add(reservoir, x_np, k_max, rng):
             reservoir[idx_chunk][r] = x_np[i]
         i += 1
 
-def coreset_faiss_kmeans(R, k, use_gpu=True):
-    # R: np.ndarray [N, D], float32
+# ==== 상단 import 추가 ====
+import numpy as np
+import time
+
+def log(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+# ==== 기존 coreset_faiss_kmeans 교체 ====
+def coreset_faiss_kmeans_safe(R: np.ndarray, k: int):
+    """
+    가능하면 GPU/CPU에 맞춰 FAISS KMeans 사용
+    (GPU API 없는 빌드도 지원), 실패 시 예외 던짐
+    """
     import faiss
+    R = R.astype('float32', copy=False)
     d = R.shape[1]
-    if use_gpu:
-        res = faiss.StandardGpuResources()
-        cfg = faiss.GpuIndexFlatConfig()
-        cfg.useFloat16 = True
-        # KMeans 자체는 CPU 구현이지만, faiss는 GPU KMeans도 제공합니다:
-        # 아래는 GPU KMeans API
-        kmeans = faiss.Kmeans(d, k, niter=20, verbose=True, gpu=True)
-    else:
-        kmeans = faiss.Kmeans(d, k, niter=20, verbose=True, gpu=False)
-    kmeans.train(R)
-    C = kmeans.centroids  # [k, d]
-    return C  # 센트로이드 자체를 memory bank로 사용
+
+    # 어떤 빌드는 StandardGpuResources가 없지만,
+    # Kmeans(..., gpu=True)만으로 GPU 사용 가능
+    try:
+        kw = {}
+        try:
+            # 일부 빌드는 __init__ 인자로 gpu를 받음
+            if "gpu" in faiss.Kmeans.__init__.__code__.co_varnames:
+                kw["gpu"] = True
+        except Exception:
+            pass
+        km = faiss.Kmeans(d, k, niter=20, verbose=True, **kw)
+        km.train(R)
+        return km.centroids  # [k, d], float32
+    except Exception as e:
+        # 마지막 시도로 CPU KMeans
+        km = faiss.Kmeans(d, k, niter=20, verbose=True)
+        km.train(R)
+        return km.centroids
+
+# ==== MBKMeans 폴백 ====
+def coreset_mbkmeans(R: np.ndarray, k: int, batch=2048):
+    from sklearn.cluster import MiniBatchKMeans
+    R = R.astype('float32', copy=False)
+    km = MiniBatchKMeans(n_clusters=k, batch_size=batch, n_init="auto",
+                         max_iter=50, verbose=1)
+    km.fit(R)
+    return km.cluster_centers_.astype("float32", copy=False)
+
+# ==== 최종 coreset 선택기 ====
+def build_coreset(R: np.ndarray, k: int, method: str = "auto") -> np.ndarray:
+    """
+    method: "auto"|"faiss"|"mbkmeans"|"random"|"greedy"
+    """
+    if method in ("auto", "faiss"):
+        try:
+            log(f"coreset: faiss kmeans (k={k})")
+            return coreset_faiss_kmeans_safe(R, k)
+        except Exception as e:
+            log(f"faiss kmeans failed: {e}")
+
+    if method in ("auto", "mbkmeans"):
+        try:
+            log(f"coreset: MiniBatchKMeans (k={k})")
+            return coreset_mbkmeans(R, k)
+        except Exception as e:
+            log(f"mbkmeans failed: {e}")
+
+    if method == "greedy":
+        log("coreset: greedy k-center (slow!)")
+        sel_idx = kcenter_greedy(R, keep_ratio=k / R.shape[0], seed=0)
+        return R[sel_idx]
+
+    # 최후: 랜덤 샘플 (가장 빠름, 성능도 베이스라인은 충분)
+    log(f"coreset: random sample (k={k})")
+    idx = np.random.RandomState(0).choice(R.shape[0], size=k, replace=False)
+    return R[idx]
 
 @torch.no_grad()
 def build_memory_bank(model, img_paths, device, shorter=512, coreset_ratio=0.02,
@@ -205,16 +262,17 @@ def build_memory_bank(model, img_paths, device, shorter=512, coreset_ratio=0.02,
     if len(reservoir) == 0:
         raise RuntimeError("Reservoir is empty; check OK images or transforms.")
 
-    R = np.concatenate(reservoir, axis=0).astype(np.float32)
+    R = np.concatenate(reservoir, axis=0).astype(np.float32, copy=False)
     k = max(1, int(R.shape[0] * coreset_ratio))
-    try:
-        C = coreset_faiss_kmeans(R, k, use_gpu=True)  # GPU 있으면 True
-        memory = torch.from_numpy(C).to(device).float()
-        log_stage(f"faiss kmeans coreset: k={k}")
-    except Exception as e:
-        log_stage(f"faiss kmeans failed ({e}), falling back to greedy...")
-        sel_idx = kcenter_greedy(R, keep_ratio=k / R.shape[0], seed=seed)
-        memory = torch.from_numpy(R[sel_idx]).to(device).float()
+
+    # ★ 아주 큰 R이면 greedy 금지 (보호 로직)
+    if R.shape[0] > 50_000 and coreset_ratio >= 0.02 and method in ("auto", "greedy"):
+        log("R too large for greedy; forcing non-greedy coreset")
+        method = "auto"
+
+    C = build_coreset(R, k, method=method)  # method는 argparse로 받아도 되고 "auto" 하드코딩도 OK
+    memory = torch.from_numpy(C).to(device).float()
+    log(f"memory built: {tuple(memory.shape)}")
     
     # k-center greedy on R
     #sel_idx = kcenter_greedy(R, keep_ratio=k / R.shape[0], seed=seed)
