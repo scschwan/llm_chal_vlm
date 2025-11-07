@@ -242,6 +242,9 @@ def build_memory_bank(model, img_paths, device, shorter=512, coreset_ratio=0.02,
     - 전 이미지 특징을 cat하지 않고 reservoir에 최대 reservoir_max 패치만 유지
     - 마지막에만 coreset(k-center greedy)을 reservoir 위에서 수행
     """
+     # ↓ 여기서 method 사용 전에 기본값을 갖도록!
+    method = "auto"  # ← 추가
+    
     tfm = make_transform(shorter)
     rng = random.Random(seed)
     reservoir = []  # list of np arrays; 총합 <= reservoir_max
