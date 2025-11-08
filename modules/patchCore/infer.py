@@ -80,13 +80,23 @@ def preprocess_bgr_to_tensor(img_bgr: np.ndarray, shorter=512) -> torch.Tensor:
     t = torch.from_numpy(img_rgb).permute(2,0,1).unsqueeze(0)
     return t
 
-def feat_to_patches(feat: torch.Tensor, stride=2) -> torch.Tensor:
+def feat_to_patches(feat: torch.Tensor, stride: int = 2) -> torch.Tensor:
+    """
+    feat: [1, C, H, W]
+    return: [N, C] (stride 간격으로 샘플된 위치의 패치 벡터)
+    """
     _, C, H, W = feat.shape
-    ys = torch.arange(0, H, stride)
-    xs = torch.arange(0, W, stride)
-    gy, gx = torch.meshgrid(ys, xs, indexing="ij")
-    patches = feat[0, :, gy, gx]      # [C,N]
-    patches = patches.permute(1,0)    # [N,C]
+
+    # 위치 그리드 준비 (feat과 같은 device)
+    ys = torch.arange(0, H, stride, device=feat.device)
+    xs = torch.arange(0, W, stride, device=feat.device)
+    grid_y, grid_x = torch.meshgrid(ys, xs, indexing="ij")  # [Hy, Wx]
+
+    # [1,C,H,W] -> [H,W,C] 로 바꿔서 위치인덱싱 후 평탄화
+    f = feat[0].permute(1, 2, 0).contiguous()  # [H, W, C]
+    samples = f[grid_y, grid_x]                # [Hy, Wx, C]
+    patches = samples.reshape(-1, C)           # [N, C]
+
     patches = torch.nn.functional.normalize(patches, p=2, dim=1)
     return patches
 

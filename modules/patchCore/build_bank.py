@@ -120,18 +120,22 @@ def preprocess_bgr_to_tensor(img_bgr: np.ndarray, shorter=512) -> torch.Tensor:
 def feat_to_patches(feat: torch.Tensor, stride: int = 2) -> torch.Tensor:
     """
     feat: [1, C, H, W]
-    stride 단위로 패치 추출 → [N, C]
-    (stride=1이면 모든 위치, 2면 H/2*W/2 위치 샘플)
+    return: [N, C] (stride 간격으로 샘플된 위치의 패치 벡터)
     """
     _, C, H, W = feat.shape
-    ys = torch.arange(0, H, stride)
-    xs = torch.arange(0, W, stride)
+
+    # 위치 그리드 준비 (feat과 같은 device)
+    ys = torch.arange(0, H, stride, device=feat.device)
+    xs = torch.arange(0, W, stride, device=feat.device)
     grid_y, grid_x = torch.meshgrid(ys, xs, indexing="ij")  # [Hy, Wx]
 
-    patches = feat[0, :, grid_y, grid_x]  # [C, N]
-    patches = patches.permute(1, 0).contiguous()  # [N, C]
-    patches = F.normalize(patches, p=2, dim=1)
-    return patches  # float32
+    # [1,C,H,W] -> [H,W,C] 로 바꿔서 위치인덱싱 후 평탄화
+    f = feat[0].permute(1, 2, 0).contiguous()  # [H, W, C]
+    samples = f[grid_y, grid_x]                # [Hy, Wx, C]
+    patches = samples.reshape(-1, C)           # [N, C]
+
+    patches = torch.nn.functional.normalize(patches, p=2, dim=1)
+    return patches
 
 # ============ Coreset (optional KMeans -> centers), fallback to random ============
 def build_coreset(X: np.ndarray, ratio: float = 0.02, seed: int = 0) -> np.ndarray:
