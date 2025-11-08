@@ -153,7 +153,7 @@ async def shutdown_event():
 # API 엔드포인트
 # ====================
 
-@app.get("/health2", response_model=HealthResponse)
+@app.get("/health", response_model=HealthResponse)
 async def health_check():
     """
     헬스체크 엔드포인트
@@ -397,7 +397,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "api_server_origin:app",
         host="0.0.0.0",
-        port=5000,
+        port=8080,
         reload=True,  # 코드 변경 시 자동 재시작
         log_level="info"
     )
