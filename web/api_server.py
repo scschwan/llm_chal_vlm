@@ -3,7 +3,7 @@ TOP-K 유사도 매칭 + Anomaly Detection API 서버
 FastAPI 기반으로 외부 웹서버에서 호출 가능한 REST API 제공
 """
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Query
+from fastapi import FastAPI, File, UploadFile, HTTPException, Query, Form
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
