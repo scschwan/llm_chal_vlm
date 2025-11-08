@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>유사이미지 매칭 시스템</title>
+    <title>유사이미지 매칭 + 이상 검출 시스템</title>
     <style>
         * {
             margin: 0;
@@ -71,6 +71,42 @@
         .nav-btn.active {
             background: #667eea;
             color: white;
+        }
+
+        /* 탭 스타일 */
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 3px solid #e9ecef;
+            padding: 0 30px;
+        }
+
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #6c757d;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -3px;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
         }
 
         .main-content {
@@ -154,7 +190,7 @@
             font-weight: 600;
         }
 
-        .search-button {
+        .search-button, .detect-button {
             width: 100%;
             padding: 15px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -168,14 +204,18 @@
             margin-top: 20px;
         }
 
-        .search-button:hover:not(:disabled) {
+        .search-button:hover:not(:disabled), .detect-button:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
 
-        .search-button:disabled {
+        .search-button:disabled, .detect-button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
+        }
+
+        .detect-button {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         }
 
         .results-section {
@@ -295,40 +335,6 @@
             font-size: 1.1em;
         }
 
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .action-btn {
-            flex: 1;
-            padding: 8px;
-            border: none;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .action-btn.match {
-            background: #28a745;
-            color: white;
-        }
-
-        .action-btn.match:hover {
-            background: #218838;
-        }
-
-        .action-btn.nomatch {
-            background: #dc3545;
-            color: white;
-        }
-
-        .action-btn.nomatch:hover {
-            background: #c82333;
-        }
-
         .empty-state {
             text-align: center;
             padding: 60px 20px;
@@ -378,29 +384,93 @@
             to { transform: rotate(360deg); }
         }
 
-        @media (max-width: 1024px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
+        /* 이상 검출 결과 스타일 */
+        .anomaly-results {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .anomaly-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .anomaly-card h3 {
+            margin-bottom: 15px;
+            color: #343a40;
+        }
+
+        .anomaly-card img {
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .anomaly-score {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        .anomaly-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .anomaly-badge.normal {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .anomaly-badge.anomaly {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .index-management {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+        }
+
+        .index-btn {
+            transition: all 0.3s;
         }
 
         .index-btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-            transition: all 0.3s;
         }
 
         .index-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            .anomaly-results {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔍 유사이미지 매칭 시스템</h1>
-            <p>CLIP 기반 이미지 유사도 검색</p>
+            <h1>🔍 유사이미지 매칭 + 이상 검출 시스템</h1>
+            <p>CLIP 기반 유사도 검색 + PatchCore Anomaly Detection</p>
         </div>
 
         <div class="nav">
@@ -409,82 +479,126 @@
             <a href="dashboard.html" class="nav-btn">통계 대시보드</a>
         </div>
 
-        <div class="main-content">
-            <!-- 좌측: 업로드 및 컨트롤 -->
-            <div class="upload-section">
-                <h3 style="margin-bottom: 15px; color: #343a40;">이미지 업로드</h3>
-                
-                <div class="upload-area" id="uploadArea">
-                    <div class="upload-icon">📸</div>
-                    <p style="font-size: 1.1em; color: #495057; margin-bottom: 10px;">
-                        <strong>클릭</strong>하거나 <strong>드래그</strong>하여 이미지 업로드
-                    </p>
-                    <p style="font-size: 0.9em; color: #6c757d;">
-                        JPG, PNG, WEBP 지원
-                    </p>
-                    <input type="file" id="fileInput" accept="image/*">
-                </div>
+        <!-- 탭 -->
+        <div class="tabs">
+            <div class="tab active" data-tab="search">🔍 유사도 검색</div>
+            <div class="tab" data-tab="anomaly">🎯 이상 영역 검출</div>
+        </div>
 
-                <img id="previewImage" class="preview-image" alt="Preview">
+        <!-- 탭 1: 유사도 검색 -->
+        <div class="tab-content active" id="search-tab">
+            <div class="main-content">
+                <!-- 좌측: 업로드 및 컨트롤 -->
+                <div class="upload-section">
+                    <h3 style="margin-bottom: 15px; color: #343a40;">이미지 업로드</h3>
+                    
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon">📸</div>
+                        <p style="font-size: 1.1em; color: #495057; margin-bottom: 10px;">
+                            <strong>클릭</strong>하거나 <strong>드래그</strong>하여 이미지 업로드
+                        </p>
+                        <p style="font-size: 0.9em; color: #6c757d;">
+                            JPG, PNG, WEBP 지원
+                        </p>
+                        <input type="file" id="fileInput" accept="image/*">
+                    </div>
 
-                <div class="index-management" style="margin-top: 20px; padding: 15px; background: white; border-radius: 10px;">
-                    <h4 style="margin-bottom: 10px; color: #343a40;">🔧 인덱스 관리</h4>
-    
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <button class="index-btn" id="checkIndexBtn" style="flex: 1; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                            📊 상태 확인
-                        </button>
-                        <button class="index-btn" id="rebuildIndexBtn" style="flex: 1; padding: 10px; background: #ffc107; color: #333; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                            🔄 재구축
-                        </button>
-                    </div>
-                    
-                    <div id="indexStatus" style="font-size: 0.9em; color: #6c757d; padding: 8px; background: #f8f9fa; border-radius: 4px; display: none;">
-                    </div>
-                    
-                    <details style="margin-top: 10px;">
-                        <summary style="cursor: pointer; color: #667eea; font-weight: 600;">고급 설정</summary>
-                        <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
-                            <label style="display: block; margin-bottom: 5px; font-size: 0.9em;">
-                                갤러리 경로:
-                                <input type="text" id="galleryPath" value="../data/ok_front" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;">
+                    <img id="previewImage" class="preview-image" alt="Preview">
+
+                    <div class="controls">
+                        <div class="control-group">
+                            <label>
+                                검색할 유사 이미지 개수: 
+                                <span class="value-display" id="topKValue">5</span>
                             </label>
-                            <button id="customBuildBtn" style="width: 100%; padding: 8px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 8px;">
-                                ✓ 사용자 경로로 구축
+                            <input type="range" id="topKSlider" min="1" max="20" value="5">
+                        </div>
+                    </div>
+
+                    <button class="search-button" id="searchButton">
+                        🔍 유사 이미지 검색
+                    </button>
+
+                    <div id="statusMessage"></div>
+
+                    <!-- 인덱스 관리 -->
+                    <div class="index-management">
+                        <h4 style="margin-bottom: 10px; color: #343a40;">🔧 인덱스 관리</h4>
+                        
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <button class="index-btn" id="checkIndexBtn" style="flex: 1; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                📊 상태 확인
+                            </button>
+                            <button class="index-btn" id="rebuildIndexBtn" style="flex: 1; padding: 10px; background: #ffc107; color: #333; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                🔄 재구축
                             </button>
                         </div>
-                    </details>
-                </div>
-
-                <div class="controls">
-                    <div class="control-group">
-                        <label>
-                            검색할 유사 이미지 개수: 
-                            <span class="value-display" id="topKValue">5</span>
-                        </label>
-                        <input type="range" id="topKSlider" min="1" max="20" value="5">
+                        
+                        <div id="indexStatus" style="font-size: 0.9em; color: #6c757d; padding: 8px; background: #f8f9fa; border-radius: 4px; display: none;">
+                        </div>
                     </div>
                 </div>
 
-                <button class="search-button" id="searchButton">
-                    🔍 유사 이미지 검색
-                </button>
+                <!-- 우측: 검색 결과 -->
+                <div class="results-section">
+                    <div class="results-header">
+                        <h2>검색 결과</h2>
+                        <div class="results-stats" id="resultsStats"></div>
+                    </div>
 
-                <div id="statusMessage"></div>
+                    <div id="resultsContainer">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🖼️</div>
+                            <h3>검색 결과가 여기에 표시됩니다</h3>
+                            <p style="margin-top: 10px;">이미지를 업로드하고 검색 버튼을 클릭하세요</p>
+                        </div>
+                    </div>
+                </div>
             </div>
+        </div>
 
-            <!-- 우측: 검색 결과 -->
-            <div class="results-section">
-                <div class="results-header">
-                    <h2>검색 결과</h2>
-                    <div class="results-stats" id="resultsStats"></div>
+        <!-- 탭 2: 이상 영역 검출 -->
+        <div class="tab-content" id="anomaly-tab">
+            <div class="main-content">
+                <div class="upload-section">
+                    <h3 style="margin-bottom: 15px; color: #343a40;">이상 검출 설정</h3>
+                    
+                    <div style="background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                        <p style="font-size: 0.95em; color: #6c757d; margin-bottom: 10px;">
+                            <strong>입력 이미지:</strong>
+                        </p>
+                        <div id="anomalyInputInfo" style="padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 0.9em;">
+                            검색 탭에서 먼저 이미지를 업로드하세요
+                        </div>
+                    </div>
+
+                    <div style="background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                        <p style="font-size: 0.95em; color: #6c757d; margin-bottom: 10px;">
+                            <strong>기준 이미지 (TOP-1):</strong>
+                        </p>
+                        <div id="anomalyRefInfo" style="padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 0.9em;">
+                            검색 결과가 필요합니다
+                        </div>
+                    </div>
+
+                    <button class="detect-button" id="detectButton" disabled>
+                        🎯 이상 영역 검출
+                    </button>
+
+                    <div id="anomalyStatusMessage"></div>
                 </div>
 
-                <div id="resultsContainer">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">🖼️</div>
-                        <h3>검색 결과가 여기에 표시됩니다</h3>
-                        <p style="margin-top: 10px;">이미지를 업로드하고 검색 버튼을 클릭하세요</p>
+                <div class="results-section">
+                    <div class="results-header">
+                        <h2>이상 검출 결과</h2>
+                    </div>
+
+                    <div id="anomalyResultsContainer">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🎯</div>
+                            <h3>이상 검출 결과가 여기에 표시됩니다</h3>
+                            <p style="margin-top: 10px;">먼저 유사도 검색 후 이상 검출을 실행하세요</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -492,146 +606,46 @@
     </div>
 
     <script>
-        // API 서버 주소 (필요시 수정)
-        //const API_BASE_URL = 'http://localhost:8080';
+        // API 서버 주소
         const API_BASE_URL = '';
 
+        // 전역 변수
+        let selectedFile = null;
+        let searchResults = null;
+        let uploadedImagePath = null;
+
+        // DOM 요소
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         const previewImage = document.getElementById('previewImage');
         const searchButton = document.getElementById('searchButton');
+        const detectButton = document.getElementById('detectButton');
         const topKSlider = document.getElementById('topKSlider');
         const topKValue = document.getElementById('topKValue');
         const resultsContainer = document.getElementById('resultsContainer');
+        const anomalyResultsContainer = document.getElementById('anomalyResultsContainer');
         const resultsStats = document.getElementById('resultsStats');
         const statusMessage = document.getElementById('statusMessage');
+        const anomalyStatusMessage = document.getElementById('anomalyStatusMessage');
+        const checkIndexBtn = document.getElementById('checkIndexBtn');
+        const rebuildIndexBtn = document.getElementById('rebuildIndexBtn');
+        const indexStatus = document.getElementById('indexStatus');
 
-        let selectedFile = null;
-
-
-        // 인덱스 상태 확인
-        checkIndexBtn.addEventListener('click', async () => {
-            checkIndexBtn.disabled = true;
-            checkIndexBtn.textContent = '확인 중...';
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/index/info`);
-                const data = await response.json();
+        // 탭 전환
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetTab = tab.dataset.tab;
                 
-                if (data.status === 'index_built') {
-                    indexStatus.innerHTML = `
-                        ✅ <strong>인덱스 구축됨</strong><br>
-                        📁 이미지 수: ${data.gallery_size}개<br>
-                        🤖 모델: ${data.model_id}<br>
-                        💻 디바이스: ${data.device}<br>
-                        ⚡ FAISS: ${data.faiss_enabled ? '활성화' : '비활성화'}
-                    `;
-                    indexStatus.style.display = 'block';
-                    indexStatus.style.background = '#d4edda';
-                    indexStatus.style.color = '#155724';
-                } else {
-                    indexStatus.innerHTML = '❌ 인덱스가 구축되지 않았습니다';
-                    indexStatus.style.display = 'block';
-                    indexStatus.style.background = '#f8d7da';
-                    indexStatus.style.color = '#721c24';
-                }
-            } catch (error) {
-                indexStatus.innerHTML = `❌ 상태 확인 실패: ${error.message}`;
-                indexStatus.style.display = 'block';
-                indexStatus.style.background = '#f8d7da';
-                indexStatus.style.color = '#721c24';
-            } finally {
-                checkIndexBtn.disabled = false;
-                checkIndexBtn.textContent = '📊 상태 확인';
-            }
-        });
-
-        // 기본 경로로 재구축
-        rebuildIndexBtn.addEventListener('click', async () => {
-            if (!confirm('인덱스를 재구축하시겠습니까? (시간이 걸릴 수 있습니다)')) {
-                return;
-            }
-            
-            await buildIndex('../data/ok_front');
-        });
-
-        // 사용자 지정 경로로 구축
-        customBuildBtn.addEventListener('click', async () => {
-            const path = galleryPath.value.trim();
-            if (!path) {
-                alert('갤러리 경로를 입력하세요');
-                return;
-            }
-            
-            if (!confirm(`"${path}" 경로로 인덱스를 구축하시겠습니까?`)) {
-                return;
-            }
-            
-            await buildIndex(path);
-        });
-
-        // 인덱스 구축 함수
-        async function buildIndex(galleryDir) {
-            rebuildIndexBtn.disabled = true;
-            customBuildBtn.disabled = true;
-            rebuildIndexBtn.textContent = '구축 중...';
-            
-            indexStatus.innerHTML = '🔄 인덱스 구축 중... (수분 소요될 수 있습니다)';
-            indexStatus.style.display = 'block';
-            indexStatus.style.background = '#d1ecf1';
-            indexStatus.style.color = '#0c5460';
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/build_index`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        gallery_dir: galleryDir,
-                        save_index: true,
-                        index_save_dir: './index_cache'
-                    })
+                // 탭 활성화
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // 컨텐츠 전환
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
                 });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || '인덱스 구축 실패');
-                }
-                
-                const data = await response.json();
-                
-                indexStatus.innerHTML = `
-                    ✅ <strong>인덱스 구축 완료!</strong><br>
-                    📁 이미지 수: ${data.num_images}개<br>
-                    💾 저장됨: ${data.index_saved ? 'Yes' : 'No'}
-                `;
-                indexStatus.style.background = '#d4edda';
-                indexStatus.style.color = '#155724';
-                
-                showStatus(`인덱스 구축 완료! ${data.num_images}개 이미지 인덱싱됨`, 'success');
-                
-                // 상태 자동 갱신
-                setTimeout(() => checkIndexBtn.click(), 1000);
-                
-            } catch (error) {
-                indexStatus.innerHTML = `❌ 구축 실패: ${error.message}`;
-                indexStatus.style.background = '#f8d7da';
-                indexStatus.style.color = '#721c24';
-                
-                showStatus(`인덱스 구축 실패: ${error.message}`, 'error');
-            } finally {
-                rebuildIndexBtn.disabled = false;
-                customBuildBtn.disabled = false;
-                rebuildIndexBtn.textContent = '🔄 재구축';
-            }
-        }
-
-        // 페이지 로드 시 자동으로 인덱스 상태 확인
-        window.addEventListener('load', () => {
-            checkAPIStatus();
-            // 2초 후 인덱스 상태 자동 확인
-            setTimeout(() => checkIndexBtn.click(), 2000);
+                document.getElementById(`${targetTab}-tab`).classList.add('active');
+            });
         });
 
         // 파일 업로드
@@ -671,13 +685,16 @@
             reader.readAsDataURL(file);
 
             showStatus('이미지가 업로드되었습니다. 검색 버튼을 클릭하세요.', 'success');
+            
+            // 이상 검출 탭 업데이트
+            document.getElementById('anomalyInputInfo').innerHTML = `✅ ${file.name}`;
         }
 
         topKSlider.addEventListener('input', (e) => {
             topKValue.textContent = e.target.value;
         });
 
-        // 검색 실행 (실제 API 호출)
+        // 검색 실행
         searchButton.addEventListener('click', async () => {
             if (!selectedFile) {
                 showStatus('먼저 이미지를 업로드하세요.', 'error');
@@ -686,17 +703,14 @@
 
             const topK = parseInt(topKSlider.value);
             
-            // 버튼 비활성화
             searchButton.disabled = true;
             searchButton.innerHTML = '<span class="loading"></span> 검색 중...';
             showStatus('유사 이미지를 검색하는 중...', 'info');
 
             try {
-                // FormData 생성
                 const formData = new FormData();
                 formData.append('file', selectedFile);
 
-                // API 호출
                 const response = await fetch(`${API_BASE_URL}/search/upload?top_k=${topK}`, {
                     method: 'POST',
                     body: formData
@@ -708,16 +722,23 @@
                 }
 
                 const data = await response.json();
+                searchResults = data;
+                uploadedImagePath = `./uploads/${selectedFile.name}`;
                 
-                // 결과 표시
                 displayResults(data);
                 showStatus(`검색 완료! ${data.top_k_results.length}개의 유사 이미지를 찾았습니다.`, 'success');
+
+                // 이상 검출 버튼 활성화
+                if (data.top_k_results.length > 0) {
+                    detectButton.disabled = false;
+                    document.getElementById('anomalyRefInfo').innerHTML = 
+                        `✅ ${data.top_k_results[0].image_name} (유사도: ${(data.top_k_results[0].similarity_score * 100).toFixed(1)}%)`;
+                }
 
             } catch (error) {
                 console.error('검색 오류:', error);
                 showStatus(`검색 실패: ${error.message}`, 'error');
             } finally {
-                // 버튼 활성화
                 searchButton.disabled = false;
                 searchButton.innerHTML = '🔍 유사 이미지 검색';
             }
@@ -753,14 +774,6 @@
                                 </div>
                                 <span class="similarity-value">${similarity}%</span>
                             </div>
-                            <div class="action-buttons">
-                                <button class="action-btn match" onclick="handleMatch(${result.rank}, true)">
-                                    ✓ 매칭 성공
-                                </button>
-                                <button class="action-btn nomatch" onclick="handleMatch(${result.rank}, false)">
-                                    ✗ 매칭 실패
-                                </button>
-                            </div>
                         </div>
                     </div>
                 `;
@@ -770,20 +783,187 @@
             resultsContainer.innerHTML = html;
         }
 
-        function handleMatch(rank, isMatch) {
-            const action = isMatch ? '매칭 성공' : '매칭 실패';
-            const color = isMatch ? 'success' : 'info';
-            showStatus(`#${rank} 이미지가 ${action}으로 기록되었습니다.`, color);
-            
-            // 로컬 스토리지에 저장
-            const stats = JSON.parse(localStorage.getItem('matchStats') || '{"success": 0, "fail": 0}');
-            if (isMatch) {
-                stats.success++;
-            } else {
-                stats.fail++;
+        // 이상 검출 실행
+        detectButton.addEventListener('click', async () => {
+            if (!searchResults || searchResults.top_k_results.length === 0) {
+                showAnomalyStatus('먼저 유사도 검색을 실행하세요.', 'error');
+                return;
             }
-            localStorage.setItem('matchStats', JSON.stringify(stats));
+
+            detectButton.disabled = true;
+            detectButton.innerHTML = '<span class="loading"></span> 검출 중...';
+            showAnomalyStatus('이상 영역을 검출하는 중...', 'info');
+
+            try {
+                const top1 = searchResults.top_k_results[0];
+                
+                const response = await fetch(`${API_BASE_URL}/detect_anomaly`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        test_image_path: uploadedImagePath,
+                        reference_image_path: top1.image_path,
+                        product_name: null  // 자동 추출
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '이상 검출 실패');
+                }
+
+                const data = await response.json();
+                displayAnomalyResults(data);
+                showAnomalyStatus('이상 검출 완료!', 'success');
+
+            } catch (error) {
+                console.error('이상 검출 오류:', error);
+                showAnomalyStatus(`이상 검출 실패: ${error.message}`, 'error');
+            } finally {
+                detectButton.disabled = false;
+                detectButton.innerHTML = '🎯 이상 영역 검출';
+            }
+        });
+
+        function displayAnomalyResults(data) {
+            const html = `
+                <div class="anomaly-results">
+                    <div class="anomaly-card">
+                        <h3>🔥 Heatmap</h3>
+                        <img src="${data.heatmap_url}" alt="Heatmap">
+                        <div class="anomaly-score">
+                            <span>제품: <strong>${data.product_name}</strong></span>
+                            <span class="anomaly-badge ${data.is_anomaly ? 'anomaly' : 'normal'}">
+                                ${data.is_anomaly ? '⚠️ 이상 감지' : '✅ 정상'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="anomaly-card">
+                        <h3>🎭 마스크</h3>
+                        <img src="${data.mask_url}" alt="Mask">
+                        <div class="anomaly-score">
+                            <span>이상 점수</span>
+                            <span><strong>${data.image_score.toFixed(4)}</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="anomaly-card">
+                        <h3>🔴 오버레이</h3>
+                        <img src="${data.overlay_url}" alt="Overlay">
+                        <div class="anomaly-score">
+                            <span>임계값</span>
+                            <span><strong>${data.image_tau.toFixed(4)}</strong></span>
+                        </div>
+                    </div>
+
+                    ${data.comparison_url ? `
+                    <div class="anomaly-card">
+                        <h3>📊 전체 비교</h3>
+                        <img src="${data.comparison_url}" alt="Comparison">
+                        <p style="font-size: 0.85em; color: #6c757d; margin-top: 10px;">
+                            좌측 상단: 기준 이미지 | 우측 상단: 테스트 이미지<br>
+                            좌측 하단: 마스크 | 우측 하단: 오버레이
+                        </p>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            anomalyResultsContainer.innerHTML = html;
         }
+
+        // 인덱스 관리
+        checkIndexBtn.addEventListener('click', async () => {
+            checkIndexBtn.disabled = true;
+            checkIndexBtn.textContent = '확인 중...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/index/info`);
+                const data = await response.json();
+                
+                if (data.status === 'index_built') {
+                    indexStatus.innerHTML = `
+                        ✅ <strong>인덱스 구축됨</strong><br>
+                        📁 이미지 수: ${data.gallery_size}개<br>
+                        🤖 모델: ${data.model_id}<br>
+                        💻 디바이스: ${data.device}<br>
+                        ⚡ FAISS: ${data.faiss_enabled ? '활성화' : '비활성화'}
+                    `;
+                    indexStatus.style.display = 'block';
+                    indexStatus.style.background = '#d4edda';
+                    indexStatus.style.color = '#155724';
+                } else {
+                    indexStatus.innerHTML = '❌ 인덱스가 구축되지 않았습니다';
+                    indexStatus.style.display = 'block';
+                    indexStatus.style.background = '#f8d7da';
+                    indexStatus.style.color = '#721c24';
+                }
+            } catch (error) {
+                indexStatus.innerHTML = `❌ 상태 확인 실패: ${error.message}`;
+                indexStatus.style.display = 'block';
+                indexStatus.style.background = '#f8d7da';
+                indexStatus.style.color = '#721c24';
+            } finally {
+                checkIndexBtn.disabled = false;
+                checkIndexBtn.textContent = '📊 상태 확인';
+            }
+        });
+
+        rebuildIndexBtn.addEventListener('click', async () => {
+            if (!confirm('인덱스를 재구축하시겠습니까?')) {
+                return;
+            }
+            
+            rebuildIndexBtn.disabled = true;
+            rebuildIndexBtn.textContent = '구축 중...';
+            
+            indexStatus.innerHTML = '🔄 인덱스 구축 중...';
+            indexStatus.style.display = 'block';
+            indexStatus.style.background = '#d1ecf1';
+            indexStatus.style.color = '#0c5460';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/build_index`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        gallery_dir: '../data/def_split',
+                        save_index: true,
+                        index_save_dir: './index_cache'
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '인덱스 구축 실패');
+                }
+                
+                const data = await response.json();
+                
+                indexStatus.innerHTML = `
+                    ✅ <strong>인덱스 구축 완료!</strong><br>
+                    📁 이미지 수: ${data.num_images}개<br>
+                    💾 저장됨: ${data.index_saved ? 'Yes' : 'No'}
+                `;
+                indexStatus.style.background = '#d4edda';
+                indexStatus.style.color = '#155724';
+                
+                setTimeout(() => checkIndexBtn.click(), 1000);
+                
+            } catch (error) {
+                indexStatus.innerHTML = `❌ 구축 실패: ${error.message}`;
+                indexStatus.style.background = '#f8d7da';
+                indexStatus.style.color = '#721c24';
+            } finally {
+                rebuildIndexBtn.disabled = false;
+                rebuildIndexBtn.textContent = '🔄 재구축';
+            }
+        });
 
         function showStatus(message, type) {
             statusMessage.className = `status-message ${type}`;
@@ -791,24 +971,29 @@
             statusMessage.style.display = 'block';
         }
 
-        // 페이지 로드 시 API 서버 상태 확인
-        async function checkAPIStatus() {
+        function showAnomalyStatus(message, type) {
+            anomalyStatusMessage.className = `status-message ${type}`;
+            anomalyStatusMessage.textContent = message;
+            anomalyStatusMessage.style.display = 'block';
+        }
+
+        // 페이지 로드 시
+        window.addEventListener('load', async () => {
             try {
                 const response = await fetch(`${API_BASE_URL}/health`);
                 const data = await response.json();
                 
                 if (data.status === 'healthy') {
                     if (!data.index_built) {
-                        showStatus('⚠️ 인덱스가 구축되지 않았습니다. 서버 관리자에게 문의하세요.', 'info');
+                        showStatus('⚠️ 인덱스가 구축되지 않았습니다.', 'info');
                     }
                 }
             } catch (error) {
-                showStatus('⚠️ API 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.', 'error');
+                showStatus('⚠️ API 서버에 연결할 수 없습니다.', 'error');
             }
-        }
-
-        // 페이지 로드 시 실행
-        window.addEventListener('load', checkAPIStatus);
+            
+            setTimeout(() => checkIndexBtn.click(), 2000);
+        });
     </script>
 </body>
 </html>

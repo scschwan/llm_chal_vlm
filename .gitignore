@@ -4,6 +4,6 @@ result/
 venv/
 runs/
 utils/
-results/*.png
+results/
 .venv_patch/
 .venv-patchcore/

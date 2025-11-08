@@ -1,12 +1,11 @@
 """
-TOP-K 유사도 매칭 API 서버
+TOP-K 유사도 매칭 + Anomaly Detection API 서버
 FastAPI 기반으로 외부 웹서버에서 호출 가능한 REST API 제공
 """
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Query
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import os
@@ -21,6 +20,7 @@ sys.path.insert(0, str(project_root))
 
 # modules 폴더의 모듈 import
 from modules.similarity_matcher import TopKSimilarityMatcher, create_matcher
+from modules.anomaly_detector import AnomalyDetector, create_detector
 
 
 # ====================
@@ -49,6 +49,27 @@ class SearchResponse(BaseModel):
     model_info: str
 
 
+class AnomalyDetectRequest(BaseModel):
+    """이상 검출 요청"""
+    test_image_path: str = Field(..., description="테스트 이미지 경로")
+    reference_image_path: Optional[str] = Field(None, description="기준 이미지 경로 (TOP-1)")
+    product_name: Optional[str] = Field(None, description="제품명 (자동 추출 가능)")
+
+
+class AnomalyDetectResponse(BaseModel):
+    """이상 검출 응답"""
+    status: str
+    product_name: str
+    image_score: float
+    pixel_tau: float
+    image_tau: float
+    is_anomaly: bool
+    heatmap_url: str
+    mask_url: str
+    overlay_url: str
+    comparison_url: Optional[str] = None
+
+
 class HealthResponse(BaseModel):
     """헬스체크 응답"""
     status: str
@@ -62,15 +83,15 @@ class HealthResponse(BaseModel):
 # ====================
 
 app = FastAPI(
-    title="TOP-K 유사도 매칭 API",
-    description="CLIP 기반 이미지 유사도 검색 서비스",
-    version="1.0.0"
+    title="유사도 매칭 + Anomaly Detection API",
+    description="CLIP 기반 이미지 유사도 검색 + PatchCore 이상 검출 서비스",
+    version="2.0.0"
 )
 
-# CORS 설정 (다른 도메인에서 접근 허용)
+# CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 프로덕션에서는 특정 도메인만 허용
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -80,37 +101,38 @@ app.add_middleware(
 # 전역 변수
 # ====================
 
-# 매처 인스턴스 (서버 시작 시 초기화)
+# 매처 및 디텍터 인스턴스
 matcher: Optional[TopKSimilarityMatcher] = None
+detector: Optional[AnomalyDetector] = None
 
 # 설정
 UPLOAD_DIR = Path("./uploads")
 INDEX_DIR = Path("./index_cache")
+ANOMALY_OUTPUT_DIR = Path("./anomaly_outputs")
+
 UPLOAD_DIR.mkdir(exist_ok=True)
 INDEX_DIR.mkdir(exist_ok=True)
+ANOMALY_OUTPUT_DIR.mkdir(exist_ok=True)
 
 
 # ====================
 # 라이프사이클 이벤트
 # ====================
 
-# 기존 startup_event 함수 수정
-
 @app.on_event("startup")
 async def startup_event():
-    """서버 시작 시 매처 초기화"""
-    global matcher
+    """서버 시작 시 초기화"""
+    global matcher, detector
     
-    print("=" * 50)
-    print("TOP-K 유사도 매칭 API 서버 시작")
-    print("=" * 50)
+    print("=" * 60)
+    print("유사도 매칭 + Anomaly Detection API 서버 시작")
+    print("=" * 60)
     
-    # 매처 생성
+    # 1. 유사도 매처 생성
     matcher = create_matcher(
         model_id="ViT-B-32/openai",
         device="auto",
-        #use_fp16=True,
-        use_fp16=False,
+        use_fp16=False,  # 안정성 우선
         verbose=True
     )
     
@@ -126,8 +148,7 @@ async def startup_event():
     
     # 인덱스가 없으면 자동 구축 시도
     if not matcher.index_built:
-        #default_gallery = Path("../data/ok_front")  # 기본 갤러리 경로
-        default_gallery = Path("../data/def_split")  # 기본 갤러리 경로
+        default_gallery = Path("../data/def_split")  # 변경된 경로
         
         if default_gallery.exists():
             print(f"🔄 자동 인덱스 구축 시작: {default_gallery}")
@@ -139,9 +160,20 @@ async def startup_event():
                 print(f"❌ 자동 인덱스 구축 실패: {e}")
         else:
             print(f"⚠️  기본 갤러리 디렉토리 없음: {default_gallery}")
-            print("   /build_index 엔드포인트로 수동 구축이 필요합니다")
     
-    print("=" * 50)
+    # 2. Anomaly Detector 생성
+    try:
+        detector = create_detector(
+            bank_base_dir="../data/patchCore",
+            device="auto",
+            verbose=True
+        )
+        print("✅ Anomaly Detector 초기화 완료")
+    except Exception as e:
+        print(f"⚠️  Anomaly Detector 초기화 실패: {e}")
+        detector = None
+    
+    print("=" * 60)
 
 
 @app.on_event("shutdown")
@@ -151,15 +183,12 @@ async def shutdown_event():
 
 
 # ====================
-# API 엔드포인트
+# API 엔드포인트 - 유사도 검색
 # ====================
 
 @app.get("/health2", response_model=HealthResponse)
 async def health_check():
-    """
-    헬스체크 엔드포인트
-    ALB/NLB 헬스체크용
-    """
+    """헬스체크 엔드포인트"""
     return HealthResponse(
         status="healthy",
         message="API 서버가 정상 작동 중입니다",
@@ -170,14 +199,7 @@ async def health_check():
 
 @app.post("/build_index")
 async def build_index(request: BuildIndexRequest):
-    """
-    갤러리 이미지 인덱스 구축
-    
-    Request Body:
-    - gallery_dir: 갤러리 디렉토리 경로
-    - save_index: 인덱스 저장 여부
-    - index_save_dir: 저장 경로 (기본: ./index_cache)
-    """
+    """갤러리 이미지 인덱스 구축"""
     if matcher is None:
         raise HTTPException(status_code=500, detail="매처가 초기화되지 않았습니다")
     
@@ -186,10 +208,8 @@ async def build_index(request: BuildIndexRequest):
         raise HTTPException(status_code=404, detail=f"디렉토리를 찾을 수 없습니다: {gallery_dir}")
     
     try:
-        # 인덱스 구축
         info = matcher.build_index(str(gallery_dir))
         
-        # 인덱스 저장 (요청 시)
         if request.save_index:
             save_dir = request.index_save_dir or str(INDEX_DIR)
             matcher.save_index(save_dir)
@@ -206,18 +226,12 @@ async def build_index(request: BuildIndexRequest):
 
 @app.post("/search", response_model=SearchResponse)
 async def search_by_path(request: SearchRequest):
-    """
-    이미지 경로로 유사 이미지 검색
-    
-    Request Body:
-    - query_image_path: 쿼리 이미지 경로
-    - top_k: 상위 K개 (기본: 5)
-    """
+    """이미지 경로로 유사 이미지 검색"""
     if matcher is None:
         raise HTTPException(status_code=500, detail="매처가 초기화되지 않았습니다")
     
     if not matcher.index_built:
-        raise HTTPException(status_code=400, detail="인덱스가 구축되지 않았습니다. /build_index를 먼저 호출하세요")
+        raise HTTPException(status_code=400, detail="인덱스가 구축되지 않았습니다")
     
     query_path = Path(request.query_image_path)
     if not query_path.exists():
@@ -243,27 +257,17 @@ async def search_by_upload(
     file: UploadFile = File(...),
     top_k: int = Query(5, ge=1, le=50)
 ):
-    """
-    업로드된 이미지로 유사 이미지 검색
-    
-    Form Data:
-    - file: 이미지 파일 (multipart/form-data)
-    - top_k: 상위 K개 (기본: 5)
-    """
+    """업로드된 이미지로 유사 이미지 검색"""
     if matcher is None:
         raise HTTPException(status_code=500, detail="매처가 초기화되지 않았습니다")
     
     if not matcher.index_built:
         raise HTTPException(status_code=400, detail="인덱스가 구축되지 않았습니다")
     
-    # 파일 확장자 검증
     allowed_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
     file_ext = Path(file.filename).suffix.lower()
     if file_ext not in allowed_extensions:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"지원하지 않는 파일 형식입니다: {file_ext}"
-        )
+        raise HTTPException(status_code=400, detail=f"지원하지 않는 파일 형식: {file_ext}")
     
     try:
         # 임시 저장
@@ -274,8 +278,8 @@ async def search_by_upload(
         # 검색
         result = matcher.search(str(temp_path), top_k=top_k)
         
-        # 임시 파일 삭제
-        temp_path.unlink()
+        # 임시 파일은 유지 (이상 검출에 사용될 수 있음)
+        # temp_path.unlink()
         
         return JSONResponse(content=result.to_dict())
     
@@ -283,41 +287,9 @@ async def search_by_upload(
         raise HTTPException(status_code=500, detail=f"검색 실패: {str(e)}")
 
 
-@app.get("/api/image/{image_path:path}")
-async def serve_image(image_path: str):
-    """
-    이미지 파일 제공 엔드포인트
-    검색 결과 이미지를 브라우저에서 볼 수 있도록 제공
-    """
-    try:
-        # URL 디코딩된 경로
-        file_path = Path(image_path)
-        
-        # 파일 존재 확인
-        if not file_path.exists() or not file_path.is_file():
-            raise HTTPException(status_code=404, detail="이미지를 찾을 수 없습니다")
-        
-        # 이미지 파일인지 확인
-        allowed_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
-        if file_path.suffix.lower() not in allowed_extensions:
-            raise HTTPException(status_code=400, detail="이미지 파일이 아닙니다")
-        
-        return FileResponse(
-            file_path,
-            media_type=f"image/{file_path.suffix[1:]}"
-        )
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"이미지 로드 실패: {str(e)}")
-
-
 @app.get("/index/info")
 async def get_index_info():
-    """
-    현재 인덱스 정보 조회
-    """
+    """현재 인덱스 정보 조회"""
     if matcher is None:
         raise HTTPException(status_code=500, detail="매처가 초기화되지 않았습니다")
     
@@ -333,15 +305,166 @@ async def get_index_info():
         "model_id": matcher.model_id,
         "device": matcher.device,
         "faiss_enabled": matcher.faiss_index is not None,
-        "sample_paths": matcher.gallery_paths[:5]  # 샘플 경로 5개
+        "sample_paths": matcher.gallery_paths[:5]
     })
+
+
+# ====================
+# API 엔드포인트 - Anomaly Detection
+# ====================
+
+@app.post("/detect_anomaly", response_model=AnomalyDetectResponse)
+async def detect_anomaly(request: AnomalyDetectRequest):
+    """이상 검출 수행"""
+    if detector is None:
+        raise HTTPException(status_code=500, detail="Anomaly Detector가 초기화되지 않았습니다")
+    
+    test_path = Path(request.test_image_path)
+    if not test_path.exists():
+        raise HTTPException(status_code=404, detail=f"테스트 이미지를 찾을 수 없습니다: {test_path}")
+    
+    try:
+        # 출력 디렉토리 생성
+        output_dir = ANOMALY_OUTPUT_DIR / test_path.stem
+        output_dir.mkdir(exist_ok=True)
+        
+        # 이상 검출
+        if request.reference_image_path:
+            # 기준 이미지와 함께 검출
+            ref_path = Path(request.reference_image_path)
+            if not ref_path.exists():
+                raise HTTPException(status_code=404, detail=f"기준 이미지를 찾을 수 없습니다: {ref_path}")
+            
+            result = detector.detect_with_reference(
+                test_image_path=str(test_path),
+                reference_image_path=str(ref_path),
+                product_name=request.product_name,
+                output_dir=str(output_dir)
+            )
+        else:
+            # 테스트 이미지만으로 검출
+            result = detector.detect(
+                test_image_path=str(test_path),
+                product_name=request.product_name,
+                output_dir=str(output_dir)
+            )
+        
+        # URL 생성 (상대 경로)
+        return AnomalyDetectResponse(
+            status="success",
+            product_name=result["product_name"],
+            image_score=result["image_score"],
+            pixel_tau=result["pixel_tau"],
+            image_tau=result["image_tau"],
+            is_anomaly=result["is_anomaly"],
+            heatmap_url=f"/anomaly/image/{test_path.stem}/heatmap.png",
+            mask_url=f"/anomaly/image/{test_path.stem}/mask.png",
+            overlay_url=f"/anomaly/image/{test_path.stem}/overlay.png",
+            comparison_url=f"/anomaly/image/{test_path.stem}/comparison.png" if "comparison_path" in result else None
+        )
+    
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"이상 검출 실패: {str(e)}")
+
+
+@app.post("/detect_anomaly/upload")
+async def detect_anomaly_upload(
+    test_file: UploadFile = File(...),
+    reference_file: Optional[UploadFile] = File(None),
+    product_name: Optional[str] = None
+):
+    """업로드된 이미지로 이상 검출"""
+    if detector is None:
+        raise HTTPException(status_code=500, detail="Anomaly Detector가 초기화되지 않았습니다")
+    
+    try:
+        # 테스트 이미지 저장
+        test_path = UPLOAD_DIR / test_file.filename
+        with test_path.open("wb") as buffer:
+            shutil.copyfileobj(test_file.file, buffer)
+        
+        # 기준 이미지 저장 (있는 경우)
+        ref_path = None
+        if reference_file:
+            ref_path = UPLOAD_DIR / reference_file.filename
+            with ref_path.open("wb") as buffer:
+                shutil.copyfileobj(reference_file.file, buffer)
+        
+        # 출력 디렉토리
+        output_dir = ANOMALY_OUTPUT_DIR / test_path.stem
+        output_dir.mkdir(exist_ok=True)
+        
+        # 이상 검출
+        if ref_path:
+            result = detector.detect_with_reference(
+                test_image_path=str(test_path),
+                reference_image_path=str(ref_path),
+                product_name=product_name,
+                output_dir=str(output_dir)
+            )
+        else:
+            result = detector.detect(
+                test_image_path=str(test_path),
+                product_name=product_name,
+                output_dir=str(output_dir)
+            )
+        
+        return JSONResponse(content={
+            "status": "success",
+            "product_name": result["product_name"],
+            "image_score": result["image_score"],
+            "is_anomaly": result["is_anomaly"],
+            "heatmap_url": f"/anomaly/image/{test_path.stem}/heatmap.png",
+            "mask_url": f"/anomaly/image/{test_path.stem}/mask.png",
+            "overlay_url": f"/anomaly/image/{test_path.stem}/overlay.png",
+            "comparison_url": f"/anomaly/image/{test_path.stem}/comparison.png" if "comparison_path" in result else None
+        })
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"이상 검출 실패: {str(e)}")
+
+
+@app.get("/anomaly/image/{result_id}/{filename}")
+async def serve_anomaly_image(result_id: str, filename: str):
+    """이상 검출 결과 이미지 제공"""
+    file_path = ANOMALY_OUTPUT_DIR / result_id / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="이미지를 찾을 수 없습니다")
+    
+    return FileResponse(file_path, media_type="image/png")
+
+
+# ====================
+# 이미지 서빙 및 정적 파일
+# ====================
+
+@app.get("/api/image/{image_path:path}")
+async def serve_image(image_path: str):
+    """이미지 파일 제공 엔드포인트"""
+    try:
+        file_path = Path(image_path)
+        
+        if not file_path.exists() or not file_path.is_file():
+            raise HTTPException(status_code=404, detail="이미지를 찾을 수 없습니다")
+        
+        allowed_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
+        if file_path.suffix.lower() not in allowed_extensions:
+            raise HTTPException(status_code=400, detail="이미지 파일이 아닙니다")
+        
+        return FileResponse(file_path, media_type=f"image/{file_path.suffix[1:]}")
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"이미지 로드 실패: {str(e)}")
 
 
 @app.delete("/uploads/clean")
 async def clean_uploads():
-    """
-    업로드 디렉토리 정리
-    """
+    """업로드 디렉토리 정리"""
     try:
         for file in UPLOAD_DIR.glob("*"):
             if file.is_file():
@@ -356,37 +479,18 @@ async def clean_uploads():
         raise HTTPException(status_code=500, detail=f"정리 실패: {str(e)}")
 
 
-# ====================
-# 정적 파일 서빙
-# ====================
+# HTML 파일 서빙
+WEB_DIR = Path(__file__).parent
 
-# HTML 파일들을 서빙하기 위한 정적 파일 마운트
-
-# 현재 스크립트의 디렉토리 경로
-CURRENT_DIR = Path(__file__).parent
-
-# HTML 파일들을 서빙하기 위한 정적 파일 마운트
-try:
-    app.mount("/static", StaticFiles(directory=str(CURRENT_DIR), html=True), name="static")
-except Exception as e:
-    print(f"⚠️  정적 파일 마운트 실패: {e}")
-
-
-# 루트 경로에서 matching.html로 리다이렉트
-from fastapi.responses import RedirectResponse
+@app.get("/matching.html")
+async def serve_matching():
+    """matching.html 서빙"""
+    return FileResponse(WEB_DIR / "matching.html")
 
 @app.get("/")
 async def root():
     """루트 접근 시 matching.html로 리다이렉트"""
-    return RedirectResponse(url="/static/matching.html")
-
-@app.get("/matching.html")
-async def matching_page():
-    """matching.html 직접 서빙"""
-    html_path = CURRENT_DIR / "matching.html"
-    if html_path.exists():
-        return FileResponse(html_path)
-    raise HTTPException(status_code=404, detail="matching.html을 찾을 수 없습니다")
+    return FileResponse(WEB_DIR / "matching.html")
 
 
 # ====================
@@ -394,11 +498,10 @@ async def matching_page():
 # ====================
 
 if __name__ == "__main__":
-    # 개발 서버 실행
     uvicorn.run(
         "api_server:app",
         host="0.0.0.0",
-        port=5000,
-        reload=True,  # 코드 변경 시 자동 재시작
+        port=5000,  # 변경된 포트
+        reload=True,
         log_level="info"
     )
