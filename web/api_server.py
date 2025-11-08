@@ -345,11 +345,18 @@ async def detect_anomaly(request: AnomalyDetectRequest):
             ref_path = Path(request.reference_image_path)
             if not ref_path.exists():
                 raise HTTPException(status_code=404, detail=f"기준 이미지를 찾을 수 없습니다: {ref_path}")
-            
+            '''
             result = detector.detect_with_reference(
                 test_image_path=str(test_path),
                 reference_image_path=str(ref_path),
                 product_name=request.product_name,
+                output_dir=str(output_dir)
+                )
+            '''
+            result = detector.detect_with_normal_reference(
+                test_image_path=str(test_path),
+                product_name=request.product_name,
+                similarity_matcher=matcher,
                 output_dir=str(output_dir)
             )
         
@@ -402,12 +409,15 @@ async def detect_anomaly_upload(
         
         # 이상 검출
         if ref_path:
+           
             result = detector.detect_with_reference(
                 test_image_path=str(test_path),
                 reference_image_path=str(ref_path),
                 product_name=product_name,
                 output_dir=str(output_dir)
             )
+           
+           
         else:
             result = detector.detect(
                 test_image_path=str(test_path),

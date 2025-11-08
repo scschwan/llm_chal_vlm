@@ -277,7 +277,7 @@ class AnomalyDetector:
         
         return result
     
-    '''
+    
     def detect_with_reference(
         self,
         test_image_path: str,
@@ -338,7 +338,7 @@ class AnomalyDetector:
             result["comparison_path"] = comparison_path
         
         return result
-    '''
+    
     # detect_with_reference() 메서드 대신 새로운 메서드 추가
     def detect_with_normal_reference(
         self,
