@@ -329,8 +329,9 @@ function displayAnomalyResults(data) {
     anomalyResultsContainer.innerHTML = html;
 }
 
-// 불량 이미지 등록
-function openDefectRegistration() {
+
+// 모달 열 때 통계 표시 (선택사항)
+async function openDefectRegistration() {
     if (!selectedFile) {
         alert('먼저 이미지를 업로드하세요.');
         return;
@@ -359,8 +360,11 @@ function openDefectRegistration() {
                 
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 600;">불량명</label>
-                    <select id="defectSelectModal" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #dee2e6;">
+                    <select id="defectSelectModal" onchange="updateDefectStats()" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #dee2e6;">
                     </select>
+                </div>
+                
+                <div id="defectStatsDiv" style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 0.9em; display: none;">
                 </div>
                 
                 <div style="margin-bottom: 20px;">
@@ -386,6 +390,25 @@ function openDefectRegistration() {
     updateDefectOptions();
 }
 
+async function updateDefectStats() {
+    const product = document.getElementById('productSelectModal').value;
+    const defect = document.getElementById('defectSelectModal').value;
+    const statsDiv = document.getElementById('defectStatsDiv');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/defect/stats/${product}/${defect}`);
+        const data = await response.json();
+        
+        statsDiv.innerHTML = `
+            📊 현재 등록: <strong>${data.total_count}개</strong><br>
+            🔢 다음 번호: <strong>${data.next_seqno}</strong>
+        `;
+        statsDiv.style.display = 'block';
+    } catch (error) {
+        statsDiv.style.display = 'none';
+    }
+}
+
 function updateDefectOptions() {
     const productSelect = document.getElementById('productSelectModal');
     const defectSelect = document.getElementById('defectSelectModal');
@@ -393,6 +416,8 @@ function updateDefectOptions() {
     
     const defects = defectConfig.products[selectedProduct].defects;
     defectSelect.innerHTML = defects.map(d => `<option value="${d}">${d}</option>`).join('');
+    
+    updateDefectStats();
 }
 
 function closeDefectModal() {
@@ -410,6 +435,12 @@ async function submitDefectRegistration() {
         formData.append('product_name', product);
         formData.append('defect_name', defect);
         
+        // 로딩 표시
+        const submitBtn = document.querySelector('#defectModal button[onclick="submitDefectRegistration()"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = '등록 중...';
+        submitBtn.disabled = true;
+        
         const response = await fetch(`${API_BASE_URL}/register_defect`, {
             method: 'POST',
             body: formData
@@ -421,15 +452,35 @@ async function submitDefectRegistration() {
         }
         
         const data = await response.json();
-        alert(`불량 이미지가 성공적으로 등록되었습니다.\n저장 경로: ${data.saved_path}`);
+        
+        alert(
+            `✅ ${data.message}\n\n` +
+            `📁 파일명: ${data.filename}\n` +
+            `📊 SEQ 번호: ${data.seqno}\n` +
+            `📈 총 등록 수: ${data.total_defects}개\n` +
+            `🔄 인덱스 재구축: ${data.index_rebuilt ? '완료' : '미실행'}\n\n` +
+            `저장 경로: ${data.saved_path}`
+        );
+        
         closeDefectModal();
+        
+        // 인덱스가 재구축되었으면 상태 갱신
+        if (data.index_rebuilt) {
+            setTimeout(() => checkIndexStatus(), 1000);
+        }
         
     } catch (error) {
         console.error('등록 오류:', error);
-        alert(`등록 실패: ${error.message}`);
+        alert(`❌ 등록 실패: ${error.message}`);
+        
+        // 버튼 복원
+        const submitBtn = document.querySelector('#defectModal button[onclick="submitDefectRegistration()"]');
+        if (submitBtn) {
+            submitBtn.textContent = '등록';
+            submitBtn.disabled = false;
+        }
     }
 }
-
 // 인덱스 관리
 async function checkIndexStatus() {
     checkIndexBtn.disabled = true;

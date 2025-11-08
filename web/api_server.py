@@ -14,6 +14,7 @@ import shutil
 from pathlib import Path
 import uvicorn
 from fastapi.staticfiles import StaticFiles
+import time  # 기존 import에 추가
 
 # 프로젝트 루트를 Python 경로에 추가
 project_root = Path(__file__).parent.parent
@@ -468,32 +469,112 @@ async def serve_anomaly_image(result_id: str, filename: str):
     
     return FileResponse(file_path, media_type="image/png")
 
+
+def get_next_seqno(base_dir: Path, product_name: str, defect_name: str) -> int:
+    """특정 제품/불량의 다음 seqno 반환"""
+    pattern = f"{product_name}_{defect_name}_*"
+    existing_files = list(base_dir.glob(pattern))
+    
+    max_seqno = 0
+    for file_path in existing_files:
+        stem = file_path.stem
+        parts = stem.split('_')
+        
+        if len(parts) >= 3:
+            try:
+                seqno = int(parts[-1])
+                max_seqno = max(max_seqno, seqno)
+            except ValueError:
+                continue
+    
+    return max_seqno + 1
+
 @app.post("/register_defect")
 async def register_defect(
-        file: UploadFile = File(...),
-        product_name: str = Query(...),
-        defect_name: str = Query(...)
-    ):
+    file: UploadFile = File(...),
+    product_name: str = Form(...),  # Query → Form으로 변경
+    defect_name: str = Form(...)    # Query → Form으로 변경
+):
     """불량 이미지 등록"""
     # 저장 경로 설정
-    defect_dir = Path(f"../data/def_split/{product_name}_{defect_name}")
+    defect_dir = Path(f"../data/def_split")
     defect_dir.mkdir(parents=True, exist_ok=True)
     
-    # 파일명 생성 (중복 방지)
-    timestamp = int(time.time())
+    # 현재 등록된 파일 중 최대 seqno 찾기
+    pattern = f"{product_name}_{defect_name}_*.{Path(file.filename).suffix}"
+    existing_files = list(defect_dir.glob(f"{product_name}_{defect_name}_*"))
+    
+    # seqno 추출 및 최대값 찾기
+    max_seqno = 0
+    for existing_file in existing_files:
+        try:
+            # 파일명 형식: prod1_hole_001.jpg
+            stem = existing_file.stem  # prod1_hole_001
+            parts = stem.split('_')
+            if len(parts) >= 3:
+                seqno_str = parts[-1]  # 001
+                seqno = int(seqno_str)
+                max_seqno = max(max_seqno, seqno)
+        except (ValueError, IndexError):
+            continue
+    
+    # 새로운 seqno
+    new_seqno = max_seqno + 1
+    
+    # 파일명 생성
     ext = Path(file.filename).suffix
-    new_filename = f"{product_name}_{defect_name}_{timestamp}{ext}"
+    new_filename = f"{product_name}_{defect_name}_{new_seqno:03d}{ext}"
     save_path = defect_dir / new_filename
     
     # 저장
     with save_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
+    # 인덱스 재구축 (선택사항)
+    if matcher and matcher.index_built:
+        try:
+            matcher.build_index(str(defect_dir))
+            matcher.save_index(str(INDEX_DIR))
+            index_rebuilt = True
+        except Exception as e:
+            print(f"인덱스 재구축 실패: {e}")
+            index_rebuilt = False
+    else:
+        index_rebuilt = False
+    
     return JSONResponse(content={
         "status": "success",
         "saved_path": str(save_path),
+        "filename": new_filename,
         "product_name": product_name,
-        "defect_name": defect_name
+        "defect_name": defect_name,
+        "seqno": new_seqno,
+        "index_rebuilt": index_rebuilt
+    })
+
+@app.get("/defect/stats/{product_name}/{defect_name}")
+async def get_defect_stats(product_name: str, defect_name: str):
+    """특정 불량의 통계 조회"""
+    defect_dir = Path("../data/def_split")
+    
+    if not defect_dir.exists():
+        return JSONResponse(content={
+            "product_name": product_name,
+            "defect_name": defect_name,
+            "total_count": 0,
+            "next_seqno": 1
+        })
+    
+    pattern = f"{product_name}_{defect_name}_*"
+    existing_files = list(defect_dir.glob(pattern))
+    next_seqno = get_next_seqno(defect_dir, product_name, defect_name)
+    
+    return JSONResponse(content={
+        "product_name": product_name,
+        "defect_name": defect_name,
+        "total_count": len(existing_files),
+        "next_seqno": next_seqno,
+        "files": [f.name for f in sorted(existing_files)]
     })
 
 @app.get("/defect_config.json")
