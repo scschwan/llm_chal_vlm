@@ -59,17 +59,13 @@ class AnomalyDetector:
         if self.verbose:
             print(f"[AnomalyDetector] 초기화 - Device: {self.device}")
     
+    # 변경 후 (더 강건하게):
     def extract_product_name(self, filename: str) -> str:
         """
         파일명에서 제품명 추출
-        
-        Args:
-            filename: 이미지 파일명 (예: prod1_burr_10.jpeg)
-            
-        Returns:
-            제품명 (예: prod1)
+        예시: prod1_burr_10.jpeg → prod1
+            cast_001.png → cast
         """
-        # 확장자 제거
         name = Path(filename).stem
         
         # '_'로 split하여 첫 번째 토큰을 제품명으로 사용
@@ -78,6 +74,20 @@ class AnomalyDetector:
             product_name = parts[0]
         else:
             product_name = "unknown"
+        
+        # 실제 메모리뱅크 디렉토리에 존재하는지 확인
+        available_products = [d.name for d in self.bank_base_dir.iterdir() if d.is_dir()]
+        
+        # 추출된 제품명이 없으면 기본값 사용
+        if product_name not in available_products:
+            if self.verbose:
+                print(f"⚠️ 제품명 '{product_name}'이 메모리뱅크에 없음. 사용 가능: {available_products}")
+            
+            # 기본값으로 첫 번째 제품 사용
+            if available_products:
+                product_name = available_products[0]
+                if self.verbose:
+                    print(f"   → 기본 제품 '{product_name}' 사용")
         
         if self.verbose:
             print(f"[파일명 파싱] {filename} → 제품명: {product_name}")

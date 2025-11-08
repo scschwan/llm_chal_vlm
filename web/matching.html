@@ -980,7 +980,7 @@
         // 페이지 로드 시
         window.addEventListener('load', async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/health`);
+                const response = await fetch(`${API_BASE_URL}/health2`);
                 const data = await response.json();
                 
                 if (data.status === 'healthy') {

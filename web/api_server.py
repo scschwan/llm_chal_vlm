@@ -164,7 +164,7 @@ async def startup_event():
     # 2. Anomaly Detector 생성
     try:
         detector = create_detector(
-            bank_base_dir="../data/patchCore",
+            bank_base_dir=str(project_root / "data" / "patchCore"),
             device="auto",
             verbose=True
         )
