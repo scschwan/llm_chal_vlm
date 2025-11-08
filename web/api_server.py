@@ -85,11 +85,25 @@ class HealthResponse(BaseModel):
 # FastAPI 앱 생성
 # ====================
 
+# HTML 파일 서빙
+WEB_DIR = Path(__file__).parent
+
+
+
 app = FastAPI(
     title="유사도 매칭 + Anomaly Detection API",
     description="CLIP 기반 이미지 유사도 검색 + PatchCore 이상 검출 서비스",
     version="2.0.0"
 )
+
+# Static 파일 마운트 (CORS 전에 위치)
+STATIC_DIR = WEB_DIR / "static"
+STATIC_DIR.mkdir(exist_ok=True)  # 폴더 없으면 생성
+(STATIC_DIR / "css").mkdir(exist_ok=True)
+(STATIC_DIR / "js").mkdir(exist_ok=True)
+
+# static 폴더 마운트
+app.mount("/static", StaticFiles(directory=str(WEB_DIR / "static")), name="static")
 
 # CORS 설정
 app.add_middleware(
@@ -99,6 +113,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # ====================
 # 전역 변수
@@ -535,9 +550,6 @@ async def clean_uploads():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"정리 실패: {str(e)}")
 
-
-# HTML 파일 서빙
-WEB_DIR = Path(__file__).parent
 
 
 
