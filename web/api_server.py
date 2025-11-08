@@ -313,6 +313,7 @@ async def get_index_info():
 # API 엔드포인트 - Anomaly Detection
 # ====================
 
+# /detect_anomaly 엔드포인트 수정
 @app.post("/detect_anomaly", response_model=AnomalyDetectResponse)
 async def detect_anomaly(request: AnomalyDetectRequest):
     """이상 검출 수행"""
@@ -328,9 +329,19 @@ async def detect_anomaly(request: AnomalyDetectRequest):
         output_dir = ANOMALY_OUTPUT_DIR / test_path.stem
         output_dir.mkdir(exist_ok=True)
         
-        # 이상 검출
-        if request.reference_image_path:
-            # 기준 이미지와 함께 검출
+        # reference_image_path가 제공되지 않으면 정상 이미지에서 자동 검색
+        if not request.reference_image_path:
+            if matcher is None:
+                raise HTTPException(status_code=500, detail="유사도 매처가 초기화되지 않았습니다")
+            
+            result = detector.detect_with_normal_reference(
+                test_image_path=str(test_path),
+                product_name=request.product_name,
+                similarity_matcher=matcher,
+                output_dir=str(output_dir)
+            )
+        else:
+            # 기준 이미지가 제공된 경우 기존 로직 사용
             ref_path = Path(request.reference_image_path)
             if not ref_path.exists():
                 raise HTTPException(status_code=404, detail=f"기준 이미지를 찾을 수 없습니다: {ref_path}")
@@ -341,15 +352,8 @@ async def detect_anomaly(request: AnomalyDetectRequest):
                 product_name=request.product_name,
                 output_dir=str(output_dir)
             )
-        else:
-            # 테스트 이미지만으로 검출
-            result = detector.detect(
-                test_image_path=str(test_path),
-                product_name=request.product_name,
-                output_dir=str(output_dir)
-            )
         
-        # URL 생성 (상대 경로)
+        # URL 생성
         return AnomalyDetectResponse(
             status="success",
             product_name=result["product_name"],
@@ -436,6 +440,46 @@ async def serve_anomaly_image(result_id: str, filename: str):
     
     return FileResponse(file_path, media_type="image/png")
 
+@app.post("/register_defect")
+async def register_defect(
+        file: UploadFile = File(...),
+        product_name: str = Query(...),
+        defect_name: str = Query(...)
+    ):
+    """불량 이미지 등록"""
+    # 저장 경로 설정
+    defect_dir = Path(f"../data/def_split/{product_name}_{defect_name}")
+    defect_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 파일명 생성 (중복 방지)
+    timestamp = int(time.time())
+    ext = Path(file.filename).suffix
+    new_filename = f"{product_name}_{defect_name}_{timestamp}{ext}"
+    save_path = defect_dir / new_filename
+    
+    # 저장
+    with save_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    return JSONResponse(content={
+        "status": "success",
+        "saved_path": str(save_path),
+        "product_name": product_name,
+        "defect_name": defect_name
+    })
+
+@app.get("/defect_config.json")
+async def serve_defect_config():
+    """불량 설정 파일 제공"""
+    config_path = WEB_DIR / "defect_config.json"
+    if not config_path.exists():
+        # 기본 설정 반환
+        return JSONResponse(content={
+            "products": {
+                "prod1": {"name": "제품1", "defects": ["hole", "burr", "scratch"]}
+            }
+        })
+    return FileResponse(config_path)
 
 # ====================
 # 이미지 서빙 및 정적 파일

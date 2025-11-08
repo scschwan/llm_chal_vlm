@@ -277,6 +277,7 @@ class AnomalyDetector:
         
         return result
     
+    '''
     def detect_with_reference(
         self,
         test_image_path: str,
@@ -337,7 +338,76 @@ class AnomalyDetector:
             result["comparison_path"] = comparison_path
         
         return result
-
+    '''
+    # detect_with_reference() 메서드 대신 새로운 메서드 추가
+    def detect_with_normal_reference(
+        self,
+        test_image_path: str,
+        product_name: Optional[str] = None,
+        normal_gallery_dir: Optional[str] = None,
+        similarity_matcher = None,
+        output_dir: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        정상 이미지 갤러리에서 유사한 정상 이미지를 찾아 기준으로 사용
+        
+        Args:
+            test_image_path: 테스트 이미지 경로
+            product_name: 제품명
+            normal_gallery_dir: 정상 이미지 디렉토리 (None이면 자동 설정)
+            similarity_matcher: CLIP 유사도 매처 인스턴스
+            output_dir: 출력 디렉토리
+            
+        Returns:
+            detect() 결과 + {"reference_image_path": str, "comparison_path": str}
+        """
+        # 제품명 자동 추출
+        if product_name is None:
+            filename = Path(test_image_path).name
+            product_name = self.extract_product_name(filename)
+        
+        # 정상 이미지 디렉토리 설정
+        if normal_gallery_dir is None:
+            # 기본 경로: ../data/patchCore/{product_name}/ok
+            normal_gallery_dir = self.bank_base_dir / product_name / "ok"
+        
+        normal_gallery_dir = Path(normal_gallery_dir)
+        if not normal_gallery_dir.exists():
+            raise FileNotFoundError(
+                f"정상 이미지 디렉토리를 찾을 수 없습니다: {normal_gallery_dir}"
+            )
+        
+        # CLIP으로 가장 유사한 정상 이미지 찾기
+        if similarity_matcher is None:
+            raise ValueError("similarity_matcher가 필요합니다")
+        
+        # 정상 이미지 갤러리로 임시 인덱스 구축
+        temp_index_built = False
+        if not similarity_matcher.index_built or \
+        str(normal_gallery_dir) not in str(similarity_matcher.gallery_paths[0] if similarity_matcher.gallery_paths else ""):
+            similarity_matcher.build_index(str(normal_gallery_dir))
+            temp_index_built = True
+        
+        # 유사 정상 이미지 검색 (TOP-1)
+        search_result = similarity_matcher.search(str(test_image_path), top_k=1)
+        reference_image_path = search_result.top_k_results[0]["image_path"]
+        
+        if self.verbose:
+            print(f"[정상 기준 이미지 선택] {reference_image_path}")
+            print(f"  유사도: {search_result.top_k_results[0]['similarity_score']:.4f}")
+        
+        # 기존 detect_with_reference 호출
+        result = self.detect_with_reference(
+            test_image_path=test_image_path,
+            reference_image_path=reference_image_path,
+            product_name=product_name,
+            output_dir=output_dir
+        )
+        
+        result["reference_image_path"] = reference_image_path
+        result["reference_similarity"] = search_result.top_k_results[0]['similarity_score']
+        
+        return result
 
 # 헬퍼 함수
 def create_detector(

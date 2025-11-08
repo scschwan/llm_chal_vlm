@@ -977,8 +977,227 @@
             anomalyStatusMessage.style.display = 'block';
         }
 
+        let defectConfig = null;
+
+        async function loadDefectConfig() {
+            try {
+                const response = await fetch('/defect_config.json');
+                defectConfig = await response.json();
+            } catch (error) {
+                console.error('설정 파일 로드 실패:', error);
+                // 기본값 설정
+                defectConfig = {
+                    products: {
+                        prod1: { name: "제품1", defects: ["hole", "burr", "scratch"] }
+                    }
+                };
+            }
+        }
+
         // 페이지 로드 시
         window.addEventListener('load', async () => {
+            try {
+                await loadDefectConfig();
+                const response = await fetch(`${API_BASE_URL}/health2`);
+                const data = await response.json();
+                
+                if (data.status === 'healthy') {
+                    if (!data.index_built) {
+                        showStatus('⚠️ 인덱스가 구축되지 않았습니다.', 'info');
+                    }
+                }
+            } catch (error) {
+                showStatus('⚠️ API 서버에 연결할 수 없습니다.', 'error');
+            }
+            
+            setTimeout(() => checkIndexBtn.click(), 2000);
+        });
+
+        function swapTopResult(clickedIndex) {
+            if (!searchResults || clickedIndex === 0) return;
+            
+            const results = searchResults.top_k_results;
+            
+            // 스왑
+            const temp = results[0];
+            results[0] = results[clickedIndex];
+            results[clickedIndex] = temp;
+            
+            // 랭크 재정렬
+            results.forEach((r, idx) => {
+                r.rank = idx + 1;
+            });
+            
+            // UI 다시 그리기
+            displayResults(searchResults);
+            
+            // 이상 검출 정보 업데이트
+            document.getElementById('anomalyRefInfo').innerHTML = 
+                `✅ ${results[0].image_name} (유사도: ${(results[0].similarity_score * 100).toFixed(1)}%)`;
+            
+            showStatus(`TOP-1이 ${results[0].image_name}으로 변경되었습니다.`, 'success');
+        }
+
+        function displayResults(data) {
+            const results = data.top_k_results;
+
+            resultsStats.innerHTML = `
+                검색된 이미지: <strong>${results.length}개</strong> | 
+                전체 DB: <strong>${data.total_gallery_size}개</strong>
+            `;
+
+            let html = '<div class="results-grid">';
+            results.forEach((result, index) => {
+                const isMain = index === 0;
+                const cardClass = isMain ? 'result-card main-result' : 'result-card';
+                const similarity = (result.similarity_score * 100).toFixed(1);
+                
+                html += `
+                    <div class="${cardClass}" onclick="${isMain ? '' : `swapTopResult(${index})`}" 
+                        style="${isMain ? '' : 'cursor: pointer;'}">
+                        <span class="rank-badge">${isMain ? '🏆 TOP 1' : `#${result.rank}`}</span>
+                        ${!isMain ? '<div style="position: absolute; top: 50px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8em;">클릭하여 TOP-1로 변경</div>' : ''}
+                        <img src="/api/image/${encodeURIComponent(result.image_path)}" 
+                            alt="Result ${result.rank}"
+                            onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22200%22><rect fill=%22%23ddd%22 width=%22300%22 height=%22200%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 fill=%22%23999%22>이미지 로드 실패</text></svg>'">
+                        <div class="result-info">
+                            <div class="image-name" title="${result.image_name}">
+                                📁 ${result.image_name}
+                            </div>
+                            <div class="similarity-score">
+                                <div class="similarity-bar">
+                                    <div class="similarity-fill" style="width: ${similarity}%"></div>
+                                </div>
+                                <span class="similarity-value">${similarity}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            // 불량 이미지 등록 버튼 추가
+            html += `
+                <div style="margin-top: 30px; text-align: center;">
+                    <button onclick="openDefectRegistration()" 
+                            style="padding: 15px 30px; background: #28a745; color: white; border: none; border-radius: 10px; font-size: 1.1em; font-weight: 600; cursor: pointer; transition: transform 0.2s;">
+                        ➕ 해당하는 불량이 없습니다 - 불량 이미지 등록
+                    </button>
+                </div>
+            `;
+            
+            resultsContainer.innerHTML = html;
+        }
+
+        // 불량 이미지 등록 다이얼로그
+        function openDefectRegistration() {
+            if (!selectedFile) {
+                alert('먼저 이미지를 업로드하세요.');
+                return;
+            }
+            
+            // 제품명 자동 추출 또는 선택
+            const filename = selectedFile.name;
+            const autoProduct = filename.split('_')[0];
+            
+            // 제품 목록 생성
+            let productOptions = '';
+            for (const [key, value] of Object.entries(defectConfig.products)) {
+                const selected = key === autoProduct ? 'selected' : '';
+                productOptions += `<option value="${key}" ${selected}>${value.name} (${key})</option>`;
+            }
+            
+            // 모달 HTML
+            const modalHTML = `
+                <div id="defectModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 9999;">
+                    <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%;">
+                        <h2 style="margin-bottom: 20px; color: #343a40;">불량 이미지 등록</h2>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">제품명</label>
+                            <select id="productSelectModal" onchange="updateDefectOptions()" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #dee2e6;">
+                                ${productOptions}
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">불량명</label>
+                            <select id="defectSelectModal" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #dee2e6;">
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">업로드된 이미지</label>
+                            <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                                ${selectedFile.name}
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="submitDefectRegistration()" style="flex: 1; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                                등록
+                            </button>
+                            <button onclick="closeDefectModal()" style="flex: 1; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                                취소
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            updateDefectOptions();
+        }
+
+        function updateDefectOptions() {
+            const productSelect = document.getElementById('productSelectModal');
+            const defectSelect = document.getElementById('defectSelectModal');
+            const selectedProduct = productSelect.value;
+            
+            const defects = defectConfig.products[selectedProduct].defects;
+            defectSelect.innerHTML = defects.map(d => `<option value="${d}">${d}</option>`).join('');
+        }
+
+        function closeDefectModal() {
+            const modal = document.getElementById('defectModal');
+            if (modal) modal.remove();
+        }
+
+        async function submitDefectRegistration() {
+            const product = document.getElementById('productSelectModal').value;
+            const defect = document.getElementById('defectSelectModal').value;
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                formData.append('product_name', product);
+                formData.append('defect_name', defect);
+                
+                const response = await fetch(`${API_BASE_URL}/register_defect`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '등록 실패');
+                }
+                
+                const data = await response.json();
+                alert(`불량 이미지가 성공적으로 등록되었습니다.\n저장 경로: ${data.saved_path}`);
+                closeDefectModal();
+                
+            } catch (error) {
+                console.error('등록 오류:', error);
+                alert(`등록 실패: ${error.message}`);
+            }
+        }
+
+        // 기존 window.load에 설정 로드 추가
+        window.addEventListener('load', async () => {
+            await loadDefectConfig();
+            
+            // 기존 헬스체크 코드...
             try {
                 const response = await fetch(`${API_BASE_URL}/health2`);
                 const data = await response.json();

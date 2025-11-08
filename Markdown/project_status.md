@@ -99,3 +99,25 @@ Python 모듈:
 1. Anomaly Detection 제품명 자동 추출 로직 강화
 2. matching.html에 제품 선택 UI 추가
 3. 전체 파이프라인 통합 테스트
+
+## 기술 결정 사항 (2025-11-08 업데이트)
+
+### 이상 검출 기준 이미지 선정
+- **선택된 방안**: 정상 이미지 Raw Data에서 CLIP 유사도 기반 자동 선정
+- **경로**: `data/patchCore/{product_name}/ok/` 폴더의 정상 이미지
+- **장점**: 
+  - 기존 CLIP 검색 모듈 재사용
+  - 실제 이미지와 비교하여 직관적
+  - 사용자에게 비교 대상 명확히 제시 가능
+
+### matching.html UI 개선
+1. **TOP-1 스왑 기능**: TOP-2~5 클릭 시 TOP-1과 교체
+2. **불량 이미지 등록**: 
+   - 제품명/불량명 선택하여 등록
+   - `defect_config.json`에서 목록 관리
+3. **설정 파일**: `web/defect_config.json` (제품/불량 목록)
+
+### 다음 개발 항목
+- [ ] 설정 관리 페이지 개발 (`defect_config_manager.html`)
+- [ ] 불량 이미지 이력 관리
+- [ ] 통계 대시보드 통합

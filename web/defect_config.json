@@ -1,0 +1,16 @@
+{
+  "products": {
+    "prod1": {
+      "name": "제품1",
+      "defects": ["hole", "burr", "scratch"]
+    },
+    "prod2": {
+      "name": "제품2",
+      "defects": ["crack", "dent"]
+    },
+    "prod3": {
+      "name": "제품3",
+      "defects": ["stain", "discolor"]
+    }
+  }
+}
