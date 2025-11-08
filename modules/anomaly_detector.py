@@ -299,14 +299,11 @@ class AnomalyDetector:
         """
         result = self.detect(test_image_path, product_name, output_dir)
         
-        # Side-by-side 이미지 생성
+         # Side-by-side 이미지 생성 (정상 이미지 + 오버레이만)
         ref_bgr = cv2.imread(reference_image_path, cv2.IMREAD_COLOR)
-        test_bgr = cv2.imread(test_image_path, cv2.IMREAD_COLOR)
-        mask = cv2.imread(result["mask_path"], cv2.IMREAD_GRAYSCALE)
         overlay = cv2.imread(result["overlay_path"], cv2.IMREAD_COLOR)
         
-        if ref_bgr is not None and test_bgr is not None:
-            # 2x2 그리드 생성
+        if ref_bgr is not None and overlay is not None:
             def resize_h(img, h=512):
                 if img is None:
                     return np.zeros((h, h, 3), np.uint8)
@@ -314,26 +311,21 @@ class AnomalyDetector:
                 new_w = int(ww * h / hh)
                 return cv2.resize(img, (new_w, h), interpolation=cv2.INTER_AREA)
             
-            a = resize_h(ref_bgr)
-            b = resize_h(test_bgr)
-            m = cv2.cvtColor(resize_h(mask), cv2.COLOR_GRAY2BGR)
-            o = resize_h(overlay)
+            normal = resize_h(ref_bgr)
+            overlay_resized = resize_h(overlay)
             
             # 폭 맞추기
-            wmax = max(a.shape[1], b.shape[1], m.shape[1], o.shape[1])
+            wmax = max(normal.shape[1], overlay_resized.shape[1])
             def pad_w(img):
                 pad = wmax - img.shape[1]
                 return cv2.copyMakeBorder(img, 0, 0, 0, max(0, pad), 
-                                         cv2.BORDER_CONSTANT, value=(0, 0, 0))
+                                        cv2.BORDER_CONSTANT, value=(0, 0, 0))
             
-            # 2x2 배치: [기준 | 테스트]
-            #          [마스크 | 오버레이]
-            top = np.hstack([pad_w(a), pad_w(b)])
-            bot = np.hstack([pad_w(m), pad_w(o)])
-            grid = np.vstack([top, bot])
+            # 1x2 배치: [정상 이미지 | 오버레이]
+            grid = np.hstack([pad_w(normal), pad_w(overlay_resized)])
             
-            comparison_path = os.path.join(output_dir or result["heatmap_path"].rsplit('/', 1)[0], 
-                                          "comparison.png")
+            comparison_path = os.path.join(output_dir or result["overlay_path"].rsplit('/', 1)[0], 
+                                        "comparison.png")
             cv2.imwrite(comparison_path, grid)
             result["comparison_path"] = comparison_path
         

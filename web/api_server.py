@@ -13,10 +13,13 @@ import sys
 import shutil
 from pathlib import Path
 import uvicorn
+from fastapi.staticfiles import StaticFiles
 
 # 프로젝트 루트를 Python 경로에 추가
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
+
+
 
 # modules 폴더의 모듈 import
 from modules.similarity_matcher import TopKSimilarityMatcher, create_matcher
@@ -64,7 +67,7 @@ class AnomalyDetectResponse(BaseModel):
     pixel_tau: float
     image_tau: float
     is_anomaly: bool
-    heatmap_url: str
+    reference_normal_url: str  # 추가: 정상 기준 이미지
     mask_url: str
     overlay_url: str
     comparison_url: Optional[str] = None
@@ -368,7 +371,7 @@ async def detect_anomaly(request: AnomalyDetectRequest):
             pixel_tau=result["pixel_tau"],
             image_tau=result["image_tau"],
             is_anomaly=result["is_anomaly"],
-            heatmap_url=f"/anomaly/image/{test_path.stem}/heatmap.png",
+            reference_normal_url=f"/api/image/{result['reference_image_path']}" if "reference_image_path" in result else "",
             mask_url=f"/anomaly/image/{test_path.stem}/mask.png",
             overlay_url=f"/anomaly/image/{test_path.stem}/overlay.png",
             comparison_url=f"/anomaly/image/{test_path.stem}/comparison.png" if "comparison_path" in result else None
@@ -535,6 +538,8 @@ async def clean_uploads():
 
 # HTML 파일 서빙
 WEB_DIR = Path(__file__).parent
+
+
 
 @app.get("/matching.html")
 async def serve_matching():
