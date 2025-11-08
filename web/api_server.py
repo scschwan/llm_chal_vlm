@@ -126,7 +126,8 @@ async def startup_event():
     
     # 인덱스가 없으면 자동 구축 시도
     if not matcher.index_built:
-        default_gallery = Path("../data/ok_front")  # 기본 갤러리 경로
+        #default_gallery = Path("../data/ok_front")  # 기본 갤러리 경로
+        default_gallery = Path("../data/def_split")  # 기본 갤러리 경로
         
         if default_gallery.exists():
             print(f"🔄 자동 인덱스 구축 시작: {default_gallery}")
