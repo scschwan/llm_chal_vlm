@@ -371,6 +371,12 @@ async def search_upload(
 ):
     """이미지 업로드 및 유사도 검색"""
     try:
+        if matcher is None:
+            raise HTTPException(status_code=500, detail="매처가 초기화되지 않았습니다")
+        
+        if not matcher.index_built:
+            raise HTTPException(status_code=400, detail="인덱스가 구축되지 않았습니다")
+        
         # 1. 파일 저장
         file_path = uploads_dir / file.filename
         
@@ -380,31 +386,24 @@ async def search_upload(
         print(f"파일 저장 완료: {file_path}")
         
         # 2. 유사도 검색 수행
-        results = matcher.search(
+        result = matcher.search(
             str(file_path),
             top_k=top_k
         )
         
-        # 3. 결과 반환
+        # 3. 결과 반환 - result는 SimilarityResult 객체
         return {
             "status": "success",
-            "uploaded_file": str(file_path),  # 저장된 파일 경로 반환
-            "top_k_results": [
-                {
-                    "rank": i + 1,
-                    "image_path": hit.candidate_path,
-                    "image_name": Path(hit.candidate_path).name,
-                    "similarity_score": float(hit.similarity)
-                }
-                for i, hit in enumerate(results)
-            ],
-            "total_gallery_size": len(matcher.gallery_paths)
+            "uploaded_file": str(file_path),
+            "top_k_results": result.top_k_results,  # 이미 리스트
+            "total_gallery_size": result.total_gallery_size
         }
         
     except Exception as e:
         print(f"검색 오류: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/index/info")
 async def get_index_info():
