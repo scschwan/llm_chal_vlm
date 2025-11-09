@@ -75,8 +75,35 @@ class VLMInference:
             if self.verbose:
                 print("⚙️  8-bit 양자화 활성화")
         
-        # Processor 로드
-        self.processor = LlavaNextProcessor.from_pretrained(model_name)
+        # ✅ Processor 로드 - try-except 추가
+        try:
+            self.processor = LlavaNextProcessor.from_pretrained(model_name)
+        except Exception as e:
+            if self.verbose:
+                print(f"⚠️  LlavaNextProcessor 로드 실패: {e}")
+                print("   AutoProcessor로 재시도...")
+            
+            # 폴백: AutoProcessor 사용
+            from transformers import AutoProcessor
+            try:
+                self.processor = AutoProcessor.from_pretrained(model_name)
+            except Exception as e2:
+                if self.verbose:
+                    print(f"⚠️  AutoProcessor도 실패: {e2}")
+                
+                # 마지막 시도: LlavaProcessor
+                try:
+                    from transformers import LlavaProcessor
+                    self.processor = LlavaProcessor.from_pretrained(model_name)
+                    if self.verbose:
+                        print("✅ LlavaProcessor로 대체 성공")
+                except Exception as e3:
+                    raise ImportError(
+                        f"Processor 로드 실패. 모든 시도 실패:\n"
+                        f"1. LlavaNextProcessor: {e}\n"
+                        f"2. AutoProcessor: {e2}\n"
+                        f"3. LlavaProcessor: {e3}"
+                    )
         
         # 모델 로드
         model_kwargs = {
@@ -87,10 +114,22 @@ class VLMInference:
         if quantization_config:
             model_kwargs["quantization_config"] = quantization_config
         
-        self.model = LlavaNextForConditionalGeneration.from_pretrained(
-            model_name,
-            **model_kwargs
-        )
+        # ✅ 모델 로드도 try-except 추가
+        try:
+            self.model = LlavaNextForConditionalGeneration.from_pretrained(
+                model_name,
+                **model_kwargs
+            )
+        except Exception as e:
+            if self.verbose:
+                print(f"⚠️  LlavaNextForConditionalGeneration 로드 실패: {e}")
+                print("   LlavaForConditionalGeneration으로 재시도...")
+            
+            from transformers import LlavaForConditionalGeneration
+            self.model = LlavaForConditionalGeneration.from_pretrained(
+                model_name,
+                **model_kwargs
+            )
         
         if self.verbose:
             print("✅ VLM 모델 로드 완료")
