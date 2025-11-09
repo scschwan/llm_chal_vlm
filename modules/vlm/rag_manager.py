@@ -56,34 +56,59 @@ class RAGManager:
             print("✅ RAG 매니저 초기화 완료")
     
     def _load_or_build_vectorstore(self) -> FAISS:
-        """벡터 DB 로드 또는 신규 구축"""
-        # 캐시 경로가 있고 존재하면 로드
-        if self.vector_store_path and self.vector_store_path.exists():
+        """벡터 스토어 로드 또는 구축"""
+        if self.vector_store_path.exists():
             if self.verbose:
                 print(f"📂 벡터 DB 로드 중: {self.vector_store_path}")
             
-            return FAISS.load_local(
-                str(self.vector_store_path),
-                self.embeddings
-            )
+            try:
+                # ✅ 수정: allow_dangerous_deserialization=True 추가
+                return FAISS.load_local(
+                    str(self.vector_store_path),
+                    self.embeddings,
+                    allow_dangerous_deserialization=True  # 신뢰할 수 있는 파일이므로 허용
+                )
+            except Exception as e:
+                if self.verbose:
+                    print(f"⚠️  벡터 DB 로드 실패: {e}")
+                    print("   새로 구축합니다...")
         
-        # 신규 구축
+        # 벡터 DB가 없거나 로드 실패 시 새로 구축
         if self.verbose:
-            print(f"📄 PDF 로드 중: {self.pdf_path}")
+            print(f"📚 PDF 문서 로드 중: {self.pdf_path}")
         
-        documents = self._load_and_parse_pdf()
+        # PDF 로드
+        from langchain_community.document_loaders import PyPDFLoader
+        loader = PyPDFLoader(str(self.pdf_path))
+        documents = loader.load()
         
         if self.verbose:
-            print(f"🔨 벡터 DB 구축 중... ({len(documents)}개 문서)")
+            print(f"   로드된 페이지 수: {len(documents)}")
         
-        vectorstore = FAISS.from_documents(documents, self.embeddings)
+        # 텍스트 분할
+        from langchain.text_splitter import RecursiveCharacterTextSplitter
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=500,
+            chunk_overlap=50,
+            separators=["\n\n", "\n", ".", " ", ""]
+        )
+        texts = text_splitter.split_documents(documents)
         
-        # 캐시 저장
-        if self.vector_store_path:
-            self.vector_store_path.parent.mkdir(parents=True, exist_ok=True)
-            vectorstore.save_local(str(self.vector_store_path))
-            if self.verbose:
-                print(f"💾 벡터 DB 저장 완료: {self.vector_store_path}")
+        if self.verbose:
+            print(f"   분할된 청크 수: {len(texts)}")
+        
+        # 벡터 DB 구축
+        if self.verbose:
+            print("🔨 벡터 DB 구축 중...")
+        
+        vectorstore = FAISS.from_documents(texts, self.embeddings)
+        
+        # 저장
+        self.vector_store_path.mkdir(parents=True, exist_ok=True)
+        vectorstore.save_local(str(self.vector_store_path))
+        
+        if self.verbose:
+            print(f"✅ 벡터 DB 저장 완료: {self.vector_store_path}")
         
         return vectorstore
     
