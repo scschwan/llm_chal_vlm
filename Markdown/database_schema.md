@@ -1,166 +1,113 @@
-# PostgreSQL 데이터베이스 스키마 설계
+# PostgreSQL 데이터베이스 스키마 설계 (단순화 버전)
 
 ## 1. 데이터베이스 개요
 
 ### 1.1 설계 원칙
-- **정규화**: 제3정규형(3NF) 준수
-- **확장성**: 제품/업체 추가에 유연한 구조
-- **이력 관리**: 검사 이력 및 피드백 추적
-- **성능**: 적절한 인덱스 및 파티셔닝
+- **단순성 우선**: 필수 기능만 포함한 최소 구조
+- **확장 가능**: 필요시 테이블 추가 가능한 유연한 설계
+- **JSON 활용**: 복잡한 데이터는 JSONB로 유연하게 저장
 
-### 1.2 주요 엔티티
-1. **사용자 관리**: users, roles, permissions
-2. **제품 관리**: products, defect_types
-3. **이미지 관리**: images, image_metadata
-4. **매뉴얼 관리**: manuals, manual_sections
-5. **검사 관리**: inspections, inspection_results
-6. **배포 관리**: deployments, model_configs
-7. **피드백 관리**: feedbacks
-8. **대시보드**: 각종 통계 뷰
+### 1.2 테이블 구성 (10개)
+```
+1. users              - 사용자 (관리자/작업자)
+2. products           - 제품
+3. manuals            - 매뉴얼
+4. defect_types       - 불량 유형
+5. images             - 이미지 메타데이터
+6. search_history     - 유사도 검색 이력
+7. response_history   - 대응 매뉴얼 생성 이력
+8. model_params       - 모델 파라미터 설정
+9. deployment_logs    - 배포 실행 이력
+10. system_config     - 전역 설정 (Key-Value)
+```
 
 ---
 
 ## 2. ERD (Entity Relationship Diagram)
 
 ```
-┌─────────────┐         ┌─────────────┐         ┌─────────────┐
-│    users    │────────<│  user_roles │>────────│    roles    │
-└─────────────┘         └─────────────┘         └─────────────┘
-       │
+┌──────────────┐
+│    users     │
+└──────────────┘
        │ created_by
-       ├──────────┐
-       │          │
-       ▼          ▼
-┌─────────────┐  ┌─────────────┐
-│  products   │  │  manuals    │
-└─────────────┘  └─────────────┘
-       │                │
-       │ product_id     │ manual_id
-       ├────────┬───────┼─────────┐
-       ▼        ▼       ▼         ▼
-┌────────────┐ ┌────────────┐ ┌────────────┐
-│defect_types│ │   images   │ │manual_     │
-└────────────┘ └────────────┘ │sections    │
-       │              │        └────────────┘
-       │              │
-       │              │ image_id
-       │              ▼
-       │        ┌────────────┐
-       │        │inspections │
-       │        └────────────┘
-       │              │
-       │              │ inspection_id
-       │              ├───────────┬────────────┐
-       │              ▼           ▼            ▼
-       │        ┌────────────┐ ┌────────────┐ ┌────────────┐
-       └───────>│inspection_ │ │  feedbacks │ │action_logs │
-                │results     │ └────────────┘ └────────────┘
-                └────────────┘
-                      │
-                      │ defect_type_id
-                      ▼
-                ┌────────────┐
-                │defect_types│
-                └────────────┘
-
-┌─────────────┐
-│deployments  │
-└─────────────┘
-       │
-       │ product_id
+       ├─────────────────┬──────────────┐
+       ▼                 ▼              ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│  products    │  │   manuals    │  │    images    │
+└──────────────┘  └──────────────┘  └──────────────┘
+       │                 │                 │
+       │ product_id      │ product_id      │ product_id
+       ├─────────────────┼─────────────────┤
+       │                 │                 │
+       ▼                 ▼                 ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│defect_types  │  │model_params  │  │deployment_   │
+└──────────────┘  └──────────────┘  │logs          │
+       │                             └──────────────┘
+       │ defect_type_id
        ▼
-┌─────────────┐
-│model_configs│
-└─────────────┘
+┌──────────────┐
+│search_       │
+│history       │
+└──────────────┘
+       │
+       │ search_id
+       ▼
+┌──────────────┐
+│response_     │
+│history       │
+└──────────────┘
+
+┌──────────────┐
+│system_config │  (독립 테이블)
+└──────────────┘
 ```
 
 ---
 
 ## 3. 테이블 스키마 상세
 
-### 3.1 사용자 관리
+### 3.1 users (사용자)
 
-#### users (사용자)
 ```sql
 CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    user_type VARCHAR(20) NOT NULL DEFAULT 'worker',
     full_name VARCHAR(100),
-    phone VARCHAR(20),
     is_active BOOLEAN DEFAULT TRUE,
-    last_login_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login_at TIMESTAMP,
     
-    CONSTRAINT users_username_check CHECK (LENGTH(username) >= 3),
-    CONSTRAINT users_email_check CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+    CONSTRAINT users_type_check CHECK (user_type IN ('admin', 'worker'))
 );
 
 CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_is_active ON users(is_active);
+CREATE INDEX idx_users_type ON users(user_type);
 
-COMMENT ON TABLE users IS '사용자 계정 정보';
-COMMENT ON COLUMN users.password_hash IS 'bcrypt 해시된 비밀번호';
-```
+COMMENT ON TABLE users IS '사용자 계정';
+COMMENT ON COLUMN users.user_type IS 'admin: 관리자, worker: 작업자';
 
-#### roles (역할)
-```sql
-CREATE TABLE roles (
-    role_id SERIAL PRIMARY KEY,
-    role_name VARCHAR(50) UNIQUE NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT roles_name_check CHECK (role_name IN ('admin', 'manager', 'worker', 'viewer'))
-);
-
-INSERT INTO roles (role_name, description) VALUES
-('admin', '시스템 관리자 - 모든 권한'),
-('manager', '관리자 - 제품/데이터 관리'),
-('worker', '작업자 - 검사 수행'),
-('viewer', '열람자 - 조회만 가능');
-
-COMMENT ON TABLE roles IS '사용자 역할 정의';
-```
-
-#### user_roles (사용자-역할 매핑)
-```sql
-CREATE TABLE user_roles (
-    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
-    role_id INTEGER REFERENCES roles(role_id) ON DELETE CASCADE,
-    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    assigned_by INTEGER REFERENCES users(user_id),
-    
-    PRIMARY KEY (user_id, role_id)
-);
-
-CREATE INDEX idx_user_roles_user ON user_roles(user_id);
-CREATE INDEX idx_user_roles_role ON user_roles(role_id);
-
-COMMENT ON TABLE user_roles IS '사용자별 역할 할당';
+-- 초기 데이터
+INSERT INTO users (username, password_hash, user_type, full_name) VALUES
+('admin', '$2b$12$...', 'admin', '시스템 관리자'),
+('worker1', '$2b$12$...', 'worker', '작업자1');
 ```
 
 ---
 
-### 3.2 제품 관리
+### 3.2 products (제품)
 
-#### products (제품)
 ```sql
 CREATE TABLE products (
     product_id SERIAL PRIMARY KEY,
     product_code VARCHAR(50) UNIQUE NOT NULL,
     product_name VARCHAR(100) NOT NULL,
     description TEXT,
-    category VARCHAR(50),
     is_active BOOLEAN DEFAULT TRUE,
-    created_by INTEGER REFERENCES users(user_id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT products_code_check CHECK (LENGTH(product_code) >= 2)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_products_code ON products(product_code);
@@ -168,632 +115,835 @@ CREATE INDEX idx_products_active ON products(is_active);
 
 COMMENT ON TABLE products IS '제품 마스터';
 COMMENT ON COLUMN products.product_code IS '제품 코드 (예: prod1, prod2)';
-```
 
-#### defect_types (불량 유형)
-```sql
-CREATE TABLE defect_types (
-    defect_type_id SERIAL PRIMARY KEY,
-    product_id INTEGER REFERENCES products(product_id) ON DELETE CASCADE,
-    defect_code VARCHAR(50) NOT NULL,          -- 영문 매핑명 (hole, burr, scratch)
-    defect_name_ko VARCHAR(100) NOT NULL,      -- 한글 명칭 (기공, 버, 긁힘)
-    defect_name_en VARCHAR(100),               -- 영문 정식 명칭
-    full_name_ko VARCHAR(200),                 -- 전체 한글 명칭
-    description TEXT,
-    severity_level INTEGER DEFAULT 3,          -- 심각도 (1~5)
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    UNIQUE(product_id, defect_code),
-    CONSTRAINT defect_severity_check CHECK (severity_level BETWEEN 1 AND 5)
-);
-
-CREATE INDEX idx_defect_types_product ON defect_types(product_id);
-CREATE INDEX idx_defect_types_code ON defect_types(defect_code);
-CREATE INDEX idx_defect_types_active ON defect_types(is_active);
-
-COMMENT ON TABLE defect_types IS '제품별 불량 유형 정의';
-COMMENT ON COLUMN defect_types.defect_code IS '시스템 내부 코드 (영문)';
-COMMENT ON COLUMN defect_types.severity_level IS '1=경미, 5=치명적';
+-- 초기 데이터
+INSERT INTO products (product_code, product_name, description) VALUES
+('prod1', '주조 제품 A형', '주조 공정 제품'),
+('prod2', '주조 제품 B형', '주조 공정 제품'),
+('prod3', '주조 제품 C형', '주조 공정 제품');
 ```
 
 ---
 
-### 3.3 매뉴얼 관리
+### 3.3 manuals (매뉴얼)
 
-#### manuals (매뉴얼)
 ```sql
 CREATE TABLE manuals (
     manual_id SERIAL PRIMARY KEY,
     product_id INTEGER REFERENCES products(product_id) ON DELETE CASCADE,
-    manual_title VARCHAR(200) NOT NULL,
     file_name VARCHAR(255) NOT NULL,
-    file_path VARCHAR(500) NOT NULL,           -- OBS 경로
-    file_size BIGINT,                          -- 파일 크기 (bytes)
-    file_type VARCHAR(50),                     -- PDF, DOCX 등
-    version VARCHAR(20),
-    upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    uploaded_by INTEGER REFERENCES users(user_id),
-    is_active BOOLEAN DEFAULT TRUE,
-    vector_indexed BOOLEAN DEFAULT FALSE,      -- RAG 인덱싱 여부
+    file_path VARCHAR(500) NOT NULL,
+    file_size BIGINT,
+    vector_indexed BOOLEAN DEFAULT FALSE,
     indexed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    UNIQUE(product_id, version)
+    UNIQUE(product_id, file_name)
 );
 
 CREATE INDEX idx_manuals_product ON manuals(product_id);
-CREATE INDEX idx_manuals_active ON manuals(is_active);
 CREATE INDEX idx_manuals_indexed ON manuals(vector_indexed);
 
 COMMENT ON TABLE manuals IS '제품별 대응 매뉴얼';
+COMMENT ON COLUMN manuals.file_path IS 'OBS 또는 로컬 파일 경로';
 COMMENT ON COLUMN manuals.vector_indexed IS 'RAG 벡터 DB 인덱싱 완료 여부';
-```
 
-#### manual_sections (매뉴얼 섹션)
-```sql
-CREATE TABLE manual_sections (
-    section_id SERIAL PRIMARY KEY,
-    manual_id INTEGER REFERENCES manuals(manual_id) ON DELETE CASCADE,
-    defect_type_id INTEGER REFERENCES defect_types(defect_type_id),
-    section_type VARCHAR(20) NOT NULL,         -- 'cause' or 'action'
-    section_title VARCHAR(200),
-    section_content TEXT NOT NULL,
-    page_number INTEGER,
-    chunk_index INTEGER,                       -- RAG 청크 인덱스
-    embedding_vector BYTEA,                    -- 임베딩 벡터 (선택)
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT section_type_check CHECK (section_type IN ('cause', 'action', 'other'))
-);
-
-CREATE INDEX idx_manual_sections_manual ON manual_sections(manual_id);
-CREATE INDEX idx_manual_sections_defect ON manual_sections(defect_type_id);
-CREATE INDEX idx_manual_sections_type ON manual_sections(section_type);
-
-COMMENT ON TABLE manual_sections IS '매뉴얼 내 섹션 (원인/조치)';
-COMMENT ON COLUMN manual_sections.section_type IS 'cause: 발생원인, action: 조치가이드';
+-- 초기 데이터 예시
+INSERT INTO manuals (product_id, file_name, file_path, vector_indexed) VALUES
+(1, 'prod1_menual.pdf', '/manual_store/prod1_menual.pdf', TRUE);
 ```
 
 ---
 
-### 3.4 이미지 관리
+### 3.4 defect_types (불량 유형)
 
-#### images (이미지)
+```sql
+CREATE TABLE defect_types (
+    defect_type_id SERIAL PRIMARY KEY,
+    product_id INTEGER REFERENCES products(product_id) ON DELETE CASCADE,
+    defect_code VARCHAR(50) NOT NULL,
+    defect_name_ko VARCHAR(100) NOT NULL,
+    defect_name_en VARCHAR(100),
+    full_name_ko VARCHAR(200),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(product_id, defect_code)
+);
+
+CREATE INDEX idx_defect_types_product ON defect_types(product_id);
+CREATE INDEX idx_defect_types_code ON defect_types(defect_code);
+
+COMMENT ON TABLE defect_types IS '제품별 불량 유형 (정상 포함)';
+COMMENT ON COLUMN defect_types.defect_code IS '영문 코드 (normal, hole, burr, scratch)';
+COMMENT ON COLUMN defect_types.defect_name_ko IS '한글 명칭 (정상, 기공, 버, 긁힘)';
+
+-- 초기 데이터
+INSERT INTO defect_types (product_id, defect_code, defect_name_ko, defect_name_en, full_name_ko) VALUES
+(1, 'normal', '정상', 'normal', '정상 제품'),
+(1, 'hole', '기공', 'hole', '기공 (주조 결함)'),
+(1, 'burr', '버', 'burr', '버 (날카로운 돌기)'),
+(1, 'scratch', '긁힘', 'scratch', '긁힘 (표면 손상)');
+```
+
+---
+
+### 3.5 images (이미지 메타데이터)
+
 ```sql
 CREATE TABLE images (
     image_id SERIAL PRIMARY KEY,
-    product_id INTEGER REFERENCES products(product_id),
-    image_type VARCHAR(20) NOT NULL,           -- 'normal' or 'defect'
+    product_id INTEGER REFERENCES products(product_id) ON DELETE CASCADE,
+    image_type VARCHAR(20) NOT NULL,
     defect_type_id INTEGER REFERENCES defect_types(defect_type_id),
     file_name VARCHAR(255) NOT NULL,
-    file_path VARCHAR(500) NOT NULL,           -- OBS 경로
+    file_path VARCHAR(500) NOT NULL,
     file_size BIGINT,
-    width INTEGER,
-    height INTEGER,
-    format VARCHAR(10),                        -- JPEG, PNG 등
-    uploaded_by INTEGER REFERENCES users(user_id),
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT TRUE,
     
-    CONSTRAINT image_type_check CHECK (image_type IN ('normal', 'defect', 'test')),
-    CONSTRAINT defect_image_check CHECK (
-        (image_type = 'defect' AND defect_type_id IS NOT NULL) OR
-        (image_type != 'defect' AND defect_type_id IS NULL)
-    )
+    CONSTRAINT image_type_check CHECK (image_type IN ('normal', 'defect', 'test'))
 );
 
 CREATE INDEX idx_images_product ON images(product_id);
 CREATE INDEX idx_images_type ON images(image_type);
 CREATE INDEX idx_images_defect ON images(defect_type_id);
-CREATE INDEX idx_images_active ON images(is_active);
 
-COMMENT ON TABLE images IS '이미지 메타데이터';
+COMMENT ON TABLE images IS '등록된 이미지 메타데이터';
 COMMENT ON COLUMN images.image_type IS 'normal: 정상, defect: 불량, test: 검사용';
-```
+COMMENT ON COLUMN images.file_path IS 'OBS 또는 로컬 파일 경로';
 
-#### image_metadata (이미지 추가 메타데이터)
-```sql
-CREATE TABLE image_metadata (
-    metadata_id SERIAL PRIMARY KEY,
-    image_id INTEGER REFERENCES images(image_id) ON DELETE CASCADE,
-    exif_data JSONB,                           -- EXIF 정보
-    preprocessing_applied JSONB,               -- 전처리 적용 내역
-    embedding_vector BYTEA,                    -- CLIP 임베딩 (선택)
-    quality_score FLOAT,                       -- 이미지 품질 점수
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_image_metadata_image ON image_metadata(image_id);
-
-COMMENT ON TABLE image_metadata IS '이미지 상세 메타데이터';
+-- 초기 데이터 예시
+INSERT INTO images (product_id, image_type, defect_type_id, file_name, file_path) VALUES
+(1, 'normal', NULL, 'prod1_ok_0_129.jpeg', '/data/patchCore/prod1/ok/prod1_ok_0_129.jpeg'),
+(1, 'defect', 2, 'prod1_hole_001.jpeg', '/data/def_split/prod1_hole_001.jpeg'),
+(1, 'defect', 3, 'prod1_burr_001.jpeg', '/data/def_split/prod1_burr_001.jpeg');
 ```
 
 ---
 
-### 3.5 검사 관리
+### 3.6 search_history (유사도 검색 이력)
 
-#### inspections (검사)
 ```sql
-CREATE TABLE inspections (
-    inspection_id SERIAL PRIMARY KEY,
-    inspection_code VARCHAR(50) UNIQUE NOT NULL,  -- 검사 코드 (자동 생성)
-    product_id INTEGER REFERENCES products(product_id),
-    test_image_id INTEGER REFERENCES images(image_id),
-    reference_image_id INTEGER REFERENCES images(image_id),  -- 유사도 검색으로 선택된 이미지
-    inspector_id INTEGER REFERENCES users(user_id),
-    inspection_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'pending',      -- pending, completed, cancelled
-    processing_time FLOAT,                     -- 처리 시간 (초)
+CREATE TABLE search_history (
+    search_id SERIAL PRIMARY KEY,
+    searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    uploaded_image_path VARCHAR(500) NOT NULL,
+    product_code VARCHAR(50),
+    defect_code VARCHAR(50),
+    top_k_results JSONB NOT NULL,
+    processing_time FLOAT,
     
-    CONSTRAINT inspection_status_check CHECK (status IN ('pending', 'in_progress', 'completed', 'cancelled'))
+    CONSTRAINT search_topk_check CHECK (jsonb_typeof(top_k_results) = 'array')
 );
 
-CREATE INDEX idx_inspections_product ON inspections(product_id);
-CREATE INDEX idx_inspections_inspector ON inspections(inspector_id);
-CREATE INDEX idx_inspections_status ON inspections(status);
-CREATE INDEX idx_inspections_date ON inspections(inspection_date);
+CREATE INDEX idx_search_history_date ON search_history(searched_at DESC);
+CREATE INDEX idx_search_history_product ON search_history(product_code);
+CREATE INDEX idx_search_history_defect ON search_history(defect_code);
+CREATE INDEX idx_search_topk_gin ON search_history USING GIN (top_k_results);
 
-COMMENT ON TABLE inspections IS '검사 세션';
-COMMENT ON COLUMN inspections.inspection_code IS '검사 고유 코드 (예: INS-20251109-0001)';
+COMMENT ON TABLE search_history IS '유사도 검색 실행 이력';
+COMMENT ON COLUMN search_history.top_k_results IS 'TOP-K 결과 JSON 배열: [{"rank": 1, "image_path": "...", "similarity": 0.98}, ...]';
+
+-- JSON 구조 예시
+/*
+top_k_results 형식:
+[
+  {
+    "rank": 1,
+    "image_path": "/data/def_split/prod1_burr_021.jpeg",
+    "image_name": "prod1_burr_021.jpeg",
+    "similarity": 0.9884
+  },
+  {
+    "rank": 2,
+    "image_path": "/data/def_split/prod1_burr_013.jpeg",
+    "image_name": "prod1_burr_013.jpeg",
+    "similarity": 0.9521
+  }
+]
+*/
 ```
 
-#### inspection_results (검사 결과)
+---
+
+### 3.7 response_history (대응 매뉴얼 생성 이력)
+
 ```sql
-CREATE TABLE inspection_results (
-    result_id SERIAL PRIMARY KEY,
-    inspection_id INTEGER REFERENCES inspections(inspection_id) ON DELETE CASCADE,
-    defect_detected BOOLEAN NOT NULL,
-    defect_type_id INTEGER REFERENCES defect_types(defect_type_id),
-    confidence_score FLOAT,                    -- 불량 확신도 (0~1)
-    anomaly_score FLOAT,                       -- PatchCore 이상 점수
-    similarity_score FLOAT,                    -- CLIP 유사도 점수
+CREATE TABLE response_history (
+    response_id SERIAL PRIMARY KEY,
+    executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    search_id INTEGER REFERENCES search_history(search_id) ON DELETE SET NULL,
     
-    -- 검출 결과 이미지 경로들
+    -- 검출 결과
+    product_code VARCHAR(50) NOT NULL,
+    defect_code VARCHAR(50) NOT NULL,
+    similarity_score FLOAT,
+    anomaly_score FLOAT,
+    confidence_score FLOAT,
+    
+    -- 이미지 경로
+    test_image_path VARCHAR(500),
+    reference_image_path VARCHAR(500),
     heatmap_path VARCHAR(500),
-    mask_path VARCHAR(500),
     overlay_path VARCHAR(500),
-    comparison_path VARCHAR(500),
-    
-    -- 검출된 영역 정보 (JSON)
-    detected_regions JSONB,
     
     -- LLM 생성 가이드
-    guide_generated BOOLEAN DEFAULT FALSE,
     guide_content TEXT,
-    guide_quality_score FLOAT,
+    guide_generated_at TIMESTAMP,
     
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT confidence_check CHECK (confidence_score BETWEEN 0 AND 1),
-    CONSTRAINT anomaly_check CHECK (anomaly_score BETWEEN 0 AND 1),
-    CONSTRAINT similarity_check CHECK (similarity_score BETWEEN 0 AND 1)
-);
-
-CREATE INDEX idx_results_inspection ON inspection_results(inspection_id);
-CREATE INDEX idx_results_defect_type ON inspection_results(defect_type_id);
-CREATE INDEX idx_results_detected ON inspection_results(defect_detected);
-
-COMMENT ON TABLE inspection_results IS '검사 결과 상세';
-COMMENT ON COLUMN inspection_results.detected_regions IS '검출된 ROI 영역 정보 (JSON 배열)';
-```
-
-#### action_logs (조치 기록)
-```sql
-CREATE TABLE action_logs (
-    action_id SERIAL PRIMARY KEY,
-    inspection_id INTEGER REFERENCES inspections(inspection_id) ON DELETE CASCADE,
-    action_taken TEXT NOT NULL,                -- 수행한 조치 내용
-    action_result VARCHAR(50),                 -- 'resolved', 'pending', 'failed'
-    action_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    action_by INTEGER REFERENCES users(user_id),
-    notes TEXT,
-    
-    CONSTRAINT action_result_check CHECK (action_result IN ('resolved', 'pending', 'failed', 'deferred'))
-);
-
-CREATE INDEX idx_action_logs_inspection ON action_logs(inspection_id);
-CREATE INDEX idx_action_logs_result ON action_logs(action_result);
-CREATE INDEX idx_action_logs_date ON action_logs(action_date);
-
-COMMENT ON TABLE action_logs IS '불량 조치 이력';
-```
-
----
-
-### 3.6 피드백 관리
-
-#### feedbacks (피드백)
-```sql
-CREATE TABLE feedbacks (
-    feedback_id SERIAL PRIMARY KEY,
-    inspection_id INTEGER REFERENCES inspections(inspection_id) ON DELETE CASCADE,
-    user_id INTEGER REFERENCES users(user_id),
-    rating INTEGER NOT NULL,                   -- 1~5점
+    -- 피드백
+    feedback_rating INTEGER,
     feedback_text TEXT,
-    feedback_type VARCHAR(50),                 -- 'guide_quality', 'detection_accuracy' 등
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    feedback_at TIMESTAMP,
     
-    CONSTRAINT rating_check CHECK (rating BETWEEN 1 AND 5)
+    processing_time FLOAT,
+    
+    CONSTRAINT feedback_rating_check CHECK (feedback_rating BETWEEN 1 AND 5)
 );
 
-CREATE INDEX idx_feedbacks_inspection ON feedbacks(inspection_id);
-CREATE INDEX idx_feedbacks_user ON feedbacks(user_id);
-CREATE INDEX idx_feedbacks_rating ON feedbacks(rating);
-CREATE INDEX idx_feedbacks_type ON feedbacks(feedback_type);
+CREATE INDEX idx_response_history_date ON response_history(executed_at DESC);
+CREATE INDEX idx_response_history_search ON response_history(search_id);
+CREATE INDEX idx_response_history_product ON response_history(product_code);
+CREATE INDEX idx_response_history_defect ON response_history(defect_code);
+CREATE INDEX idx_response_history_rating ON response_history(feedback_rating);
 
-COMMENT ON TABLE feedbacks IS '사용자 피드백';
-COMMENT ON COLUMN feedbacks.rating IS '1: 매우 불만족 ~ 5: 매우 만족';
+COMMENT ON TABLE response_history IS '대응 매뉴얼 생성 및 피드백 이력';
+COMMENT ON COLUMN response_history.search_id IS '연관된 유사도 검색 ID';
+COMMENT ON COLUMN response_history.guide_content IS 'LLM이 생성한 대응 매뉴얼 전문';
+COMMENT ON COLUMN response_history.feedback_rating IS '사용자 평가 (1~5점)';
 ```
 
 ---
 
-### 3.7 모델 배포 관리
+### 3.8 model_params (모델 파라미터 설정)
 
-#### deployments (배포)
 ```sql
-CREATE TABLE deployments (
-    deployment_id SERIAL PRIMARY KEY,
-    deployment_type VARCHAR(50) NOT NULL,      -- 'clip_embedding', 'patchcore_bank', 'rag_indexing'
-    product_id INTEGER REFERENCES products(product_id),
-    status VARCHAR(20) DEFAULT 'pending',      -- pending, running, completed, failed
-    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP,
-    deployed_by INTEGER REFERENCES users(user_id),
-    
-    -- 배포 상세 정보
-    config_params JSONB,                       -- 배포 설정 파라미터
-    result_summary JSONB,                      -- 배포 결과 요약
-    error_message TEXT,
-    
-    CONSTRAINT deployment_type_check CHECK (deployment_type IN ('clip_embedding', 'patchcore_bank', 'rag_indexing', 'model_update')),
-    CONSTRAINT deployment_status_check CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled'))
-);
-
-CREATE INDEX idx_deployments_type ON deployments(deployment_type);
-CREATE INDEX idx_deployments_product ON deployments(product_id);
-CREATE INDEX idx_deployments_status ON deployments(status);
-CREATE INDEX idx_deployments_started ON deployments(started_at);
-
-COMMENT ON TABLE deployments IS '모델 배포 이력';
-COMMENT ON COLUMN deployments.deployment_type IS 'clip_embedding: CLIP 재구축, patchcore_bank: 메모리뱅크 생성';
-```
-
-#### model_configs (모델 설정)
-```sql
-CREATE TABLE model_configs (
-    config_id SERIAL PRIMARY KEY,
-    product_id INTEGER REFERENCES products(product_id),
-    model_type VARCHAR(50) NOT NULL,           -- 'anomaly_detection', 'object_detection'
-    config_name VARCHAR(100),
-    
-    -- 전처리 설정
-    preprocessing JSONB,                       -- grayscale, contrast, histogram 등
-    
-    -- Anomaly Detection 파라미터
-    image_threshold FLOAT DEFAULT 0.85,
-    pixel_threshold FLOAT DEFAULT 0.90,
-    
-    -- Object Detection 파라미터 (선택)
-    detection_model VARCHAR(100),              -- yolov8, etc.
-    detection_confidence FLOAT DEFAULT 0.5,
-    
+CREATE TABLE model_params (
+    param_id SERIAL PRIMARY KEY,
+    product_id INTEGER REFERENCES products(product_id) ON DELETE CASCADE,
+    model_type VARCHAR(50) NOT NULL,
+    params JSONB NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    CONSTRAINT model_type_check CHECK (model_type IN ('anomaly_detection', 'object_detection', 'hybrid'))
+    CONSTRAINT model_type_check CHECK (model_type IN ('clip', 'patchcore', 'llm', 'preprocessing'))
 );
 
-CREATE INDEX idx_model_configs_product ON model_configs(product_id);
-CREATE INDEX idx_model_configs_type ON model_configs(model_type);
-CREATE INDEX idx_model_configs_active ON model_configs(is_active);
+CREATE INDEX idx_model_params_product ON model_params(product_id);
+CREATE INDEX idx_model_params_type ON model_params(model_type);
+CREATE INDEX idx_model_params_active ON model_params(is_active);
+CREATE INDEX idx_model_params_gin ON model_params USING GIN (params);
 
-COMMENT ON TABLE model_configs IS '제품별 모델 설정';
+COMMENT ON TABLE model_params IS '제품별 모델 파라미터 설정';
+COMMENT ON COLUMN model_params.model_type IS 'clip, patchcore, llm, preprocessing';
+COMMENT ON COLUMN model_params.params IS '모델별 파라미터 JSON';
+
+-- 초기 데이터 예시
+INSERT INTO model_params (product_id, model_type, params, is_active) VALUES
+(1, 'clip', '{"model_id": "ViT-B-32/openai", "top_k": 5}', TRUE),
+(1, 'patchcore', '{"image_threshold": 0.85, "pixel_threshold": 0.90}', TRUE),
+(1, 'llm', '{"model_name": "mistralai/Mistral-7B-Instruct-v0.2", "temperature": 0.7, "max_tokens": 512}', TRUE),
+(1, 'preprocessing', '{"grayscale": false, "contrast": false, "histogram": false}', TRUE);
+
+-- JSON 구조 예시
+/*
+CLIP 파라미터:
+{
+  "model_id": "ViT-B-32/openai",
+  "top_k": 5,
+  "use_fp16": false
+}
+
+PatchCore 파라미터:
+{
+  "image_threshold": 0.85,
+  "pixel_threshold": 0.90,
+  "backbone": "wide_resnet50_2"
+}
+
+LLM 파라미터:
+{
+  "model_name": "mistralai/Mistral-7B-Instruct-v0.2",
+  "temperature": 0.7,
+  "max_tokens": 512,
+  "use_4bit": true
+}
+
+전처리 파라미터:
+{
+  "grayscale": false,
+  "contrast": true,
+  "histogram": false
+}
+*/
 ```
 
 ---
 
-### 3.8 통계 및 대시보드 뷰
+### 3.9 deployment_logs (배포 실행 이력)
 
-#### dashboard_stats (통합 통계 뷰)
 ```sql
-CREATE OR REPLACE VIEW dashboard_stats AS
-SELECT
-    p.product_id,
-    p.product_name,
-    COUNT(DISTINCT CASE WHEN i.image_type = 'normal' THEN i.image_id END) AS normal_image_count,
-    COUNT(DISTINCT CASE WHEN i.image_type = 'defect' THEN i.image_id END) AS defect_image_count,
-    COUNT(DISTINCT ins.inspection_id) AS total_inspection_count,
-    COUNT(DISTINCT CASE WHEN ir.defect_detected = TRUE THEN ins.inspection_id END) AS defect_detected_count,
-    COUNT(DISTINCT CASE WHEN al.action_result = 'resolved' THEN ins.inspection_id END) AS resolved_count,
-    COUNT(DISTINCT CASE WHEN al.action_result IS NULL AND ir.defect_detected = TRUE THEN ins.inspection_id END) AS pending_action_count,
-    AVG(CASE WHEN f.feedback_type = 'guide_quality' THEN f.rating END) AS avg_guide_rating
-FROM products p
-LEFT JOIN images i ON p.product_id = i.product_id AND i.is_active = TRUE
-LEFT JOIN inspections ins ON p.product_id = ins.product_id
-LEFT JOIN inspection_results ir ON ins.inspection_id = ir.inspection_id
-LEFT JOIN action_logs al ON ins.inspection_id = al.inspection_id
-LEFT JOIN feedbacks f ON ins.inspection_id = f.inspection_id
-WHERE p.is_active = TRUE
-GROUP BY p.product_id, p.product_name;
+CREATE TABLE deployment_logs (
+    deploy_id SERIAL PRIMARY KEY,
+    deploy_type VARCHAR(50) NOT NULL,
+    product_id INTEGER REFERENCES products(product_id),
+    status VARCHAR(20) DEFAULT 'pending',
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    result_message TEXT,
+    result_data JSONB,
+    deployed_by INTEGER REFERENCES users(user_id),
+    
+    CONSTRAINT deploy_type_check CHECK (deploy_type IN ('clip_rebuild', 'patchcore_create', 'rag_index', 'full_deploy')),
+    CONSTRAINT deploy_status_check CHECK (status IN ('pending', 'running', 'completed', 'failed'))
+);
 
-COMMENT ON VIEW dashboard_stats IS '대시보드 통합 통계';
+CREATE INDEX idx_deployment_logs_type ON deployment_logs(deploy_type);
+CREATE INDEX idx_deployment_logs_product ON deployment_logs(product_id);
+CREATE INDEX idx_deployment_logs_status ON deployment_logs(status);
+CREATE INDEX idx_deployment_logs_started ON deployment_logs(started_at DESC);
+
+COMMENT ON TABLE deployment_logs IS '서버 배포 실행 이력';
+COMMENT ON COLUMN deployment_logs.deploy_type IS 'clip_rebuild: CLIP 재구축, patchcore_create: 메모리뱅크 생성, rag_index: RAG 인덱싱';
+COMMENT ON COLUMN deployment_logs.result_data IS '배포 결과 상세 정보 JSON';
+
+-- 초기 데이터 예시
+INSERT INTO deployment_logs (deploy_type, product_id, status, completed_at, result_message, result_data, deployed_by) VALUES
+('clip_rebuild', 1, 'completed', CURRENT_TIMESTAMP, 'CLIP 인덱스 재구축 완료', 
+ '{"num_images": 50, "embedding_dim": 512, "processing_time": 15.3}', 1),
+('patchcore_create', 1, 'completed', CURRENT_TIMESTAMP, 'PatchCore 메모리뱅크 생성 완료',
+ '{"num_patches": 614, "feature_dim": 3584, "processing_time": 25.7}', 1);
+
+-- JSON 구조 예시
+/*
+CLIP 재구축 결과:
+{
+  "num_images": 50,
+  "embedding_dim": 512,
+  "processing_time": 15.3,
+  "index_file": "/web/index_cache/index_data.pt"
+}
+
+PatchCore 생성 결과:
+{
+  "num_patches": 614,
+  "feature_dim": 3584,
+  "memory_bank_file": "/data/patchCore/prod1/bank.pt",
+  "processing_time": 25.7
+}
+
+RAG 인덱싱 결과:
+{
+  "num_chunks": 120,
+  "embedding_dim": 768,
+  "vector_db_path": "/manual_store",
+  "processing_time": 8.5
+}
+*/
 ```
 
-#### recent_inspections (최근 검사 뷰)
+---
+
+### 3.10 system_config (전역 설정)
+
 ```sql
-CREATE OR REPLACE VIEW recent_inspections AS
+CREATE TABLE system_config (
+    config_key VARCHAR(100) PRIMARY KEY,
+    config_value JSONB NOT NULL,
+    description TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by INTEGER REFERENCES users(user_id)
+);
+
+CREATE INDEX idx_system_config_updated ON system_config(updated_at DESC);
+
+COMMENT ON TABLE system_config IS '시스템 전역 설정 (Key-Value)';
+
+-- 초기 데이터
+INSERT INTO system_config (config_key, config_value, description) VALUES
+('default_top_k', '5', '기본 TOP-K 개수'),
+('default_clip_model', '"ViT-B-32/openai"', '기본 CLIP 모델'),
+('default_image_threshold', '0.85', '기본 이미지 임계값'),
+('default_pixel_threshold', '0.90', '기본 픽셀 임계값'),
+('llm_temperature', '0.7', 'LLM 샘플링 온도'),
+('max_upload_size_mb', '50', '최대 업로드 크기 (MB)'),
+('session_timeout_minutes', '60', '세션 타임아웃 (분)');
+
+-- JSON 구조 예시
+/*
+단순 값:
+config_value: 5
+config_value: "ViT-B-32/openai"
+config_value: 0.85
+
+복잡한 설정:
+config_value: {
+  "enabled": true,
+  "retry_count": 3,
+  "timeout": 30
+}
+*/
+```
+
+---
+
+## 4. 데이터베이스 생성 스크립트
+
+### 4.1 전체 스키마 생성
+
+```sql
+-- 데이터베이스 생성
+CREATE DATABASE defect_detection_db
+    WITH 
+    ENCODING = 'UTF8'
+    LC_COLLATE = 'ko_KR.UTF-8'
+    LC_CTYPE = 'ko_KR.UTF-8'
+    TEMPLATE = template0;
+
+\c defect_detection_db
+
+-- 확장 기능 활성화
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+
+-- 테이블 생성 (순서 중요 - 외래키 제약 고려)
+\i 01_users.sql
+\i 02_products.sql
+\i 03_manuals.sql
+\i 04_defect_types.sql
+\i 05_images.sql
+\i 06_search_history.sql
+\i 07_response_history.sql
+\i 08_model_params.sql
+\i 09_deployment_logs.sql
+\i 10_system_config.sql
+
+-- 초기 데이터 삽입
+\i init_data.sql
+```
+
+---
+
+## 5. 유용한 뷰 (View)
+
+### 5.1 대시보드 통계 뷰
+
+```sql
+CREATE OR REPLACE VIEW v_dashboard_stats AS
 SELECT
-    ins.inspection_id,
-    ins.inspection_code,
-    ins.inspection_date,
     p.product_code,
     p.product_name,
+    COUNT(DISTINCT CASE WHEN i.image_type = 'normal' THEN i.image_id END) AS normal_count,
+    COUNT(DISTINCT CASE WHEN i.image_type = 'defect' THEN i.image_id END) AS defect_count,
+    COUNT(DISTINCT dt.defect_type_id) - 1 AS defect_type_count,  -- 정상 제외
+    COUNT(DISTINCT sh.search_id) AS total_search_count,
+    COUNT(DISTINCT rh.response_id) AS total_response_count,
+    COUNT(DISTINCT CASE WHEN rh.feedback_rating IS NOT NULL THEN rh.response_id END) AS feedback_count,
+    ROUND(AVG(rh.feedback_rating)::numeric, 2) AS avg_rating
+FROM products p
+LEFT JOIN images i ON p.product_id = i.product_id
+LEFT JOIN defect_types dt ON p.product_id = dt.product_id
+LEFT JOIN search_history sh ON p.product_code = sh.product_code
+LEFT JOIN response_history rh ON p.product_code = rh.product_code
+WHERE p.is_active = TRUE
+GROUP BY p.product_id, p.product_code, p.product_name;
+
+COMMENT ON VIEW v_dashboard_stats IS '대시보드 제품별 통계';
+```
+
+### 5.2 최근 검사 이력 뷰
+
+```sql
+CREATE OR REPLACE VIEW v_recent_inspections AS
+SELECT
+    rh.response_id,
+    rh.executed_at,
+    rh.product_code,
+    p.product_name,
+    rh.defect_code,
     dt.defect_name_ko,
-    ir.defect_detected,
-    ir.confidence_score,
-    u.username AS inspector,
-    CASE
-        WHEN al.action_result = 'resolved' THEN '조치완료'
-        WHEN ir.defect_detected = TRUE AND al.action_result IS NULL THEN '미조치'
-        ELSE '정상'
-    END AS action_status
-FROM inspections ins
-JOIN products p ON ins.product_id = p.product_id
-LEFT JOIN inspection_results ir ON ins.inspection_id = ir.inspection_id
-LEFT JOIN defect_types dt ON ir.defect_type_id = dt.defect_type_id
-LEFT JOIN users u ON ins.inspector_id = u.user_id
-LEFT JOIN action_logs al ON ins.inspection_id = al.inspection_id
-WHERE ins.status = 'completed'
-ORDER BY ins.inspection_date DESC
-LIMIT 100;
+    rh.similarity_score,
+    rh.anomaly_score,
+    CASE 
+        WHEN rh.feedback_rating IS NOT NULL THEN '조치완료'
+        ELSE '미조치'
+    END AS status,
+    rh.feedback_rating
+FROM response_history rh
+LEFT JOIN products p ON rh.product_code = p.product_code
+LEFT JOIN defect_types dt ON rh.product_code = dt.product_id::text 
+    AND rh.defect_code = dt.defect_code
+ORDER BY rh.executed_at DESC
+LIMIT 50;
 
-COMMENT ON VIEW recent_inspections IS '최근 검사 이력 (상위 100건)';
+COMMENT ON VIEW v_recent_inspections IS '최근 검사 이력 (상위 50건)';
+```
+
+### 5.3 배포 상태 뷰
+
+```sql
+CREATE OR REPLACE VIEW v_deployment_status AS
+SELECT
+    dl.deploy_type,
+    p.product_code,
+    p.product_name,
+    dl.status,
+    dl.started_at,
+    dl.completed_at,
+    EXTRACT(EPOCH FROM (COALESCE(dl.completed_at, NOW()) - dl.started_at)) AS duration_seconds,
+    dl.result_message
+FROM deployment_logs dl
+LEFT JOIN products p ON dl.product_id = p.product_id
+WHERE dl.deploy_id IN (
+    SELECT MAX(deploy_id)
+    FROM deployment_logs
+    GROUP BY deploy_type, product_id
+)
+ORDER BY dl.started_at DESC;
+
+COMMENT ON VIEW v_deployment_status IS '제품별 최신 배포 상태';
 ```
 
 ---
 
-## 4. 초기 데이터 삽입
+## 6. 인덱스 및 성능 최적화
 
-```sql
--- 기본 역할 생성 (이미 위에서 수행)
+### 6.1 추가 인덱스
 
--- 관리자 계정 생성 (비밀번호: admin123 - 실제로는 해시 필요)
-INSERT INTO users (username, email, password_hash, full_name) VALUES
-('admin', 'admin@example.com', '$2b$12$...', '시스템 관리자'),
-('manager1', 'manager@example.com', '$2b$12$...', '제조 관리자'),
-('worker1', 'worker@example.com', '$2b$12$...', '작업자1');
-
--- 역할 할당
-INSERT INTO user_roles (user_id, role_id) VALUES
-(1, 1),  -- admin
-(2, 2),  -- manager
-(3, 3);  -- worker
-
--- 제품 생성
-INSERT INTO products (product_code, product_name, description, created_by) VALUES
-('prod1', '주조 제품 A형', '주조 공정 제품', 1),
-('prod2', '주조 제품 B형', '주조 공정 제품', 1),
-('prod3', '주조 제품 C형', '주조 공정 제품', 1);
-
--- 불량 유형 생성
-INSERT INTO defect_types (product_id, defect_code, defect_name_ko, defect_name_en, full_name_ko, severity_level) VALUES
-(1, 'hole', '기공', 'hole', '기공 (주조 결함)', 4),
-(1, 'burr', '버', 'burr', '버 (날카로운 돌기)', 3),
-(1, 'scratch', '긁힘', 'scratch', '긁힘 (표면 손상)', 2);
-```
-
----
-
-## 5. 인덱스 및 성능 최적화
-
-### 5.1 파티셔닝 (대량 데이터 대비)
-```sql
--- inspections 테이블 월별 파티셔닝 (선택적)
-CREATE TABLE inspections_2025_11 PARTITION OF inspections
-FOR VALUES FROM ('2025-11-01') TO ('2025-12-01');
-
-CREATE TABLE inspections_2025_12 PARTITION OF inspections
-FOR VALUES FROM ('2025-12-01') TO ('2026-01-01');
-```
-
-### 5.2 추가 인덱스
 ```sql
 -- 복합 인덱스
-CREATE INDEX idx_inspections_product_date ON inspections(product_id, inspection_date DESC);
-CREATE INDEX idx_results_inspection_defect ON inspection_results(inspection_id, defect_type_id);
+CREATE INDEX idx_search_product_date ON search_history(product_code, searched_at DESC);
+CREATE INDEX idx_response_product_date ON response_history(product_code, executed_at DESC);
+CREATE INDEX idx_response_feedback ON response_history(feedback_rating) WHERE feedback_rating IS NOT NULL;
 
--- JSONB 인덱스
-CREATE INDEX idx_detected_regions_gin ON inspection_results USING GIN (detected_regions);
-CREATE INDEX idx_config_params_gin ON model_configs USING GIN (preprocessing);
+-- 부분 인덱스
+CREATE INDEX idx_images_normal ON images(product_id) WHERE image_type = 'normal';
+CREATE INDEX idx_images_defect ON images(product_id, defect_type_id) WHERE image_type = 'defect';
+CREATE INDEX idx_deployment_running ON deployment_logs(deploy_type, product_id) WHERE status = 'running';
 ```
 
-### 5.3 통계 수집
+### 6.2 통계 수집
+
 ```sql
+-- 정기 통계 수집 (cron으로 실행)
 ANALYZE users;
 ANALYZE products;
 ANALYZE images;
-ANALYZE inspections;
-ANALYZE inspection_results;
+ANALYZE search_history;
+ANALYZE response_history;
+ANALYZE deployment_logs;
 ```
 
 ---
 
-## 6. 백업 및 유지보수
+## 7. 백업 및 복원
 
-### 6.1 백업 스크립트
+### 7.1 백업 스크립트
+
 ```bash
 #!/bin/bash
-# PostgreSQL 백업 스크립트
+# backup_db.sh
 
 DB_NAME="defect_detection_db"
 BACKUP_DIR="/backup/postgresql"
 DATE=$(date +%Y%m%d_%H%M%S)
 
+# 전체 백업
+pg_dump -U postgres -F c $DB_NAME > $BACKUP_DIR/${DB_NAME}_${DATE}.dump
+
+# 압축 백업
 pg_dump -U postgres $DB_NAME | gzip > $BACKUP_DIR/${DB_NAME}_${DATE}.sql.gz
 
 # 30일 이상 된 백업 삭제
+find $BACKUP_DIR -name "*.dump" -mtime +30 -delete
 find $BACKUP_DIR -name "*.sql.gz" -mtime +30 -delete
+
+echo "Backup completed: ${DB_NAME}_${DATE}"
 ```
 
-### 6.2 정기 유지보수
-```sql
--- 주간 VACUUM
-VACUUM ANALYZE;
+### 7.2 복원
 
--- 월간 전체 VACUUM
-VACUUM FULL;
+```bash
+# .dump 파일 복원
+pg_restore -U postgres -d defect_detection_db /backup/postgresql/defect_detection_db_20251109.dump
 
--- 인덱스 재구축 (필요시)
-REINDEX DATABASE defect_detection_db;
+# .sql.gz 파일 복원
+gunzip -c /backup/postgresql/defect_detection_db_20251109.sql.gz | psql -U postgres defect_detection_db
 ```
 
 ---
 
-## 7. 마이그레이션 전략
+## 8. 마이그레이션 스크립트 예시
 
-### 7.1 현재 → PostgreSQL 마이그레이션
+### 8.1 기존 데이터 → PostgreSQL
 
 ```python
-# 마이그레이션 스크립트 예시
+# migrate_to_postgres.py
 import psycopg2
-from pathlib import Path
 import json
+from pathlib import Path
 
 def migrate_products():
-    """제품 데이터 마이그레이션"""
-    # 1. 기존 defect_mapping.json 읽기
-    with open('/home/dmillion/llm_chal_vlm/web/defect_mapping.json') as f:
-        mapping = json.load(f)
-    
-    # 2. PostgreSQL에 삽입
+    """제품 및 불량 타입 마이그레이션"""
     conn = psycopg2.connect("dbname=defect_detection_db user=postgres")
     cur = conn.cursor()
+    
+    # defect_mapping.json 읽기
+    mapping_file = Path('/home/dmillion/llm_chal_vlm/web/defect_mapping.json')
+    with open(mapping_file) as f:
+        mapping = json.load(f)
     
     for product_code, defects in mapping.items():
         # 제품 삽입
         cur.execute("""
-            INSERT INTO products (product_code, product_name, created_by)
-            VALUES (%s, %s, 1)
+            INSERT INTO products (product_code, product_name)
+            VALUES (%s, %s)
+            ON CONFLICT (product_code) DO NOTHING
             RETURNING product_id
         """, (product_code, f"제품 {product_code}"))
         
-        product_id = cur.fetchone()[0]
-        
-        # 불량 타입 삽입
-        for defect_code, info in defects.items():
+        result = cur.fetchone()
+        if result:
+            product_id = result[0]
+            
+            # 정상 타입 먼저 삽입
             cur.execute("""
-                INSERT INTO defect_types 
-                (product_id, defect_code, defect_name_ko, defect_name_en, full_name_ko)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (product_id, info['en'], info['ko'], info['en'], info.get('full_name_ko', '')))
+                INSERT INTO defect_types (product_id, defect_code, defect_name_ko, defect_name_en)
+                VALUES (%s, 'normal', '정상', 'normal')
+                ON CONFLICT DO NOTHING
+            """, (product_id,))
+            
+            # 불량 타입 삽입
+            for defect_info in defects.values():
+                cur.execute("""
+                    INSERT INTO defect_types 
+                    (product_id, defect_code, defect_name_ko, defect_name_en, full_name_ko)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT DO NOTHING
+                """, (
+                    product_id,
+                    defect_info['en'],
+                    defect_info['ko'],
+                    defect_info['en'],
+                    defect_info.get('full_name_ko', '')
+                ))
     
     conn.commit()
     cur.close()
     conn.close()
+    print("✅ 제품 및 불량 타입 마이그레이션 완료")
 
 def migrate_images():
     """이미지 메타데이터 마이그레이션"""
-    # 파일 시스템 스캔 → DB 삽입
-    pass
+    conn = psycopg2.connect("dbname=defect_detection_db user=postgres")
+    cur = conn.cursor()
+    
+    # 정상 이미지 스캔
+    normal_dir = Path('/home/dmillion/llm_chal_vlm/data/patchCore/prod1/ok')
+    for img_file in normal_dir.glob('*.jpeg'):
+        product_code = img_file.stem.split('_')[0]  # prod1_ok_0_129 → prod1
+        
+        cur.execute("""
+            INSERT INTO images (product_id, image_type, file_name, file_path)
+            SELECT product_id, 'normal', %s, %s
+            FROM products WHERE product_code = %s
+            ON CONFLICT DO NOTHING
+        """, (img_file.name, str(img_file), product_code))
+    
+    # 불량 이미지 스캔
+    defect_dir = Path('/home/dmillion/llm_chal_vlm/data/def_split')
+    for img_file in defect_dir.glob('*.jpeg'):
+        parts = img_file.stem.split('_')  # prod1_hole_001
+        if len(parts) >= 3:
+            product_code = parts[0]
+            defect_code = parts[1]
+            
+            cur.execute("""
+                INSERT INTO images (product_id, image_type, defect_type_id, file_name, file_path)
+                SELECT p.product_id, 'defect', dt.defect_type_id, %s, %s
+                FROM products p
+                JOIN defect_types dt ON p.product_id = dt.product_id
+                WHERE p.product_code = %s AND dt.defect_code = %s
+                ON CONFLICT DO NOTHING
+            """, (img_file.name, str(img_file), product_code, defect_code))
+    
+    conn.commit()
+    cur.close()
+    conn.close()
+    print("✅ 이미지 마이그레이션 완료")
+
+if __name__ == "__main__":
+    print("마이그레이션 시작...")
+    migrate_products()
+    migrate_images()
+    print("✅ 전체 마이그레이션 완료")
 ```
 
 ---
 
-## 8. API 연동 예시
+## 9. API 연동 예시 (FastAPI)
 
-### 8.1 제품 조회 API
+### 9.1 데이터베이스 연결
+
 ```python
+# database.py
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+
+DATABASE_URL = "postgresql://postgres:password@localhost/defect_detection_db"
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+```
+
+### 9.2 모델 정의
+
+```python
+# models.py
+from sqlalchemy import Column, Integer, String, Float, Boolean, TIMESTAMP, ForeignKey, Text
+from sqlalchemy.dialects.postgresql import JSONB
+from database import Base
+
+class Product(Base):
+    __tablename__ = "products"
+    
+    product_id = Column(Integer, primary_key=True)
+    product_code = Column(String(50), unique=True, nullable=False)
+    product_name = Column(String(100), nullable=False)
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(TIMESTAMP)
+    updated_at = Column(TIMESTAMP)
+
+class SearchHistory(Base):
+    __tablename__ = "search_history"
+    
+    search_id = Column(Integer, primary_key=True)
+    searched_at = Column(TIMESTAMP)
+    uploaded_image_path = Column(String(500))
+    product_code = Column(String(50))
+    defect_code = Column(String(50))
+    top_k_results = Column(JSONB)
+    processing_time = Column(Float)
+
+class ResponseHistory(Base):
+    __tablename__ = "response_history"
+    
+    response_id = Column(Integer, primary_key=True)
+    executed_at = Column(TIMESTAMP)
+    search_id = Column(Integer, ForeignKey("search_history.search_id"))
+    product_code = Column(String(50))
+    defect_code = Column(String(50))
+    similarity_score = Column(Float)
+    anomaly_score = Column(Float)
+    guide_content = Column(Text)
+    feedback_rating = Column(Integer)
+    feedback_text = Column(Text)
+```
+
+### 9.3 API 엔드포인트
+
+```python
+# api.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from database import get_db
+from models import SearchHistory, ResponseHistory
 
 router = APIRouter()
 
-@router.get("/admin/products")
-async def get_products(db: Session = Depends(get_db)):
-    """제품 목록 조회"""
-    products = db.query(Product).filter(Product.is_active == True).all()
-    return products
-
-@router.post("/admin/products")
-async def create_product(product: ProductCreate, db: Session = Depends(get_db)):
-    """제품 생성"""
-    new_product = Product(**product.dict())
-    db.add(new_product)
-    db.commit()
-    db.refresh(new_product)
-    return new_product
-```
-
-### 8.2 검사 생성 API
-```python
-@router.post("/worker/inspections")
-async def create_inspection(
-    test_image: UploadFile,
-    product_id: int,
+@router.post("/worker/search")
+async def create_search(
+    image_path: str,
+    top_k_results: dict,
     db: Session = Depends(get_db)
 ):
-    """검사 생성 및 실행"""
-    # 1. 이미지 저장
-    image = save_image_to_obs(test_image, product_id)
-    
-    # 2. 검사 레코드 생성
-    inspection = Inspection(
-        product_id=product_id,
-        test_image_id=image.image_id,
-        inspector_id=current_user.user_id,
-        status='in_progress'
+    """유사도 검색 이력 저장"""
+    search = SearchHistory(
+        uploaded_image_path=image_path,
+        product_code=top_k_results.get('product_code'),
+        defect_code=top_k_results.get('defect_code'),
+        top_k_results=top_k_results['results']
     )
-    db.add(inspection)
+    db.add(search)
     db.commit()
-    
-    # 3. AI 모델 실행 (비동기)
-    # ... CLIP 검색, PatchCore 검출 등
-    
-    # 4. 결과 저장
-    result = InspectionResult(
-        inspection_id=inspection.inspection_id,
-        defect_detected=True,
-        defect_type_id=detected_defect_id,
-        confidence_score=0.95,
-        # ...
+    db.refresh(search)
+    return {"search_id": search.search_id}
+
+@router.post("/worker/response")
+async def create_response(
+    search_id: int,
+    guide_content: str,
+    db: Session = Depends(get_db)
+):
+    """대응 매뉴얼 생성 이력 저장"""
+    response = ResponseHistory(
+        search_id=search_id,
+        guide_content=guide_content
     )
-    db.add(result)
+    db.add(response)
     db.commit()
-    
-    return inspection
+    return {"response_id": response.response_id}
+
+@router.get("/admin/stats")
+async def get_dashboard_stats(db: Session = Depends(get_db)):
+    """대시보드 통계 조회"""
+    stats = db.execute("SELECT * FROM v_dashboard_stats").fetchall()
+    return stats
 ```
 
 ---
 
-## 9. 보안 고려사항
+## 10. 유지보수
 
-### 9.1 Row-Level Security (RLS)
+### 10.1 정기 작업
+
 ```sql
--- 작업자는 자신의 검사만 조회 가능
-ALTER TABLE inspections ENABLE ROW LEVEL SECURITY;
+-- 일일 통계 수집
+ANALYZE;
 
-CREATE POLICY inspector_isolation ON inspections
-    FOR SELECT
-    USING (inspector_id = current_user_id());
+-- 주간 VACUUM
+VACUUM ANALYZE;
+
+-- 월간 재인덱스 (필요시)
+REINDEX DATABASE defect_detection_db;
 ```
 
-### 9.2 감사 로그
+### 10.2 모니터링 쿼리
+
 ```sql
-CREATE TABLE audit_logs (
-    log_id SERIAL PRIMARY KEY,
-    table_name VARCHAR(50),
-    operation VARCHAR(10),      -- INSERT, UPDATE, DELETE
-    user_id INTEGER,
-    old_data JSONB,
-    new_data JSONB,
-    logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- 테이블 크기 확인
+SELECT
+    schemaname,
+    tablename,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
+FROM pg_tables
+WHERE schemaname = 'public'
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+
+-- 느린 쿼리 확인
+SELECT 
+    query,
+    calls,
+    total_time,
+    mean_time
+FROM pg_stat_statements
+ORDER BY mean_time DESC
+LIMIT 10;
 ```
 
 ---
 
 **작성일**: 2025-11-09  
-**버전**: 1.0  
-**DBMS**: PostgreSQL 14+
+**버전**: 2.0 (단순화)  
+**DBMS**: PostgreSQL 14+  
+**테이블 수**: 10개
