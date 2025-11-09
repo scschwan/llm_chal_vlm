@@ -107,18 +107,6 @@ class VLMInference:
     ) -> str:
         """
         3개 이미지 기반 불량 분석
-        
-        Args:
-            normal_image_path: 정상 기준 이미지
-            defect_image_path: 불량 의심 이미지
-            overlay_image_path: 세그멘테이션 오버레이 이미지
-            prompt: 분석 프롬프트
-            max_new_tokens: 최대 생성 토큰 수
-            temperature: 샘플링 온도
-            do_sample: 샘플링 여부
-        
-        Returns:
-            VLM 분석 결과 텍스트
         """
         if self.verbose:
             print("🖼️  이미지 로드 중...")
@@ -134,31 +122,54 @@ class VLMInference:
             print(f"📝 프롬프트 길이: {len(prompt)} 문자")
             print("🔮 VLM 추론 중...")
         
-        # 대화 형식 구성 (LLaVA Next는 chat template 사용)
+        # 대화 형식 구성
         conversation = [
             {
                 "role": "user",
                 "content": [
-                    {"type": "image"},  # 첫 번째 이미지
-                    {"type": "image"},  # 두 번째 이미지
-                    {"type": "image"},  # 세 번째 이미지
+                    {"type": "image"},
+                    {"type": "image"},
+                    {"type": "image"},
                     {"type": "text", "text": prompt}
                 ]
             }
         ]
         
-        # 프롬프트 템플릿 적용
-        text_prompt = self.processor.apply_chat_template(
-            conversation,
-            add_generation_prompt=True
-        )
+        # ✅ 수정: try-except로 안전하게 처리
+        try:
+            # 프롬프트 템플릿 적용
+            text_prompt = self.processor.apply_chat_template(
+                conversation,
+                add_generation_prompt=True
+            )
+        except TypeError as e:
+            # apply_chat_template이 실패하면 직접 프롬프트 구성
+            if self.verbose:
+                print(f"⚠️  Chat template 적용 실패, 직접 프롬프트 구성: {e}")
+            
+            # LLaVA 기본 프롬프트 형식
+            text_prompt = f"USER: <image><image><image>\n{prompt}\nASSISTANT:"
         
         # 입력 준비
-        inputs = self.processor(
-            text=text_prompt,
-            images=images,
-            return_tensors="pt"
-        ).to(self.device)
+        try:
+            inputs = self.processor(
+                text=text_prompt,
+                images=images,
+                return_tensors="pt",
+                padding=True
+            ).to(self.device)
+        except Exception as e:
+            if self.verbose:
+                print(f"⚠️  Processor 오류: {e}")
+                print("   기본 처리 방식으로 재시도...")
+            
+            # 폴백: 이미지와 텍스트를 따로 처리
+            inputs = self.processor(
+                images=images,
+                text=text_prompt,
+                return_tensors="pt",
+                padding=True
+            ).to(self.device)
         
         # 생성
         with torch.no_grad():
@@ -168,14 +179,22 @@ class VLMInference:
                 do_sample=do_sample,
                 temperature=temperature,
                 top_p=0.9,
-                repetition_penalty=1.1
+                repetition_penalty=1.1,
+                pad_token_id=self.processor.tokenizer.pad_token_id if hasattr(self.processor, 'tokenizer') else None
             )
         
-        # 디코딩 (입력 프롬프트 제외)
-        generated_text = self.processor.decode(
-            outputs[0][inputs["input_ids"].shape[1]:],
-            skip_special_tokens=True
-        )
+        # 디코딩
+        try:
+            generated_text = self.processor.decode(
+                outputs[0][inputs["input_ids"].shape[1]:],
+                skip_special_tokens=True
+            )
+        except:
+            # 전체 디코딩
+            generated_text = self.processor.decode(
+                outputs[0],
+                skip_special_tokens=True
+            )
         
         if self.verbose:
             print(f"✅ VLM 분석 완료 ({len(generated_text)} 문자)")

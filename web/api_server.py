@@ -57,7 +57,7 @@ def init_vlm_components():
         
         # 경로 설정
         #pdf_path = project_root / "prod1_menual.pdf"
-        vector_store_path = project_root / "web" / "vector_store"
+        vector_store_path = project_root / "web" / "manual_store"
         pdf_path = vector_store_path / "prod1_menual.pdf"
         mapping_file = project_root / "web" / "defect_mapping.json"
         
