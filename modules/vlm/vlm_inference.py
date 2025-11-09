@@ -8,11 +8,28 @@ from pathlib import Path
 from typing import List, Dict, Optional, Union
 import torch
 from PIL import Image
-from transformers import (
-    LlavaNextProcessor,
-    LlavaNextForConditionalGeneration,
-    BitsAndBytesConfig
-)
+
+try:
+    from transformers import (
+        LlavaNextProcessor,
+        LlavaNextForConditionalGeneration,
+        BitsAndBytesConfig
+    )
+    LLAVA_AVAILABLE = True
+except ImportError:
+    # LlavaNext를 사용할 수 없는 경우 대체
+    try:
+        from transformers import (
+            AutoProcessor,
+            LlavaForConditionalGeneration as LlavaNextForConditionalGeneration,
+            BitsAndBytesConfig
+        )
+        LlavaNextProcessor = AutoProcessor
+        LLAVA_AVAILABLE = True
+    except ImportError:
+        LLAVA_AVAILABLE = False
+        print("⚠️ Transformers LLaVA 모델을 사용할 수 없습니다.")
+
 
 
 class VLMInference:
@@ -26,16 +43,13 @@ class VLMInference:
         use_8bit: bool = False,
         verbose: bool = True
     ):
-        """
-        Args:
-            model_name: HuggingFace 모델명
-                - "llava-hf/llava-v1.6-mistral-7b-hf" (추천)
-                - "LGAI-EXAONE/EXAONE-3.5-VL" (한국어 특화, 미지원 시)
-            device: 디바이스 (cuda/cpu)
-            use_4bit: 4-bit 양자화 사용 (메모리 절약)
-            use_8bit: 8-bit 양자화 사용
-            verbose: 로그 출력
-        """
+        if not LLAVA_AVAILABLE:
+            raise ImportError(
+                "Transformers의 LLaVA 모델을 사용할 수 없습니다. "
+                "transformers 버전을 4.37.0 이상으로 업그레이드하세요: "
+                "pip install transformers>=4.37.0 --upgrade"
+            )
+        
         self.model_name = model_name
         self.device = device
         self.verbose = verbose
