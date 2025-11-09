@@ -9,6 +9,11 @@ let searchResults = null;
 let uploadedImagePath = null;
 let defectConfig = null;
 
+// 전역 변수에 추가
+let currentSearchResult = null;
+let currentAnomalyResult = null;
+
+
 // DOM 요소
 let uploadArea, fileInput, previewImage, searchButton, detectButton;
 let topKSlider, topKValue, resultsContainer, anomalyResultsContainer;
@@ -159,13 +164,16 @@ async function performSearch() {
         searchResults = data;
         uploadedImagePath = `./uploads/${selectedFile.name}`;
         
+        // 검색 결과 저장 (매뉴얼 생성용)
+        currentSearchResult = data.top_k_results[0];
+        
         displayResults(data);
         showStatus(`검색 완료! ${data.top_k_results.length}개의 유사 이미지를 찾았습니다.`, 'success');
 
+        // 매뉴얼 생성 버튼 표시
         if (data.top_k_results.length > 0) {
             detectButton.disabled = false;
-            document.getElementById('anomalyRefInfo').innerHTML = 
-                `✅ ${data.top_k_results[0].image_name} (유사도: ${(data.top_k_results[0].similarity_score * 100).toFixed(1)}%)`;
+            document.getElementById('search-manual-button-container').style.display = 'block';
         }
 
     } catch (error) {
@@ -251,6 +259,7 @@ function swapTopResult(clickedIndex) {
 }
 
 // 이상 검출
+// 기존 performAnomalyDetection 함수 수정 - 결과 저장 및 버튼 표시
 async function performAnomalyDetection() {
     if (!searchResults || searchResults.top_k_results.length === 0) {
         showAnomalyStatus('먼저 유사도 검색을 실행하세요.', 'error');
@@ -269,7 +278,7 @@ async function performAnomalyDetection() {
             },
             body: JSON.stringify({
                 test_image_path: uploadedImagePath,
-                reference_image_path: null,  // 자동 검색
+                reference_image_path: null,
                 product_name: null
             })
         });
@@ -280,8 +289,15 @@ async function performAnomalyDetection() {
         }
 
         const data = await response.json();
+        
+        // 이상 검출 결과 저장 (매뉴얼 생성용)
+        currentAnomalyResult = data;
+        
         displayAnomalyResults(data);
         showAnomalyStatus('이상 검출 완료!', 'success');
+
+        // 매뉴얼 생성 버튼 표시
+        document.getElementById('anomaly-manual-button-container').style.display = 'block';
 
     } catch (error) {
         console.error('이상 검출 오류:', error);
@@ -291,6 +307,7 @@ async function performAnomalyDetection() {
         detectButton.innerHTML = '🎯 이상 영역 검출';
     }
 }
+
 
 // 이상 검출 결과 표시
 function displayAnomalyResults(data) {
@@ -329,6 +346,179 @@ function displayAnomalyResults(data) {
     anomalyResultsContainer.innerHTML = html;
 }
 
+// 유사도 검색 탭에서 매뉴얼 생성
+function generateManualFromSearch() {
+    if (!currentSearchResult || !uploadedImagePath) {
+        showStatus('먼저 유사도 검색을 수행해주세요.', 'error');
+        return;
+    }
+    
+    // 파일명에서 제품명/불량명 추출
+    const filename = currentSearchResult.image_name || currentSearchResult.path.split('/').pop();
+    const parts = filename.split('_');
+    
+    if (parts.length < 2) {
+        showStatus('파일명 형식 오류입니다. (제품명_불량명_번호 형식이어야 합니다)', 'error');
+        return;
+    }
+    
+    const product = parts[0];
+    const defect = parts[1];
+    
+    // 매뉴얼 탭으로 전환
+    const manualTab = document.querySelector('[data-tab="manual"]');
+    switchTab(manualTab);
+    
+    // 고급 분석 실행
+    executeAdvancedAnalysis(uploadedImagePath, product, defect);
+}
+
+// 이상 영역 검출 탭에서 매뉴얼 생성
+function generateManualFromAnomaly() {
+    if (!currentAnomalyResult || !uploadedImagePath) {
+        showAnomalyStatus('먼저 이상 영역 검출을 수행해주세요.', 'error');
+        return;
+    }
+    
+    // 매뉴얼 탭으로 전환
+    const manualTab = document.querySelector('[data-tab="manual"]');
+    switchTab(manualTab);
+    
+    // 고급 분석 실행
+    executeAdvancedAnalysis(uploadedImagePath);
+}
+
+// 고급 분석 실행 (통합)
+async function executeAdvancedAnalysis(imagePath) {
+    // UI 초기화
+    document.getElementById('manual-info-section').style.display = 'none';
+    document.getElementById('manual-result-section').style.display = 'none';
+    document.getElementById('manual-error-section').style.display = 'none';
+    document.getElementById('manual-processing').style.display = 'block';
+    
+    const stepElement = document.getElementById('manual-processing-step');
+    
+    try {
+        stepElement.textContent = '🔍 종합 분석을 시작합니다...';
+        
+        // API 호출
+        const response = await fetch(`${API_BASE_URL}/generate_manual_advanced`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                image_path: imagePath
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || '분석 중 오류가 발생했습니다.');
+        }
+        
+        const data = await response.json();
+        
+        if (data.status !== 'success') {
+            throw new Error('분석에 실패했습니다.');
+        }
+        
+        // 처리 완료
+        document.getElementById('manual-processing').style.display = 'none';
+        
+        // 분석 정보 표시
+        displayManualInfo(data);
+        
+        // 결과 표시
+        displayManualResult(data);
+        
+        showStatus('AI 분석이 완료되었습니다!', 'success');
+        
+    } catch (error) {
+        console.error('매뉴얼 생성 오류:', error);
+        document.getElementById('manual-processing').style.display = 'none';
+        document.getElementById('manual-error-section').style.display = 'block';
+        document.getElementById('manual-error-message').textContent = error.message;
+    }
+}
+
+// 분석 정보 표시
+function displayManualInfo(data) {
+    const infoSection = document.getElementById('manual-info-section');
+    
+    document.getElementById('manual-product').textContent = 
+        data.similarity?.product || data.defect_info?.product || 'N/A';
+    
+    const defectKo = data.defect_info?.ko || 'N/A';
+    const defectEn = data.defect_info?.en || 'N/A';
+    document.getElementById('manual-defect').textContent = 
+        `${defectKo} (${defectEn})`;
+    
+    const score = data.anomaly?.score || 0;
+    document.getElementById('manual-score').textContent = 
+        `${(score * 100).toFixed(1)}%`;
+    
+    infoSection.style.display = 'block';
+}
+
+// 결과 표시
+function displayManualResult(data) {
+    const resultSection = document.getElementById('manual-result-section');
+    
+    // 이미지 표시
+    if (data.anomaly) {
+        document.getElementById('manual-normal-image').src = data.anomaly.normal_image_url || '';
+        document.getElementById('manual-overlay-image').src = data.anomaly.overlay_image_url || '';
+    }
+    
+    // 입력 이미지 표시
+    if (uploadedImagePath) {
+        document.getElementById('manual-defect-image').src = `/api/image/${uploadedImagePath}`;
+    }
+    
+    // 참조 매뉴얼 표시
+    if (data.manual) {
+        const causesDiv = document.getElementById('manual-causes');
+        const actionsDiv = document.getElementById('manual-actions');
+        
+        causesDiv.innerHTML = data.manual.원인 && data.manual.원인.length > 0
+            ? data.manual.원인.map(c => `<div>${c}</div>`).join('')
+            : '<div style="color: #94a3b8;">매뉴얼 정보가 없습니다.</div>';
+        
+        actionsDiv.innerHTML = data.manual.조치 && data.manual.조치.length > 0
+            ? data.manual.조치.map(a => `<div>${a}</div>`).join('')
+            : '<div style="color: #94a3b8;">매뉴얼 정보가 없습니다.</div>';
+    }
+    
+    // VLM 분석 결과 표시
+    if (data.vlm_analysis) {
+        document.getElementById('manual-vlm-analysis').textContent = data.vlm_analysis;
+    } else {
+        document.getElementById('manual-vlm-analysis').textContent = 
+            'VLM 분석 결과를 가져올 수 없습니다.';
+    }
+    
+    // 처리 시간
+    if (data.processing_time) {
+        document.getElementById('manual-processing-time').textContent = data.processing_time;
+    }
+    
+    resultSection.style.display = 'block';
+}
+
+// 매뉴얼 상세 토글
+function toggleManualDetail() {
+    const detailSection = document.getElementById('manual-detail-section');
+    const toggleBtn = document.getElementById('toggle-manual-btn');
+    
+    if (detailSection.style.display === 'none') {
+        detailSection.style.display = 'block';
+        toggleBtn.textContent = '접기';
+    } else {
+        detailSection.style.display = 'none';
+        toggleBtn.textContent = '펼치기';
+    }
+}
 
 // 모달 열 때 통계 표시 (선택사항)
 async function openDefectRegistration() {

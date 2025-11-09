@@ -25,6 +25,92 @@ sys.path.insert(0, str(project_root))
 # modules 폴더의 모듈 import
 from modules.similarity_matcher import TopKSimilarityMatcher, create_matcher
 from modules.anomaly_detector import AnomalyDetector, create_detector
+# VLM 모듈 import
+from modules.vlm import RAGManager, VLMInference, PromptBuilder, DefectMapper
+
+
+
+
+
+# ====================
+# VLM 관련 실행 함수,컴포넌트
+# ====================
+
+# 전역 변수로 VLM 컴포넌트 초기화
+vlm_components = {
+    "rag": None,
+    "vlm": None,
+    "mapper": None,
+    "prompt_builder": PromptBuilder()
+}
+
+def init_vlm_components():
+    """VLM 컴포넌트 초기화 (서버 시작 시 1회)"""
+    global vlm_components
+    
+    try:
+        print("\n" + "="*50)
+        print("VLM 컴포넌트 초기화 중...")
+        print("="*50)
+        
+        # 경로 설정
+        pdf_path = project_root / "prod1_menual.pdf"
+        vector_store_path = project_root / "web" / "vector_store"
+        mapping_file = project_root / "web" / "defect_mapping.json"
+        
+        # 매핑 파일이 없으면 생성
+        if not mapping_file.exists():
+            print("⚠️  매핑 파일이 없습니다. 기본 파일을 생성합니다...")
+            from modules.vlm.defect_mapper import create_default_mapping
+            create_default_mapping(mapping_file)
+        
+        # DefectMapper 초기화
+        print("\n1. DefectMapper 초기화...")
+        vlm_components["mapper"] = DefectMapper(mapping_file)
+        
+        # RAGManager 초기화
+        print("\n2. RAGManager 초기화...")
+        if not pdf_path.exists():
+            print(f"⚠️  PDF 파일을 찾을 수 없습니다: {pdf_path}")
+            print("   VLM 기능이 제한됩니다.")
+        else:
+            vlm_components["rag"] = RAGManager(
+                pdf_path=pdf_path,
+                vector_store_path=vector_store_path,
+                device="cuda",
+                verbose=True
+            )
+        
+        # VLMInference 초기화 (선택적 - 메모리 고려)
+        print("\n3. VLMInference 초기화 (스킵 - 필요 시 동적 로드)...")
+        # vlm_components["vlm"] = VLMInference(
+        #     model_name="llava-hf/llava-v1.6-mistral-7b-hf",
+        #     use_4bit=True,
+        #     verbose=True
+        # )
+        print("   → VLM 모델은 첫 요청 시 동적으로 로드됩니다.")
+        
+        print("\n" + "="*50)
+        print("✅ VLM 컴포넌트 초기화 완료")
+        print("="*50 + "\n")
+        
+    except Exception as e:
+        print(f"\n❌ VLM 초기화 오류: {e}")
+        import traceback
+        traceback.print_exc()
+
+def get_or_load_vlm():
+    """VLM 모델 로드 (lazy loading)"""
+    if vlm_components["vlm"] is None:
+        print("🤖 VLM 모델을 처음 로드합니다...")
+        vlm_components["vlm"] = VLMInference(
+            model_name="llava-hf/llava-v1.6-mistral-7b-hf",
+            use_4bit=True,  # 메모리 절약
+            verbose=True
+        )
+    return vlm_components["vlm"]
+
+
 
 
 # ====================
@@ -192,6 +278,11 @@ async def startup_event():
         print(f"⚠️  Anomaly Detector 초기화 실패: {e}")
         detector = None
     
+
+    # VLM 컴포넌트 초기화
+    init_vlm_components()
+    print("✅ VLM Component 초기화 완료")
+
     print("=" * 60)
 
 
@@ -643,6 +734,265 @@ async def serve_matching():
 async def root():
     """루트 접근 시 matching.html로 리다이렉트"""
     return FileResponse(WEB_DIR / "matching.html")
+
+# ====================
+# VLM 관련 실행 코드
+# ====================
+
+@app.post("/generate_manual")
+async def generate_manual(request: dict):
+    """
+    불량 매뉴얼 생성 (기본 버전 - RAG만)
+    
+    Request Body:
+    {
+        "image_path": "path/to/image.jpg",
+        "product": "prod1",
+        "defect": "burr"
+    }
+    
+    Response:
+    {
+        "status": "success",
+        "defect_info": {...},
+        "manual": {"원인": [...], "조치": [...]},
+        "message": "매뉴얼 검색 완료"
+    }
+    """
+    try:
+        image_path = request.get("image_path")
+        product = request.get("product")
+        defect = request.get("defect")
+        
+        if not all([image_path, product, defect]):
+            raise HTTPException(400, "image_path, product, defect 필수")
+        
+        # DefectMapper로 정보 조회
+        mapper = vlm_components["mapper"]
+        defect_info = mapper.get_defect_info(product, defect)
+        
+        if not defect_info:
+            raise HTTPException(404, f"불량 정보를 찾을 수 없습니다: {product}/{defect}")
+        
+        # RAG 검색
+        rag = vlm_components["rag"]
+        if not rag:
+            raise HTTPException(503, "RAG 서비스가 초기화되지 않았습니다")
+        
+        keywords = mapper.get_search_keywords(product, defect)
+        manual_context = rag.search_defect_manual(product, defect, keywords)
+        
+        return {
+            "status": "success",
+            "defect_info": {
+                "en": defect_info.en,
+                "ko": defect_info.ko,
+                "full_name_ko": defect_info.full_name_ko
+            },
+            "manual": manual_context,
+            "message": "매뉴얼 검색 완료"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"매뉴얼 생성 오류: {str(e)}")
+
+
+@app.post("/generate_manual_advanced")
+async def generate_manual_advanced(request: dict):
+    """
+    고급 불량 분석 (유사도 검색 + PatchCore + RAG + VLM 통합)
+    
+    Request Body:
+    {
+        "image_path": "uploads/test_image.jpg"
+    }
+    
+    Response:
+    {
+        "status": "success",
+        "defect_info": {...},
+        "similarity": {...},
+        "anomaly": {...},
+        "manual": {...},
+        "vlm_analysis": "...",
+        "processing_time": 12.34
+    }
+    """
+    import time
+    start_time = time.time()
+    
+    try:
+        image_path = request.get("image_path")
+        if not image_path:
+            raise HTTPException(400, "image_path 필수")
+        
+        # 절대 경로 변환
+        if not Path(image_path).is_absolute():
+            image_path = project_root / image_path
+        
+        if not Path(image_path).exists():
+            raise HTTPException(404, f"이미지를 찾을 수 없습니다: {image_path}")
+        
+        result = {
+            "status": "success",
+            "steps": []
+        }
+        
+        # Step 1: 유사도 검색으로 불량명 추출
+        result["steps"].append("1. 유사도 검색 중...")
+        
+        # similarity_matcher 사용 (기존 코드)
+        from modules.similarity_matcher import SimilarityMatcher
+        matcher = SimilarityMatcher(
+            model_name="ViT-B-32",
+            pretrained="openai",
+            device="cuda"
+        )
+        
+        # 인덱스 로드
+        index_path = project_root / "web" / "index_cache"
+        if (index_path / "index_data.pt").exists():
+            matcher.load_index(str(index_path))
+        else:
+            raise HTTPException(503, "인덱스가 구축되지 않았습니다")
+        
+        search_results = matcher.search_with_index(str(image_path), top_k=1)
+        
+        if not search_results:
+            raise HTTPException(404, "유사한 이미지를 찾을 수 없습니다")
+        
+        top_result = search_results[0]
+        
+        # 파일명에서 제품명/불량명 추출
+        filename = Path(top_result.candidate_path).stem
+        parts = filename.split("_")
+        if len(parts) < 2:
+            raise HTTPException(400, f"파일명 형식 오류: {filename}")
+        
+        product = parts[0]
+        defect = parts[1]
+        
+        result["similarity"] = {
+            "top_match": top_result.candidate_path,
+            "similarity": float(top_result.similarity),
+            "product": product,
+            "defect": defect
+        }
+        
+        # Step 2: 불량 정보 조회
+        result["steps"].append("2. 불량 정보 조회 중...")
+        
+        mapper = vlm_components["mapper"]
+        defect_info = mapper.get_defect_info(product, defect)
+        
+        if not defect_info:
+            raise HTTPException(404, f"불량 정보를 찾을 수 없습니다: {product}/{defect}")
+        
+        result["defect_info"] = {
+            "en": defect_info.en,
+            "ko": defect_info.ko,
+            "full_name_ko": defect_info.full_name_ko
+        }
+        
+        # Step 3: PatchCore 이상 검출
+        result["steps"].append("3. 이상 영역 검출 중...")
+        
+        from modules.anomaly_detector import AnomalyDetector
+        anomaly_detector = AnomalyDetector(
+            memory_bank_root=project_root / "data" / "patchCore",
+            device="cuda"
+        )
+        
+        anomaly_result = anomaly_detector.detect_anomaly(
+            test_image_path=str(image_path),
+            product_name=product
+        )
+        
+        result["anomaly"] = {
+            "score": float(anomaly_result["anomaly_score"]),
+            "normal_image_url": f"/api/image/{anomaly_result['normal_image_path']}",
+            "overlay_image_url": f"/api/image/{anomaly_result['overlay_image_path']}",
+            "mask_image_url": f"/api/image/{anomaly_result['mask_image_path']}",
+            "regions": anomaly_result.get("regions", [])
+        }
+        
+        # Step 4: RAG 매뉴얼 검색
+        result["steps"].append("4. 매뉴얼 검색 중...")
+        
+        rag = vlm_components["rag"]
+        if not rag:
+            raise HTTPException(503, "RAG 서비스가 초기화되지 않았습니다")
+        
+        keywords = mapper.get_search_keywords(product, defect)
+        manual_context = rag.search_defect_manual(product, defect, keywords)
+        
+        result["manual"] = manual_context
+        
+        # Step 5: VLM 분석
+        result["steps"].append("5. VLM 분석 중...")
+        
+        vlm = get_or_load_vlm()
+        prompt_builder = vlm_components["prompt_builder"]
+        
+        # 프롬프트 생성
+        prompt = prompt_builder.build_defect_analysis_prompt(
+            product=product,
+            defect_en=defect_info.en,
+            defect_ko=defect_info.ko,
+            full_name_ko=defect_info.full_name_ko,
+            anomaly_regions=anomaly_result.get("regions", []),
+            manual_context=manual_context
+        )
+        
+        # VLM 추론
+        vlm_analysis = vlm.analyze_defect_with_segmentation(
+            normal_image_path=anomaly_result["normal_image_path"],
+            defect_image_path=str(image_path),
+            overlay_image_path=anomaly_result["overlay_image_path"],
+            prompt=prompt,
+            max_new_tokens=512,
+            temperature=0.7
+        )
+        
+        result["vlm_analysis"] = vlm_analysis
+        result["steps"].append("✅ 분석 완료")
+        
+        # 처리 시간
+        result["processing_time"] = round(time.time() - start_time, 2)
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"고급 분석 오류: {str(e)}")
+
+
+@app.get("/vlm/status")
+async def vlm_status():
+    """VLM 컴포넌트 상태 확인"""
+    return {
+        "mapper_loaded": vlm_components["mapper"] is not None,
+        "rag_loaded": vlm_components["rag"] is not None,
+        "vlm_loaded": vlm_components["vlm"] is not None,
+        "prompt_builder_loaded": vlm_components["prompt_builder"] is not None
+    }
+
+
+@app.post("/vlm/reload")
+async def vlm_reload():
+    """VLM 컴포넌트 재로드"""
+    try:
+        init_vlm_components()
+        return {"status": "success", "message": "VLM 컴포넌트 재로드 완료"}
+    except Exception as e:
+        raise HTTPException(500, f"재로드 오류: {str(e)}")
 
 
 # ====================

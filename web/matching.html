@@ -10,7 +10,7 @@
     <div class="container">
         <div class="header">
             <h1>🔍 유사이미지 매칭 + 이상 검출 시스템</h1>
-            <p>CLIP 기반 유사도 검색 + PatchCore Anomaly Detection</p>
+            <p>CLIP 기반 유사도 검색 + PatchCore Anomaly Detection + VLM 매뉴얼 생성</p>
         </div>
 
         <div class="nav">
@@ -23,12 +23,13 @@
         <div class="tabs">
             <div class="tab active" data-tab="search">🔍 유사도 검색</div>
             <div class="tab" data-tab="anomaly">🎯 이상 영역 검출</div>
+            <div class="tab" data-tab="manual">🤖 대응 매뉴얼 생성</div>
         </div>
 
         <!-- 탭 1: 유사도 검색 -->
         <div class="tab-content active" id="search-tab">
             <div class="main-content">
-                <!-- 좌측: 업로드 및 컨트롤 -->
+                <!-- 좌측: 업로드 및 컨트롤 -->>
                 <div class="upload-section">
                     <h3 style="margin-bottom: 15px; color: #343a40;">이미지 업로드</h3>
                     
@@ -93,6 +94,16 @@
                             <p style="margin-top: 10px;">이미지를 업로드하고 검색 버튼을 클릭하세요</p>
                         </div>
                     </div>
+
+                    <!-- 매뉴얼 생성 버튼 (검색 완료 후 표시) -->
+                    <div id="search-manual-button-container" style="display: none; margin-top: 30px; text-align: center;">
+                        <button onclick="generateManualFromSearch()" class="manual-generate-button">
+                            🤖 대응 매뉴얼 생성
+                        </button>
+                        <p style="color: #666; font-size: 14px; margin-top: 10px;">
+                            검색된 불량에 대한 AI 분석 및 대응 방안을 생성합니다
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -131,6 +142,108 @@
                             <p style="margin-top: 10px;">먼저 유사도 검색 후 이상 검출을 실행하세요</p>
                         </div>
                     </div>
+
+                    <!-- 매뉴얼 생성 버튼 (이상 검출 완료 후 표시) -->
+                    <div id="anomaly-manual-button-container" style="display: none; margin-top: 30px; text-align: center;">
+                        <button onclick="generateManualFromAnomaly()" class="manual-generate-button">
+                            🤖 대응 매뉴얼 생성
+                        </button>
+                        <p style="color: #666; font-size: 14px; margin-top: 10px;">
+                            검출된 이상 영역에 대한 AI 분석 및 대응 방안을 생성합니다
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 탭 3: 대응 매뉴얼 생성 -->
+        <div class="tab-content" id="manual-tab">
+            <div class="manual-container">
+                <!-- 분석 정보 -->
+                <div id="manual-info-section" class="manual-info" style="display: none;">
+                    <h3>📊 분석 정보</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">제품명:</span>
+                            <span id="manual-product" class="info-value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">불량 유형:</span>
+                            <span id="manual-defect" class="info-value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">이상 점수:</span>
+                            <span id="manual-score" class="info-value">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 처리 상태 -->
+                <div id="manual-processing" class="processing-container" style="display: none;">
+                    <div class="spinner"></div>
+                    <div id="manual-processing-step" class="processing-text">
+                        분석을 준비하고 있습니다...
+                    </div>
+                </div>
+
+                <!-- 결과 표시 -->
+                <div id="manual-result-section" style="display: none;">
+                    <!-- 이미지 비교 -->
+                    <div class="manual-section">
+                        <h3>🖼️ 이미지 비교</h3>
+                        <div class="image-comparison-grid">
+                            <div class="comparison-item">
+                                <div class="comparison-label">정상 기준</div>
+                                <img id="manual-normal-image" class="comparison-image">
+                            </div>
+                            <div class="comparison-item">
+                                <div class="comparison-label">불량 의심</div>
+                                <img id="manual-defect-image" class="comparison-image">
+                            </div>
+                            <div class="comparison-item">
+                                <div class="comparison-label">이상 영역 표시</div>
+                                <img id="manual-overlay-image" class="comparison-image">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 참조 매뉴얼 -->
+                    <div class="manual-section">
+                        <h3>
+                            📚 참조 매뉴얼
+                            <button onclick="toggleManualDetail()" id="toggle-manual-btn" class="toggle-btn">
+                                펼치기
+                            </button>
+                        </h3>
+                        <div id="manual-detail-section" class="manual-detail" style="display: none;">
+                            <div class="manual-subsection">
+                                <h4>발생 원인</h4>
+                                <div id="manual-causes" class="manual-content"></div>
+                            </div>
+                            <div class="manual-subsection">
+                                <h4>조치 가이드</h4>
+                                <div id="manual-actions" class="manual-content"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- VLM 분석 결과 -->
+                    <div class="manual-section">
+                        <h3>🤖 AI 분석 결과</h3>
+                        <div id="manual-vlm-analysis" class="vlm-analysis"></div>
+                    </div>
+
+                    <!-- 처리 시간 -->
+                    <div class="processing-time">
+                        처리 시간: <span id="manual-processing-time">0</span>초
+                    </div>
+                </div>
+
+                <!-- 오류 메시지 -->
+                <div id="manual-error-section" class="error-container" style="display: none;">
+                    <div class="error-icon">⚠️</div>
+                    <div class="error-title">오류 발생</div>
+                    <div id="manual-error-message" class="error-message"></div>
                 </div>
             </div>
         </div>
