@@ -380,7 +380,7 @@ async def search_upload(
         print(f"파일 저장 완료: {file_path}")
         
         # 2. 유사도 검색 수행
-        results = similarity_matcher.search_with_index(
+        results = matcher.search_with_index(
             str(file_path),
             top_k=top_k
         )
@@ -398,7 +398,7 @@ async def search_upload(
                 }
                 for i, hit in enumerate(results)
             ],
-            "total_gallery_size": len(similarity_matcher.gallery_paths)
+            "total_gallery_size": len(matcher.gallery_paths)
         }
         
     except Exception as e:
@@ -630,6 +630,8 @@ async def register_defect(
     with save_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
+
+
     # 인덱스 재구축 (선택사항)
     if matcher and matcher.index_built:
         try:
