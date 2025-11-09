@@ -29,6 +29,7 @@ from modules.similarity_matcher import TopKSimilarityMatcher, create_matcher
 from modules.anomaly_detector import AnomalyDetector, create_detector
 # VLM 모듈 import
 from modules.vlm import RAGManager, VLMInference, PromptBuilder, DefectMapper
+from modules.vlm.llm_inference import LLMInference
 
 
 
@@ -45,6 +46,8 @@ vlm_components = {
     "mapper": None,
     "prompt_builder": PromptBuilder()
 }
+
+vlm_load_complete = True
 
 def init_vlm_components():
     """VLM 컴포넌트 초기화 (서버 시작 시 1회)"""
@@ -103,6 +106,8 @@ def init_vlm_components():
         traceback.print_exc()
 
 def get_or_load_vlm():
+    global vlm_load_complete
+
     """VLM 모델 로드 (lazy loading)"""
     if vlm_components["vlm"] is None:
         print("🤖 VLM 모델을 처음 로드합니다...")
@@ -113,22 +118,19 @@ def get_or_load_vlm():
                 verbose=True
             )
         except Exception as e:
+            vlm_load_complete = False
             # Qwen-VL 같은 다른 모델 사용
+            print("🤖 VLM 모델 초기화 실패 => LLM 모델 대체")
             try:
-                from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
-                
-                vlm_components["vlm"] = {
-                    "processor": AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct"),
-                    "model": Qwen2VLForConditionalGeneration.from_pretrained(
-                        "Qwen/Qwen2-VL-7B-Instruct",
-                        torch_dtype=torch.float16,
-                        device_map="cuda"
-                    )
-                }
-                print("✅ Qwen-VL 로드 완료")
+                vlm_components["llm"] = LLMInference(
+                    model_name="mistralai/Mistral-7B-Instruct-v0.2",
+                    use_4bit=True,
+                    verbose=True
+                )
+                print("✅ LLM 로드 완료 (텍스트 기반 분석)")
             except Exception as e:
-                print(f"⚠️  VLM 로드 실패: {e}")
-                vlm_components["vlm"] = None
+                print(f"⚠️  LLM 로드 실패: {e}")
+                vlm_components["llm"] = None
                     
         
     return vlm_components["vlm"]
@@ -992,48 +994,81 @@ async def generate_manual_advanced(request: dict):
             print(f"✅ 매뉴얼 검색 완료")
         
         # Step 5: VLM 분석 (선택적)
-        print(f"\n[Step 5] VLM 분석...")
-        result["steps"].append("5. VLM 분석 중...")
-        
-        try:
-            vlm = get_or_load_vlm()
-            prompt_builder = vlm_components["prompt_builder"]
+        global vlm_load_complete
+        if vlm_load_complete :
+            print(f"\n[Step 5] VLM 분석...")
+            result["steps"].append("5. VLM 분석 중...")
             
-            # 프롬프트 생성
-            prompt = prompt_builder.build_defect_analysis_prompt(
-                product=product,
-                defect_en=defect_info.en,
-                defect_ko=defect_info.ko,
-                full_name_ko=defect_info.full_name_ko,
-                anomaly_regions=anomaly_result.get("regions", []),
-                manual_context=result.get("manual", {})
-            )
+            try:
+                vlm = get_or_load_vlm()
+                prompt_builder = vlm_components["prompt_builder"]
+                
+                # 프롬프트 생성
+                prompt = prompt_builder.build_defect_analysis_prompt(
+                    product=product,
+                    defect_en=defect_info.en,
+                    defect_ko=defect_info.ko,
+                    full_name_ko=defect_info.full_name_ko,
+                    anomaly_regions=anomaly_result.get("regions", []),
+                    manual_context=result.get("manual", {})
+                )
+                
+                # VLM 추론
+                overlay_path = output_dir / "overlay.png"
+                normal_path = Path(anomaly_result.get("reference_image_path", ""))
+                
+                if overlay_path.exists() and normal_path.exists():
+                    vlm_analysis = vlm.analyze_defect_with_segmentation(
+                        normal_image_path=str(normal_path),
+                        defect_image_path=str(image_path_obj),
+                        overlay_image_path=str(overlay_path),
+                        prompt=prompt,
+                        max_new_tokens=512,
+                        temperature=0.7
+                    )
+                    result["vlm_analysis"] = vlm_analysis
+                    print(f"✅ VLM 분석 완료")
+                else:
+                    result["vlm_analysis"] = "VLM 분석을 위한 이미지를 찾을 수 없습니다."
+                    print(f"⚠️  VLM 이미지 누락 - Normal:{normal_path.exists()}, Overlay:{overlay_path.exists()}")
+                    
+            except Exception as e:
+                print(f"⚠️  VLM 분석 실패: {e}")
+                result["vlm_analysis"] = f"VLM 분석 중 오류: {str(e)}"
             
-            # VLM 추론
-            overlay_path = output_dir / "overlay.png"
-            normal_path = Path(anomaly_result.get("reference_image_path", ""))
-            
-            if overlay_path.exists() and normal_path.exists():
-                vlm_analysis = vlm.analyze_defect_with_segmentation(
-                    normal_image_path=str(normal_path),
-                    defect_image_path=str(image_path_obj),
-                    overlay_image_path=str(overlay_path),
-                    prompt=prompt,
+            result["steps"].append("✅ 분석 완료")
+        else :
+            print(f"\n[Step 5] LLM 분석...")
+            result["steps"].append("5. LLM 기반 매뉴얼 생성 중...")
+
+            try:
+                llm = vlm_components.get("llm")
+                
+                if llm is None:
+                    raise Exception("LLM이 초기화되지 않았습니다")
+                
+                # LLM으로 분석
+                llm_analysis = llm.analyze_defect_with_context(
+                    product=product,
+                    defect_en=defect_info.en,
+                    defect_ko=defect_info.ko,
+                    full_name_ko=defect_info.full_name_ko,
+                    anomaly_score=anomaly_result["image_score"],
+                    is_anomaly=anomaly_result["is_anomaly"],
+                    manual_context=result.get("manual", {}),
                     max_new_tokens=512,
                     temperature=0.7
                 )
-                result["vlm_analysis"] = vlm_analysis
-                print(f"✅ VLM 분석 완료")
-            else:
-                result["vlm_analysis"] = "VLM 분석을 위한 이미지를 찾을 수 없습니다."
-                print(f"⚠️  VLM 이미지 누락 - Normal:{normal_path.exists()}, Overlay:{overlay_path.exists()}")
                 
-        except Exception as e:
-            print(f"⚠️  VLM 분석 실패: {e}")
-            result["vlm_analysis"] = f"VLM 분석 중 오류: {str(e)}"
-        
-        result["steps"].append("✅ 분석 완료")
-        
+                result["llm_analysis"] = llm_analysis
+                print(f"✅ LLM 분석 완료")
+                
+            except Exception as e:
+                print(f"⚠️  LLM 분석 실패: {e}")
+                import traceback
+                traceback.print_exc()
+                result["llm_analysis"] = f"LLM 분석 중 오류: {str(e)}"
+
         # 처리 시간
         result["processing_time"] = round(time.time() - start_time, 2)
         
