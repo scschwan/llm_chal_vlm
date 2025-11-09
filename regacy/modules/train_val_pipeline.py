@@ -121,7 +121,7 @@ def train_yolo():
         # (옵션) 세그 모델일 때만 객체단위 F1/Acc 평가
         if use_seg:
             try:
-                from modules.evaluate_yolo_seg import evaluate_yolo_seg
+                from regacy.modules.evaluate_yolo_seg import evaluate_yolo_seg
                 best_path = os.path.join('.', 'utils', 'model_training', 'model', 'bolt_model', 'weights', 'best.pt')
                 if os.path.isfile(best_path):
                     print("\n[INFO] 학습 완료. F1/Precision/Recall/Accuracy 평가 시작...")

@@ -31,7 +31,7 @@ from modules.prompts import (
 )
 
 from modules.ssim_utils import ssim_global, ssim_grid_hints
-from modules.preprocess import PreprocessCfg, apply_preprocess
+from regacy.modules.preprocess import PreprocessCfg, apply_preprocess
 from modules.object_guidance import (
     load_object_json,
     build_weight_map,
