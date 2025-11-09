@@ -243,7 +243,8 @@ if __name__ == "__main__":
     
     project_root = Path(__file__).parent.parent.parent
     pdf_path = project_root / "prod1_menual.pdf"
-    vector_store_path = project_root / "web" / "vector_store"
+    #vector_store_path = project_root / "web" / "vector_store"
+    vector_store_path = project_root / "manual_store"
     
     if not pdf_path.exists():
         print(f"❌ PDF 파일을 찾을 수 없습니다: {pdf_path}")
