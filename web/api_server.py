@@ -113,7 +113,8 @@ def get_or_load_vlm():
         print("🤖 VLM 모델을 처음 로드합니다...")
         try:
             vlm_components["vlm"] = VLMInference(
-                model_name="llava-hf/llava-v1.6-mistral-7b-hf",
+                #model_name="llava-hf/llava-v1.6-mistral-7b-hf",
+                model_name="llava-hf/llava-1.5-7b-hf",
                 use_4bit=True,  # 메모리 절약
                 verbose=True
             )
