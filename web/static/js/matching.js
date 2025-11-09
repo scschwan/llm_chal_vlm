@@ -162,7 +162,11 @@ async function performSearch() {
 
         const data = await response.json();
         searchResults = data;
-        uploadedImagePath = `./uploads/${selectedFile.name}`;
+        
+        // 서버에서 반환한 실제 저장 경로 사용
+        uploadedImagePath = data.uploaded_file || `uploads/${selectedFile.name}`;
+        
+        console.log("업로드된 이미지 경로:", uploadedImagePath);
         
         // 검색 결과 저장 (매뉴얼 생성용)
         currentSearchResult = data.top_k_results[0];

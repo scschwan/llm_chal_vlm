@@ -19,6 +19,8 @@ import time  # 기존 import에 추가
 # 프로젝트 루트를 Python 경로에 추가
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
+uploads_dir = project_root / "web" / "uploads"
+uploads_dir.mkdir(parents=True, exist_ok=True)  # 폴더가 없으면 생성
 
 
 
@@ -363,38 +365,45 @@ async def search_by_path(request: SearchRequest):
 
 
 @app.post("/search/upload")
-async def search_by_upload(
+async def search_upload(
     file: UploadFile = File(...),
-    top_k: int = Query(5, ge=1, le=50)
+    top_k: int = 5
 ):
-    """업로드된 이미지로 유사 이미지 검색"""
-    if matcher is None:
-        raise HTTPException(status_code=500, detail="매처가 초기화되지 않았습니다")
-    
-    if not matcher.index_built:
-        raise HTTPException(status_code=400, detail="인덱스가 구축되지 않았습니다")
-    
-    allowed_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
-    file_ext = Path(file.filename).suffix.lower()
-    if file_ext not in allowed_extensions:
-        raise HTTPException(status_code=400, detail=f"지원하지 않는 파일 형식: {file_ext}")
-    
+    """이미지 업로드 및 유사도 검색"""
     try:
-        # 임시 저장
-        temp_path = UPLOAD_DIR / file.filename
-        with temp_path.open("wb") as buffer:
+        # 1. 파일 저장
+        file_path = uploads_dir / file.filename
+        
+        with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # 검색
-        result = matcher.search(str(temp_path), top_k=top_k)
+        logger.info(f"파일 저장 완료: {file_path}")
         
-        # 임시 파일은 유지 (이상 검출에 사용될 수 있음)
-        # temp_path.unlink()
+        # 2. 유사도 검색 수행
+        results = similarity_matcher.search_with_index(
+            str(file_path),
+            top_k=top_k
+        )
         
-        return JSONResponse(content=result.to_dict())
-    
+        # 3. 결과 반환
+        return {
+            "status": "success",
+            "uploaded_file": str(file_path),  # 저장된 파일 경로 반환
+            "top_k_results": [
+                {
+                    "rank": i + 1,
+                    "image_path": hit.candidate_path,
+                    "image_name": Path(hit.candidate_path).name,
+                    "similarity_score": float(hit.similarity)
+                }
+                for i, hit in enumerate(results)
+            ],
+            "total_gallery_size": len(similarity_matcher.gallery_paths)
+        }
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"검색 실패: {str(e)}")
+        logger.error(f"검색 오류: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/index/info")
@@ -689,21 +698,20 @@ async def serve_defect_config():
 async def serve_image(image_path: str):
     """이미지 파일 제공 엔드포인트"""
     try:
-        file_path = Path(image_path)
+        # 경로 처리
+        if image_path.startswith("uploads/"):
+            file_path = uploads_dir / image_path.replace("uploads/", "")
+        else:
+            file_path = project_root / image_path
         
-        if not file_path.exists() or not file_path.is_file():
-            raise HTTPException(status_code=404, detail="이미지를 찾을 수 없습니다")
+        if not file_path.exists():
+            raise HTTPException(404, f"이미지를 찾을 수 없습니다: {image_path}")
         
-        allowed_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
-        if file_path.suffix.lower() not in allowed_extensions:
-            raise HTTPException(status_code=400, detail="이미지 파일이 아닙니다")
+        return FileResponse(str(file_path))
         
-        return FileResponse(file_path, media_type=f"image/{file_path.suffix[1:]}")
-    
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"이미지 로드 실패: {str(e)}")
+        print(f"이미지 서빙 오류: {e}")
+        raise HTTPException(500, str(e))
 
 
 @app.delete("/uploads/clean")
@@ -830,13 +838,34 @@ async def generate_manual_advanced(request: dict):
         if not image_path:
             raise HTTPException(400, "image_path 필수")
         
+        ''''
         # 절대 경로 변환
         if not Path(image_path).is_absolute():
             image_path = project_root / image_path
         
         if not Path(image_path).exists():
             raise HTTPException(404, f"이미지를 찾을 수 없습니다: {image_path}")
+        '''
+        # 경로 정규화
+        image_path_obj = Path(image_path)
         
+        # 상대 경로 처리
+        if not image_path_obj.is_absolute():
+            # ./uploads/파일명 형태를 절대 경로로 변환
+            if image_path.startswith("./uploads/"):
+                filename = image_path.replace("./uploads/", "")
+                image_path_obj = uploads_dir / filename
+            elif image_path.startswith("uploads/"):
+                filename = image_path.replace("uploads/", "")
+                image_path_obj = uploads_dir / filename
+            else:
+                image_path_obj = project_root / image_path
+        
+        print(f"처리할 이미지 경로: {image_path_obj}")
+        
+        if not image_path_obj.exists():
+            raise HTTPException(404, f"이미지를 찾을 수 없습니다: {image_path_obj}")
+
         result = {
             "status": "success",
             "steps": []
