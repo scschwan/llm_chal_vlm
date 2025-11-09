@@ -84,12 +84,21 @@ class VLMInference:
                 print("   AutoProcessor로 재시도...")
             
             # 폴백: AutoProcessor 사용
-            from transformers import AutoProcessor
-            try:
-                self.processor = AutoProcessor.from_pretrained(model_name)
-            except Exception as e2:
-                if self.verbose:
-                    print(f"⚠️  AutoProcessor도 실패: {e2}")
+            # Processor 로드 부분 (68-70번째 줄)
+                try:
+                    # tokenizers 0.19 호환 방식
+                    from transformers import AutoProcessor
+                    self.processor = AutoProcessor.from_pretrained(
+                        model_name,
+                        trust_remote_code=True  # 추가
+                    )
+                    if self.verbose:
+                        print("✅ AutoProcessor로 로드 성공")
+                except Exception as e:
+                    if self.verbose:
+                        print(f"⚠️  Processor 로드 실패: {e}")
+                        print("   VLM 기능 비활성화")
+                    raise ImportError(f"VLM Processor 로드 불가: {e}")
                 
                 # 마지막 시도: LlavaProcessor
                 try:

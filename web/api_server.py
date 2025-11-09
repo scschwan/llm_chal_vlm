@@ -106,11 +106,31 @@ def get_or_load_vlm():
     """VLM 모델 로드 (lazy loading)"""
     if vlm_components["vlm"] is None:
         print("🤖 VLM 모델을 처음 로드합니다...")
-        vlm_components["vlm"] = VLMInference(
-            model_name="llava-hf/llava-v1.6-mistral-7b-hf",
-            use_4bit=True,  # 메모리 절약
-            verbose=True
-        )
+        try:
+            vlm_components["vlm"] = VLMInference(
+                model_name="llava-hf/llava-v1.6-mistral-7b-hf",
+                use_4bit=True,  # 메모리 절약
+                verbose=True
+            )
+        except Exception as e:
+            # Qwen-VL 같은 다른 모델 사용
+            try:
+                from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
+                
+                vlm_components["vlm"] = {
+                    "processor": AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct"),
+                    "model": Qwen2VLForConditionalGeneration.from_pretrained(
+                        "Qwen/Qwen2-VL-7B-Instruct",
+                        torch_dtype=torch.float16,
+                        device_map="cuda"
+                    )
+                }
+                print("✅ Qwen-VL 로드 완료")
+            except Exception as e:
+                print(f"⚠️  VLM 로드 실패: {e}")
+                vlm_components["vlm"] = None
+                    
+        
     return vlm_components["vlm"]
 
 
