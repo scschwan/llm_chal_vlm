@@ -377,7 +377,7 @@ async def search_upload(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        logger.info(f"파일 저장 완료: {file_path}")
+        print(f"파일 저장 완료: {file_path}")
         
         # 2. 유사도 검색 수행
         results = similarity_matcher.search_with_index(
@@ -402,7 +402,7 @@ async def search_upload(
         }
         
     except Exception as e:
-        logger.error(f"검색 오류: {e}")
+        print(f"검색 오류: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
