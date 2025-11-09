@@ -56,8 +56,9 @@ def init_vlm_components():
         print("="*50)
         
         # 경로 설정
-        pdf_path = project_root / "prod1_menual.pdf"
+        #pdf_path = project_root / "prod1_menual.pdf"
         vector_store_path = project_root / "web" / "vector_store"
+        pdf_path = vector_store_path / "prod1_menual.pdf"
         mapping_file = project_root / "web" / "defect_mapping.json"
         
         # 매핑 파일이 없으면 생성
@@ -699,21 +700,31 @@ async def serve_defect_config():
 async def serve_image(image_path: str):
     """이미지 파일 제공 엔드포인트"""
     try:
+        # 상대 경로 정규화
+        if image_path.startswith("../"):
+            image_path = image_path.replace("../", "")
+        
         # 경로 처리
         if image_path.startswith("uploads/"):
             file_path = uploads_dir / image_path.replace("uploads/", "")
+        elif image_path.startswith("data/"):
+            file_path = project_root / image_path
         else:
+            # 기본적으로 project_root 기준
             file_path = project_root / image_path
         
+        print(f"이미지 서빙 시도: {file_path}")
+        
         if not file_path.exists():
-            raise HTTPException(404, f"이미지를 찾을 수 없습니다: {image_path}")
+            raise HTTPException(404, f"이미지를 찾을 수 없습니다: {file_path}")
         
         return FileResponse(str(file_path))
         
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"이미지 서빙 오류: {e}")
         raise HTTPException(500, str(e))
-
 
 @app.delete("/uploads/clean")
 async def clean_uploads():
@@ -813,7 +824,8 @@ async def generate_manual(request: dict):
 @app.post("/generate_manual_advanced")
 async def generate_manual_advanced(request: dict):
     """
-    고급 불량 분석 (유사도 검색 + PatchCore + RAG + VLM 통합)
+    고급 불량 분석 (통합 파이프라인)
+    - 유사도 검색 → PatchCore 이상 검출 → RAG → VLM
     """
     import time
     start_time = time.time()
@@ -826,7 +838,6 @@ async def generate_manual_advanced(request: dict):
         # 경로 정규화
         image_path_obj = Path(image_path)
         
-        # 상대 경로 처리
         if not image_path_obj.is_absolute():
             if image_path.startswith("./uploads/"):
                 filename = image_path.replace("./uploads/", "")
@@ -837,7 +848,9 @@ async def generate_manual_advanced(request: dict):
             else:
                 image_path_obj = project_root / image_path
         
-        print(f"처리할 이미지 경로: {image_path_obj}")
+        print(f"\n{'='*60}")
+        print(f"고급 분석 시작: {image_path_obj.name}")
+        print(f"{'='*60}")
         
         if not image_path_obj.exists():
             raise HTTPException(404, f"이미지를 찾을 수 없습니다: {image_path_obj}")
@@ -847,33 +860,41 @@ async def generate_manual_advanced(request: dict):
             "steps": []
         }
         
-        # Step 1: 유사도 검색으로 불량명 추출
+        # Step 1: 유사도 검색으로 제품명 추출
+        print("\n[Step 1] 유사도 검색...")
         result["steps"].append("1. 유사도 검색 중...")
         
-        # ❌ 삭제: 중복 matcher 생성
-        # from modules.similarity_matcher import SimilarityMatcher
-        # matcher = SimilarityMatcher(...)
-        
-        # ✅ 수정: 전역 matcher 사용
         if not matcher or not matcher.index_built:
             raise HTTPException(503, "인덱스가 구축되지 않았습니다")
         
-        # search() 메서드 사용 (SimilarityResult 반환)
-        search_result = matcher.search(str(image_path_obj), top_k=1)
+        search_result = matcher.search(str(image_path_obj), top_k=5)
         
         if not search_result.top_k_results:
             raise HTTPException(404, "유사한 이미지를 찾을 수 없습니다")
         
-        top_result = search_result.top_k_results[0]
+        # TOP-K 중에서 불량 이미지 찾기 (def가 포함된 것)
+        product = None
+        defect = None
+        top_result = None
         
-        # 파일명에서 제품명/불량명 추출
-        filename = Path(top_result["image_path"]).stem
-        parts = filename.split("_")
-        if len(parts) < 2:
-            raise HTTPException(400, f"파일명 형식 오류: {filename}")
+        for result_item in search_result.top_k_results:
+            filename = Path(result_item["image_path"]).stem
+            parts = filename.split("_")
+            
+            if len(parts) >= 3:  # product_def_숫자 형태
+                temp_product = parts[0]
+                temp_defect = parts[1]
+                
+                # 'ok', 'normal' 등이 아닌 불량명 찾기
+                if temp_defect.lower() not in ['ok', 'normal', 'good']:
+                    product = temp_product
+                    defect = temp_defect
+                    top_result = result_item
+                    print(f"✅ 불량 매칭: {filename} → 제품:{product}, 불량:{defect}")
+                    break
         
-        product = parts[0]
-        defect = parts[1]
+        if not product or not defect:
+            raise HTTPException(400, "불량 이미지를 찾을 수 없습니다")
         
         result["similarity"] = {
             "top_match": top_result["image_path"],
@@ -883,6 +904,7 @@ async def generate_manual_advanced(request: dict):
         }
         
         # Step 2: 불량 정보 조회
+        print(f"\n[Step 2] 불량 정보 조회: {product}/{defect}")
         result["steps"].append("2. 불량 정보 조회 중...")
         
         mapper = vlm_components["mapper"]
@@ -901,7 +923,8 @@ async def generate_manual_advanced(request: dict):
             "full_name_ko": defect_info.full_name_ko
         }
         
-        # Step 3: PatchCore 이상 검출
+        # Step 3: PatchCore 이상 검출 (정상 이미지 기준)
+        print(f"\n[Step 3] 이상 영역 검출...")
         result["steps"].append("3. 이상 영역 검출 중...")
         
         if not detector:
@@ -911,13 +934,16 @@ async def generate_manual_advanced(request: dict):
         output_dir = ANOMALY_OUTPUT_DIR / image_path_obj.stem
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # 이상 검출 (전역 detector 사용)
+        # 이상 검출 - 정상 이미지 기준으로 검출
         anomaly_result = detector.detect_with_normal_reference(
             test_image_path=str(image_path_obj),
-            product_name=product,
+            product_name=product,  # 추출된 제품명 사용
             similarity_matcher=matcher,
             output_dir=str(output_dir)
         )
+        
+        print(f"✅ 이상 점수: {anomaly_result['image_score']:.4f}")
+        print(f"   정상 기준: {anomaly_result.get('reference_image_path', 'N/A')}")
         
         result["anomaly"] = {
             "score": float(anomaly_result["image_score"]),
@@ -928,18 +954,25 @@ async def generate_manual_advanced(request: dict):
         }
         
         # Step 4: RAG 매뉴얼 검색
+        print(f"\n[Step 4] 매뉴얼 검색...")
         result["steps"].append("4. 매뉴얼 검색 중...")
         
-        rag = vlm_components["rag"]
-        if not rag:
-            raise HTTPException(503, "RAG 서비스가 초기화되지 않았습니다")
+        rag = vlm_components.get("rag")
         
-        keywords = mapper.get_search_keywords(product, defect)
-        manual_context = rag.search_defect_manual(product, defect, keywords)
-        
-        result["manual"] = manual_context
+        if rag is None:
+            print("⚠️  RAG가 비활성화되어 있습니다 (PDF 파일 없음)")
+            result["manual"] = {
+                "원인": ["RAG 서비스가 비활성화되어 있습니다"],
+                "조치": ["PDF 매뉴얼 파일을 추가하세요"]
+            }
+        else:
+            keywords = mapper.get_search_keywords(product, defect)
+            manual_context = rag.search_defect_manual(product, defect, keywords)
+            result["manual"] = manual_context
+            print(f"✅ 매뉴얼 검색 완료")
         
         # Step 5: VLM 분석 (선택적)
+        print(f"\n[Step 5] VLM 분석...")
         result["steps"].append("5. VLM 분석 중...")
         
         try:
@@ -953,7 +986,7 @@ async def generate_manual_advanced(request: dict):
                 defect_ko=defect_info.ko,
                 full_name_ko=defect_info.full_name_ko,
                 anomaly_regions=anomaly_result.get("regions", []),
-                manual_context=manual_context
+                manual_context=result.get("manual", {})
             )
             
             # VLM 추론
@@ -970,17 +1003,23 @@ async def generate_manual_advanced(request: dict):
                     temperature=0.7
                 )
                 result["vlm_analysis"] = vlm_analysis
+                print(f"✅ VLM 분석 완료")
             else:
-                result["vlm_analysis"] = "이미지 파일을 찾을 수 없어 VLM 분석을 건너뜁니다."
+                result["vlm_analysis"] = "VLM 분석을 위한 이미지를 찾을 수 없습니다."
+                print(f"⚠️  VLM 이미지 누락 - Normal:{normal_path.exists()}, Overlay:{overlay_path.exists()}")
                 
         except Exception as e:
-            print(f"VLM 분석 오류 (스킵): {e}")
-            result["vlm_analysis"] = f"VLM 분석 중 오류 발생: {str(e)}"
+            print(f"⚠️  VLM 분석 실패: {e}")
+            result["vlm_analysis"] = f"VLM 분석 중 오류: {str(e)}"
         
         result["steps"].append("✅ 분석 완료")
         
         # 처리 시간
         result["processing_time"] = round(time.time() - start_time, 2)
+        
+        print(f"\n{'='*60}")
+        print(f"분석 완료: {result['processing_time']}초")
+        print(f"{'='*60}\n")
         
         return result
         
