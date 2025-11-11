@@ -1,283 +1,267 @@
-# 유사이미지 검색 솔루션 개발 현황 (2025-11-09 업데이트)
+# 유사이미지 검색 솔루션 개발 현황 (업데이트)
 
 ## 프로젝트 개요
-- **목표**: CLIP 기반 유사이미지 검색 → PatchCore Anomaly Detection → LLM 대응 매뉴얼 생성 파이프라인 구축
-- **환경**: Naver Cloud Platform, Rocky Linux 8.10, Python 3.9
-- **배포 방식**: FastAPI REST API 서버 (외부 Spring AI WAS에서 호출 가능)
+- **목표**: CLIP 기반 유사이미지 검색 → PatchCore Anomaly Detection → LLM 대응 매뉴얼 생성
+- **환경**: Naver Cloud Platform, Rocky Linux 8.10
+- **아키텍처**: 분리된 서버 구조 (API Server + LLM Server)
 
-## 인프라 구성 (NCP)
-- **GPU 서버**: Tesla T4 x2
+## 시스템 아키텍처
+
+### 1. 서버 구조
+```
+┌─────────────────────────────────────────────┐
+│         웹 클라이언트 (브라우저)              │
+│  - matching.html (작업자 화면)               │
+│  - dashboard.html (관리자 화면)              │
+│  - defect_analysis.html (불량 분석)          │
+└─────────────────────────────────────────────┘
+                    ↓ HTTP
+┌─────────────────────────────────────────────┐
+│       API Server (FastAPI - Port 5000)       │
+│  - CLIP 유사도 검색                          │
+│  - PatchCore Anomaly Detection              │
+│  - 이미지 처리 및 ROI 추출                   │
+│  - LLM Server로 프롬프트 전달 (콜백)        │
+└─────────────────────────────────────────────┘
+                    ↓ HTTP (내부 통신)
+┌─────────────────────────────────────────────┐
+│       LLM Server (FastAPI - Port 5001)       │
+│  - Python 3.10 전용 venv310 가상환경         │
+│  - Hugging Face Transformers (LLaVA 등)    │
+│  - 프롬프트 기반 텍스트 생성                 │
+│  - 스트리밍 응답 (콜백)                      │
+└─────────────────────────────────────────────┘
+```
+
+### 2. 통신 흐름
+```
+사용자 이미지 업로드
+    ↓
+API Server (5000)
+    ├─ CLIP 유사 이미지 검색 (TOP-K)
+    ├─ PatchCore Anomaly Detection 실행 (수동 트리거)
+    ├─ ROI 추출 및 분석
+    └─ 프롬프트 구성 → LLM Server (5001) 호출
+                            ↓
+                    LLM Server (5001)
+                    └─ LLM 추론 → 응답 콜백
+    ↓
+API Server가 최종 응답 수신
+    ↓
+웹 클라이언트에 결과 전달
+```
+
+## 개발 환경
+
+### API Server (web/api_server.py)
+- **Python**: 3.9
+- **포트**: 5000
+- **주요 라이브러리**:
+  - FastAPI
+  - PyTorch (CUDA 지원)
+  - CLIP (openai/ViT-B-32)
+  - PatchCore (Anomaly Detection)
+  - FAISS (벡터 검색)
+  - OpenCV (이미지 처리)
+
+### LLM Server (llm_server/llm_server.py)
+- **Python**: 3.10
+- **포트**: 5001
+- **가상환경**: venv310 (독립 환경)
+- **주요 라이브러리**:
+```
+accelerate==1.11.0
+fastapi==0.111.0
+transformers==4.45.2
+torch==2.9.0
+bitsandbytes==0.48.2
+huggingface-hub==0.24.6
+```
+
+### LLM Server 주요 특징
+1. **독립된 Python 3.10 환경**: API Server와 의존성 충돌 방지
+2. **GPU 지원**: CUDA 12.8.x, cuDNN 9.10
+3. **모델 로딩**: Hugging Face Transformers 기반
+4. **비동기 처리**: FastAPI 비동기 엔드포인트
+5. **스트리밍 응답**: 콜백 방식으로 실시간 응답 전달
+
+## 주요 기능 모듈
+
+### 1. TOP-K 유사도 매칭 (`modules/clip_search.py`)
+- **상태**: ✅ 완료
+- **기능**:
+  - CLIP 기반 이미지 임베딩
+  - FAISS 인덱스 활용 고속 검색
+  - TOP-K 유사 이미지 반환
+  - 유사도 스코어 제공
+
+### 2. Anomaly Detection (`modules/patchcore_module.py`)
+- **상태**: ✅ 완료
+- **기능**:
+  - PatchCore 기반 이상 탐지
+  - 제품별 메모리 뱅크 (prod1, prod2, prod3)
+  - 수동 트리거 방식 (자동 실행 없음)
+  - 정상 참조 이미지 자동 선택
+  - 히트맵 생성 및 시각화
+
+### 3. LLM 매뉴얼 생성 (`llm_server/llm_server.py`)
+- **상태**: 🔄 개발중
+- **기능**:
+  - RAG 기반 매뉴얼 검색 (예정)
+  - LLaVA 또는 오픈소스 LLM 추론
+  - 프롬프트 기반 응답 생성
+  - 스트리밍 방식 응답
+
+## 데이터 구조
+
+### 이미지 데이터 디렉토리
+```
+data/
+├── prod1/               # 제품1
+│   ├── normal/         # 정상 이미지
+│   └── defect/         # 불량 이미지
+├── prod2/               # 제품2
+│   ├── normal/
+│   └── defect/
+└── prod3/               # 제품3
+    ├── normal/
+    └── defect/
+```
+
+### 이미지 명명 규칙
+```
+{제품명}_{불량타입}_{순번}.jpg
+
+예시:
+prod1_scratch_001.jpg
+prod2_dent_005.jpg
+prod3_normal_010.jpg
+```
+
+## 웹 인터페이스
+
+### 작업자 화면 (matching.html)
+- **기능**:
+  - 이미지 업로드
+  - TOP-K 유사 이미지 표시
+  - Anomaly Detection 수동 실행
+  - 불량 유형 등록
+  - 결과 확인
+
+### 관리자 화면 (dashboard.html)
+- **기능**:
+  - 제품/불량 유형 관리
+  - 통계 대시보드
+  - 데이터셋 관리
+  - 시스템 설정
+
+## NCP 인프라 정보
+
+### 네트워크 구성
 - **VPC**: dm-vpc (10.200.0.0/16)
-- **서브넷**: 
+- **서브넷**:
   - Public: dm-pub-sub (10.200.0.0/24)
   - LB: dm-lb-sub (10.200.1.0/24)
   - NAT: dm-nat-sub (10.200.2.0/24)
   - Private: dm-pri-sub (10.200.3.0/24)
-- **로드밸런서**: 
-  - ALB: http://dm-alb-112319279-991b4e0889c4.kr.lb.naverncp.com:80
-  - NLB: dm-nlb-112319415-f8e0a97d0b99.kr.lb.naverncp.com:2022
-- **접속**: `ssh -p 2022 root@dm-nlb-112319415-f8e0a97d0b99.kr.lb.naverncp.com`
+
+### 접속 정보
+- **GPU 서버 SSH**: `ssh -p 2022 root@dm-nlb-112319415-f8e0a97d0b99.kr.lb.naverncp.com`
+- **ALB 주소**: `http://dm-alb-112319279-991b4e0889c4.kr.lb.naverncp.com:80`
 - **서비스 포트**: 
-  - 내부: 5000 (API 서버)
-  - 외부: ALB 80 → 8080/5000
+  - API Server: 5000 → ALB 8080 → 외부 80
+  - LLM Server: 5001 (내부 전용)
+- **헬스체크**: `/health` (포트 8080)
 
-## 개발 완료 모듈
+### Object Storage
+- **버킷명**: dm-obs
+- **VPC 사설 도메인**: kr.object.private.ncloudstorage.com
+- **접근 제어**: GPU 서버만 접근 가능
 
-### ✅ 모듈 1: TOP-K 유사도 매칭
-- **파일**: `modules/similarity_matcher.py`
-- **기능**: 
-  - CLIP (ViT-B-32/openai) 기반 이미지 임베딩
-  - FAISS 인덱스 활용 고속 검색
-  - TOP-K 유사 이미지 반환
-  - 인덱스 저장/로드 기능
-- **상태**: ✅ 완료 및 테스트 통과
-- **API 엔드포인트**: 
-  - `POST /search/upload` - 이미지 업로드 & 검색
-  - `POST /build_index` - 인덱스 구축
-  - `GET /index/info` - 인덱스 정보 조회
+## 데이터베이스 설계
 
-### ✅ 모듈 2: PatchCore Anomaly Detection
-- **파일**: `modules/anomaly_detector.py`
-- **기능**:
-  - PatchCore 기반 이상 영역 검출
-  - 제품별 메모리뱅크 관리 (prod1, prod2, prod3)
-  - 정상 이미지 자동 선택 (유사도 매칭 통합)
-  - Heatmap, Mask, Overlay 이미지 생성
-  - Comparison 이미지 (정상 vs 불량 비교)
-- **상태**: ✅ 완료 및 테스트 통과
-- **API 엔드포인트**:
-  - `POST /detect_anomaly` - 이상 검출 수행
-  - `GET /anomaly/image/{result_id}/{filename}` - 결과 이미지 서빙
+### 핵심 테이블 (10개)
+1. **users**: 사용자 계정 관리
+2. **products**: 제품 정보
+3. **manuals**: 대응 매뉴얼 문서
+4. **defect_types**: 불량 유형 정의
+5. **images**: 이미지 메타데이터
+6. **search_history**: 검색 이력
+7. **response_history**: LLM 응답 이력
+8. **model_parameters**: 모델 파라미터 설정
+9. **deployment_logs**: 배포 로그
+10. **system_config**: 시스템 설정
 
-### ✅ 모듈 3: RAG 기반 매뉴얼 검색
-- **파일**: `modules/vlm/rag_manager.py`
-- **기능**:
-  - PDF 매뉴얼 파싱 및 벡터화
-  - 불량별 섹션 분리 (발생 원인 / 조치 가이드)
-  - FAISS 벡터 DB 구축 및 캐싱
-  - 키워드 기반 관련 매뉴얼 검색
-- **상태**: ✅ 완료 (pickle deserialization 이슈 해결)
-- **설정**:
-  - 임베딩 모델: jhgan/ko-sbert-nli
-  - 벡터 DB 경로: `/home/dmillion/llm_chal_vlm/manual_store`
-  - PDF 경로: `/home/dmillion/llm_chal_vlm/manual_store/prod1_menual.pdf`
+## 현재 개발 상태
 
-### ⚠️ 모듈 4: LLM 기반 대응 매뉴얼 생성
-- **파일**: `modules/vlm/llm_inference.py`
-- **기능**:
-  - 텍스트 기반 LLM 추론
-  - RAG 검색 결과 + 이상 검출 결과 통합 분석
-  - 구조화된 대응 매뉴얼 생성
-- **상태**: ⚠️ 구현 완료, 테스트 대기 중
-- **모델**: mistralai/Mistral-7B-Instruct-v0.2 (4-bit 양자화)
-- **주의**: VLM(이미지+텍스트) 대신 LLM(텍스트 전용) 사용
+### ✅ 완료된 작업
+- [x] CLIP 유사도 검색 모듈
+- [x] PatchCore Anomaly Detection 모듈
+- [x] FastAPI 웹 서버 구축 (5000, 5001)
+- [x] 작업자 웹 인터페이스
+- [x] 관리자 대시보드 (기본)
+- [x] 제품별 메모리 뱅크 구축
+- [x] NCP 인프라 배포
 
-### ❌ VLM (Vision Language Model) - 보류
-- **파일**: `modules/vlm/vlm_inference.py`
-- **문제**: 
-  - LlavaNextProcessor 초기화 실패 (`image_token` 인자 오류)
-  - tokenizers 라이브러리 버전 충돌 (0.15.2 vs 0.19.1)
-  - sentence-transformers 의존성 문제
-- **대안**: LLM(텍스트 전용)으로 대체
-- **상태**: ❌ 보류 (의존성 해결 후 재시도 예정)
+### 🔄 진행중
+- [ ] LLM Server 완전한 통합
+- [ ] RAG 기반 매뉴얼 검색 구현
+- [ ] 데이터베이스 마이그레이션
+- [ ] 관리자 기능 확장
 
-## 웹 인터페이스
+### ⏳ 예정
+- [ ] 배치 처리 (다중 이미지, ZIP 파일)
+- [ ] 통계 대시보드 고도화
+- [ ] 모바일 반응형 UI
+- [ ] 사용자 권한 관리
 
-### ✅ FastAPI REST API 서버
-- **파일**: `web/api_server.py`
-- **기능**:
-  - 유사도 검색 API
-  - 이상 검출 API
-  - 불량 등록 API
-  - 통합 분석 파이프라인 (`/generate_manual_advanced`)
-- **상태**: ✅ 작동 중
-- **포트**: 5000
-- **헬스체크**: `GET /health2`
+## 개발 가이드
 
-### ✅ 웹 UI (HTML/JavaScript)
-- **파일**: `web/matching.html`
-- **기능**:
-  - 탭 기반 UI (유사도 검색 / 이상 영역 검출 / RAG 분석)
-  - 이미지 업로드 및 결과 표시
-  - 불량 이미지 등록 모달
-  - 실시간 로그 표시
-- **상태**: ✅ 작동 중
-- **접속**: http://dm-alb-112319279-991b4e0889c4.kr.lb.naverncp.com/
-
-## 데이터 구조
-
-### 이미지 데이터
-```
-data/
-├── def_split/              # 불량 이미지 (검색 인덱스)
-│   ├── prod1_burr_001.jpeg
-│   ├── prod1_hole_001.jpeg
-│   └── prod1_scratch_001.jpeg
-├── patchCore/             # PatchCore 메모리뱅크
-│   ├── prod1/
-│   │   ├── ok/           # 정상 이미지 (파일명: prod1_ok_*.jpeg)
-│   │   └── bank.pt       # 메모리뱅크
-│   ├── prod2/
-│   └── prod3/
-└── uploads/               # 업로드된 테스트 이미지
+### API Server 실행
+```bash
+cd /path/to/llm_chal_vlm/web
+python3.9 api_server.py
 ```
 
-### 매뉴얼 데이터
-```
-manual_store/
-├── prod1_menual.pdf       # PDF 매뉴얼
-├── index.faiss           # FAISS 벡터 인덱스
-└── index.pkl             # 메타데이터
-```
-
-### 설정 파일
-```
-web/
-├── defect_config.json    # 불량 유형 설정
-└── defect_mapping.json   # 불량명 매핑 (EN/KO)
+### LLM Server 실행
+```bash
+cd /path/to/llm_chal_vlm/llm_server
+source venv310/bin/activate
+python llm_server.py
 ```
 
-## 통합 워크플로우
+### 의존성 설치
+```bash
+# API Server (Python 3.9)
+pip install -r web/requirements.txt
 
-### 자동 분석 파이프라인 (`/generate_manual_advanced`)
-
-```
-1. 이미지 업로드
-   ↓
-2. 유사도 검색 (CLIP + FAISS)
-   → 제품명/불량명 자동 추출
-   ↓
-3. PatchCore 이상 검출
-   → 정상 이미지 자동 선택
-   → Heatmap, Mask, Overlay 생성
-   ↓
-4. RAG 매뉴얼 검색
-   → 불량별 원인/조치 검색
-   ↓
-5. LLM 분석
-   → 통합 대응 매뉴얼 생성
-   ↓
-6. 결과 반환 (JSON)
+# LLM Server (Python 3.10 - venv310)
+cd llm_server
+python3.10 -m venv venv310
+source venv310/bin/activate
+pip install fastapi transformers torch accelerate bitsandbytes
 ```
 
-## 주요 이슈 및 해결
+## 문제 해결 이력
 
-### ✅ 해결된 이슈
-1. **CLIP 검색 메서드 불일치**
-   - 문제: `search_with_index()` 메서드 없음
-   - 해결: `search()` 메서드 사용으로 통일
+### PyTorch CUDA 이슈
+- **문제**: CUDA 호환성 오류
+- **해결**: GPU 지원 PyTorch 재설치
 
-2. **이미지 경로 문제**
-   - 문제: 상대 경로 `../data/def_split/...` 처리 실패
-   - 해결: `/api/image/` 엔드포인트에서 경로 정규화
+### FP16 정밀도 오류
+- **문제**: PatchCore FP16 연산 오류
+- **해결**: FP16 비활성화
 
-3. **파일명 파싱 오류**
-   - 문제: `cast_ok_*` 파일명이 불량으로 인식됨
-   - 해결: `prod1_ok_*`로 파일명 변경
+### ALB 로드밸런서 연동
+- **문제**: localhost 직접 접근 불가
+- **해결**: 상대 경로 URL 사용
 
-4. **RAG FAISS deserialization 오류**
-   - 문제: `allow_dangerous_deserialization` 필요
-   - 해결: `FAISS.load_local(..., allow_dangerous_deserialization=True)`
+### 경로 문제
+- **해결**: 절대 경로로 통일
 
-### ⚠️ 진행 중 이슈
-1. **VLM 로드 실패**
-   - 문제: tokenizers 버전 충돌
-   - 임시 대응: LLM(텍스트 전용)으로 대체
-   - 향후 계획: 의존성 재정리 또는 다른 VLM 모델 시도
-
-## 성능 지표
-
-### 유사도 검색
-- 인덱스 크기: 30~50개 이미지
-- 검색 속도: ~0.1초 (FAISS)
-- 모델: CLIP ViT-B-32 (512차원)
-
-### PatchCore 이상 검출
-- 메모리뱅크 크기: 614 패치 (prod1 기준)
-- 검출 속도: ~1~2초
-- 정확도: 테스트 중
-
-### RAG 검색
-- 벡터 DB 크기: ~100 청크
-- 검색 속도: ~0.5초
-- 임베딩: ko-sbert-nli (768차원)
-
-### LLM 생성
-- 모델: Mistral-7B (4-bit)
-- 생성 속도: ~3~5초 (512 토큰)
-- GPU 메모리: ~6GB
-
-## 다음 단계
-
-### 단기 (1주일)
-- [ ] LLM 매뉴얼 생성 품질 테스트
-- [ ] 웹 UI 개선 (통계, 히스토리)
-- [ ] 불량 통계 대시보드 추가
-- [ ] API 문서 자동 생성 (Swagger)
-
-### 중기 (1개월)
-- [ ] VLM 의존성 문제 해결
-- [ ] 제품별 매뉴얼 분리 (prod1, prod2, prod3)
-- [ ] 배치 처리 기능 추가
-- [ ] 로깅 및 모니터링 강화
-
-### 장기 (3개월)
-- [ ] Active Learning 파이프라인
-- [ ] 자동 재학습 시스템
-- [ ] 모바일 앱 연동
-- [ ] 실시간 생산라인 통합
-
-## 미사용 파일 정리 대상
-
-### Legacy 모듈 (원본 프로젝트)
-```
-modules/
-├── clip_search.py          # → similarity_matcher.py로 대체
-├── vlm_local.py           # → modules/vlm/vlm_inference.py로 대체
-├── region_detect.py       # 사용 안 함 (PatchCore 사용)
-├── ssim_utils.py          # 사용 안 함
-├── shape_diff.py          # 사용 안 함
-├── image_processor.py     # 사용 안 함
-├── preprocess.py          # 사용 안 함
-├── object_guidance.py     # 사용 안 함
-├── prompts.py             # 사용 안 함
-├── evaluate_yolo_seg.py   # YOLO 미사용
-├── train_yolo_seg.py      # YOLO 미사용
-├── train_val_pipeline.py  # 학습 파이프라인 미사용
-└── split_train_to_test.py # 데이터 분할 미사용
-
-루트 파일:
-├── main.py                # CLI 스크립트 (API 서버로 대체)
-├── config.py              # 레거시 설정 (미사용)
-```
-
-### 사용 중인 핵심 모듈
-```
-modules/
-├── similarity_matcher.py    # ✅ 유사도 검색
-├── anomaly_detector.py      # ✅ 이상 검출
-├── patchCore/              # ✅ PatchCore 구현
-└── vlm/                    # ✅ RAG + LLM
-    ├── rag_manager.py
-    ├── llm_inference.py
-    ├── defect_mapper.py
-    ├── prompt_builder.py
-    └── vlm_inference.py    # ⚠️ 보류
-
-web/
-├── api_server.py           # ✅ FastAPI 서버
-├── matching.html           # ✅ 웹 UI
-└── static/                 # ✅ CSS/JS
-```
-
-## 참고 자료
-- **설계서**: `Markdown/유사이미지_검색_솔루션_설계서.md`
-- **인프라 정보**: `NCP_인프라_구축_완료_및_설정_내역_안내.pdf`
-- **GitHub**: https://github.com/scschwan/llm_chal_vlm.git
-- **ALB 접속**: http://dm-alb-112319279-991b4e0889c4.kr.lb.naverncp.com/
-
----
-
-**마지막 업데이트**: 2025-11-09  
-**작성자**: 프로젝트 팀  
-**버전**: 2.0
+## 참고 문서
+- [시스템 아키텍처](./system_architecture.md)
+- [데이터베이스 스키마](./database_schema.md)
+- [TOP-K 테스트 가이드](./TOP-K%20TEST_GUIDE.md)
+- [PatchCore 가이드](./readme_patchcore.md)
+- [세션 인수인계](./session_handover.md)

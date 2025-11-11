@@ -810,7 +810,7 @@ function getTop1Meta() {
       : null);
 
   if (!top1) {
-    console.warn('[getTop1Meta] currentSearchResult/top_k_results[0] 없음');
+    console.log('[getTop1Meta] currentSearchResult/top_k_results[0] 없음');
     return { product: null, defect: null, top1_image_path: null };
   }
 
