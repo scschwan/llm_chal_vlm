@@ -125,7 +125,8 @@ def get_or_load_vlm():
             try:
                 vlm_components["llm"] = LLMInference(
                     #model_name="mistralai/Mistral-7B-Instruct-v0.2",
-                    model_name="hyperclovax",
+                    #model_name="hyperclovax",
+                    model_name="exaone",
                     use_4bit=True,
                     verbose=True
                 )

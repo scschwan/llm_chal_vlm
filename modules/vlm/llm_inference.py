@@ -27,7 +27,8 @@ class LLMInference:
     SUPPORTED_MODELS = {
         "mistral": "mistralai/Mistral-7B-Instruct-v0.2",
         "hyperclovax": "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B",
-        "exaone": "LGAI-EXAONE/EXAONE-4.0.1-32B"
+        #"exaone": "LGAI-EXAONE/EXAONE-4.0.1-32B"
+        "exaone": "LGAI-EXAONE/EXAONE-4.0-1.2B"
     }
     
     def __init__(
