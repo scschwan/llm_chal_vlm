@@ -177,7 +177,9 @@ async function performSearch() {
         // 매뉴얼 생성 버튼 표시
         if (data.top_k_results.length > 0) {
             detectButton.disabled = false;
-            document.getElementById('search-manual-button-container').style.display = 'block';
+            //document.getElementById('search-manual-button-container').style.display = 'block';
+            const cont = document.getElementById('search-manual-button-container');
+            if (cont) cont.style.display = 'block';
         }
 
     } catch (error) {
@@ -312,7 +314,9 @@ async function performAnomalyDetection() {
         showAnomalyStatus('이상 검출 완료!', 'success');
 
         // 매뉴얼 생성 버튼 표시
-        document.getElementById('anomaly-manual-button-container').style.display = 'block';
+        //document.getElementById('anomaly-manual-button-container').style.display = 'block';
+        const anomBtns = document.getElementById('anomaly-manual-button-container');
+        if (anomBtns) anomBtns.style.display = 'block';
 
     } catch (error) {
         console.error('이상 검출 오류:', error);
