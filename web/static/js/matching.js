@@ -800,21 +800,63 @@ function showAnomalyStatus(message, type) {
     anomalyStatusMessage.style.display = 'block';
 }
 
+// 기존 함수 교체
 function getTop1Meta() {
-  const top1 = window.currentSearchResult || null;
-  if (!top1) return { product: null, defect: null, top1_image_path: null };
+  // 1) 전역 상태에서 TOP-1 안전하게 가져오기
+  const top1 =
+    window.currentSearchResult ??
+    (window.searchResults && window.searchResults.top_k_results
+      ? window.searchResults.top_k_results[0]
+      : null);
 
-  const name = top1.image_name || (top1.image_path ? top1.image_path.split('/').pop() : '');
-  const parts = (name || '').split('_');
-  const product = parts[0] || null;
-  const defect  = parts[1] || null;
+  if (!top1) {
+    console.warn('[getTop1Meta] currentSearchResult/top_k_results[0] 없음');
+    return { product: null, defect: null, top1_image_path: null };
+  }
 
-  return {
-    product,
-    defect,
-    top1_image_path: top1.image_path || null
-  };
+  // 2) 파일명 결정 (image_name 우선, 없으면 image_path basename)
+  const rawName =
+    top1.image_name ??
+    (top1.image_path ? top1.image_path.split('/').pop() : '') ??
+    '';
+  const name = rawName.trim();
+
+  // 3) 확장자 제거, 소문자화
+  const stem = name.replace(/\.[a-z0-9]+$/i, '').toLowerCase();
+
+  // 4) 다양한 케이스 허용: prod1_hole_11 / prod1-hole-11 / prod1_ok_0_645 ...
+  //    패턴: product_(defect)_... 또는 product-(defect)-...
+  let product = null;
+  let defect = null;
+
+  // 언더바 우선 시도
+  let parts = stem.split('_');
+  if (parts.length >= 2) {
+    product = parts[0];
+    defect  = parts[1];
+  } else {
+    // 대쉬 시도
+    parts = stem.split('-');
+    if (parts.length >= 2) {
+      product = parts[0];
+      defect  = parts[1];
+    } else {
+      // 정규식 백업: 첫단어_두번째단어_...
+      const m = /^([^_-]+)[_-]([^_-]+)/.exec(stem);
+      if (m) {
+        product = m[1];
+        defect  = m[2];
+      }
+    }
+  }
+
+  // 5) 최종 반환
+  const top1_image_path = top1.image_path ?? null;
+
+  console.log('[getTop1Meta] name=', name, '=>', { product, defect, top1_image_path });
+  return { product, defect, top1_image_path };
 }
+
 
 // [추가] manual 탭 버튼 핸들러 바인딩
 document.addEventListener('DOMContentLoaded', () => {
