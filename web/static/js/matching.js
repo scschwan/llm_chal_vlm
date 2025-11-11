@@ -890,6 +890,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // [추가] 생성 공통 함수
+// generateManualBy 함수의 VLM 응답 처리 부분 수정
+
 async function generateManualBy(mode /* 'llm' | 'vlm' */) {
   try {
         if (!uploadedImagePath) {
@@ -933,12 +935,18 @@ async function generateManualBy(mode /* 'llm' | 'vlm' */) {
         });
 
         const data = await res.json();
+        
+        // ✅ 디버깅: 응답 전체 출력
+        console.log('[generateManualBy] Full Response:', data);
+        console.log('[generateManualBy] vlm_analysis:', data.vlm_analysis);
+        console.log('[generateManualBy] llm_analysis:', data.llm_analysis);
+        
         if (!res.ok) {
         throw new Error(data?.detail || data?.message || '생성 실패');
         }
 
     // UI 반영
-        // 1) 기본 정보 - 수정된 부분
+        // 1) 기본 정보
         const productEl = document.getElementById('manual-product');
         const defectKoEl = document.getElementById('manual-defect-ko');
         const defectEnEl = document.getElementById('manual-defect-en');
@@ -972,32 +980,71 @@ async function generateManualBy(mode /* 'llm' | 'vlm' */) {
             actionsEl.innerHTML = actions ? `<ul>${actions}</ul>` : '매뉴얼 정보 없음';
         }
         
-        // 3) 분석 결과 영역
+        // 3) 분석 결과 영역 - ✅ 수정된 부분
         if (mode === 'llm') {
+            // LLM 모드
             const vlmAnalysisEl = document.getElementById('manual-vlm-analysis');
-            if (vlmAnalysisEl) vlmAnalysisEl.innerText = ''; // VLM 영역 비우기
-            
-            // 기존 LLM 영역 제거
-            const oldLlmEl = document.getElementById('manual-llm-analysis');
-            if (oldLlmEl) oldLlmEl.remove();
-            
-            // 새로운 LLM 영역 생성
-            const container = document.querySelector('#manual-tab .manual-container');
-            if (container) {
-                const llmDiv = document.createElement('div');
-                llmDiv.id = 'manual-llm-analysis';
-                llmDiv.className = 'manual-section';
-                llmDiv.innerHTML = `<h3>🧠 LLM 분석</h3><div>${(data.llm_analysis || '').replaceAll('\n','<br>')}</div>`;
-                container.prepend(llmDiv);
+            if (vlmAnalysisEl) {
+                vlmAnalysisEl.style.display = 'none'; // VLM 영역 숨기기
             }
+            
+            // LLM 영역 표시
+            let llmAnalysisEl = document.getElementById('manual-llm-analysis');
+            if (!llmAnalysisEl) {
+                // LLM 영역이 없으면 생성
+                const container = document.querySelector('#manual-tab .manual-container');
+                if (container) {
+                    llmAnalysisEl = document.createElement('div');
+                    llmAnalysisEl.id = 'manual-llm-analysis';
+                    llmAnalysisEl.className = 'manual-section';
+                    llmAnalysisEl.style.display = 'block';
+                    container.appendChild(llmAnalysisEl);
+                }
+            }
+            
+            if (llmAnalysisEl) {
+                llmAnalysisEl.style.display = 'block';
+                llmAnalysisEl.innerHTML = `
+                    <h3>🧠 LLM 분석 결과</h3>
+                    <div class="analysis-content">
+                        ${(data.llm_analysis || '분석 결과가 없습니다.').replace(/\n/g, '<br>')}
+                    </div>
+                `;
+            }
+            
         } else {
             // VLM 모드
-            const oldLlmEl = document.getElementById('manual-llm-analysis');
-            if (oldLlmEl) oldLlmEl.remove();
+            const llmAnalysisEl = document.getElementById('manual-llm-analysis');
+            if (llmAnalysisEl) {
+                llmAnalysisEl.style.display = 'none'; // LLM 영역 숨기기
+            }
             
-            const vlmDiv = document.getElementById('manual-vlm-analysis');
-            if (vlmDiv) {
-                vlmDiv.innerHTML = (data.vlm_analysis || '').replaceAll('\n','<br>');
+            // VLM 영역 표시
+            const vlmAnalysisEl = document.getElementById('manual-vlm-analysis');
+            if (vlmAnalysisEl) {
+                vlmAnalysisEl.style.display = 'block';
+                
+                // ✅ vlm_analysis 전체 텍스트 처리
+                let vlmText = data.vlm_analysis || '';
+                
+                // "ASSISTANT:" 이후 텍스트만 추출 (서버에서 처리했으면 불필요)
+                if (vlmText.includes('ASSISTANT:')) {
+                    vlmText = vlmText.split('ASSISTANT:').pop().trim();
+                }
+                
+                // "USER:" 부분 제거
+                if (vlmText.includes('USER:')) {
+                    vlmText = vlmText.split('USER:')[0].trim();
+                }
+                
+                console.log('[VLM] Processed text:', vlmText); // 디버깅
+                
+                vlmAnalysisEl.innerHTML = `
+                    <h3>🤖 VLM 분석 결과</h3>
+                    <div class="analysis-content">
+                        ${vlmText ? vlmText.replace(/\n/g, '<br>') : '분석 결과가 없습니다.'}
+                    </div>
+                `;
             }
         }
         
@@ -1016,7 +1063,7 @@ async function generateManualBy(mode /* 'llm' | 'vlm' */) {
         if (manualTab) switchTab(manualTab);
         
     } catch (err) {
-        console.error(err);
+        console.error('[generateManualBy] Error:', err);
         const msg = String(err?.message || err);
         const errCtn = document.getElementById('manual-error-section');
         const errMsg = document.getElementById('manual-error-message');
@@ -1027,6 +1074,7 @@ async function generateManualBy(mode /* 'llm' | 'vlm' */) {
         showStatus(`생성 실패: ${msg}`, 'error');
     }
 }
+
 
 // 페이지 로드 시
 window.addEventListener('load', async () => {
