@@ -317,8 +317,8 @@ async def _manual_core(mode: str, req: ManualGenRequest):
                 f"[이상점수] {anomaly_score:.4f}\n"  # ✅ 실제 값
                 f"[판정] {'불량' if is_anomaly else '정상'}\n"
                 "아래 매뉴얼을 1차 근거로 사용하여 이미지에서 보이는 불량 현황/원인/조치/예방을 항목별로 간결히 정리하라.\n"
-                f"원인(매뉴얼): {manual_ctx.get("원인", [])}\n"
-                f"조치(매뉴얼): {manual_ctx.get("조치", [])}\n"
+                f"원인(매뉴얼): {manual_ctx.get('원인', [])}\n"
+                f"조치(매뉴얼): {manual_ctx.get('조치', [])}\n"
                 "매뉴얼 문장을 따옴표로 인용하고, 불확실한 추정은 금지한다."
             )
             r = await client.post(f"{LLM_SERVER_URL}/analyze_vlm", json={
