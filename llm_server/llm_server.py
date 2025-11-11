@@ -189,6 +189,7 @@ def health():
         "vlm": {"name": vlm_name, "loaded": vlm_model is not None},
     }
 
+
 # =========================
 # LLM 분석
 # =========================
