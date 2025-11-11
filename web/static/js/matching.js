@@ -1029,6 +1029,7 @@ async function generateManualBy(mode /* 'llm' | 'vlm' */) {
             }
         }
         
+        document.getElementById('manual-result-section').style.display = 'block';
         // 4) 처리 시간
         const processingTimeEl = document.getElementById('manual-processing-time');
         if (processingTimeEl && data.processing_time) {
