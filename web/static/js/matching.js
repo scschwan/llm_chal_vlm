@@ -182,6 +182,18 @@ async function performSearch() {
             if (cont) cont.style.display = 'block';
         }
 
+        // ❗ 검색 응답을 전역으로 보존
+        window.searchResults = data;
+
+        // 응답 키가 top_k_results가 아닐 수도 있으니 안전하게 추출
+        const candidates =
+        (data && (data.top_k_results || data.results || data.items)) || [];
+        window.currentSearchResult = candidates.length ? candidates[0] : null;
+
+        // (선택) 디버그
+        console.log('[performSearch] topK len =', candidates.length);
+        console.log('[performSearch] top1 =', window.currentSearchResult);
+
     } catch (error) {
         console.error('검색 오류:', error);
         showStatus(`검색 실패: ${error.message}`, 'error');
@@ -242,37 +254,43 @@ function displayResults(data) {
     resultsContainer.innerHTML = html;
     const smbc = document.getElementById('search-manual-button-container');
     if (smbc && data.top_k_results?.length) smbc.style.display = 'block';
+
+    window.searchResults = data;
+    const candidates =
+        (data && (data.top_k_results || data.results || data.items)) || [];
+    if (!window.currentSearchResult && candidates.length) {
+        window.currentSearchResult = candidates[0];
+    }
 }
 
 // TOP-1 스왑
 function swapTopResult(clickedIndex) {
-    if (!searchResults || clickedIndex === 0) return;
-    
-    const results = searchResults.top_k_results;
-    
-    const temp = results[0];
-    results[0] = results[clickedIndex];
-    results[clickedIndex] = temp;
-    
-    results.forEach((r, idx) => {
-        r.rank = idx + 1;
-    });
+  const sr = window.searchResults;
+  const list =
+    (sr && (sr.top_k_results || sr.results || sr.items)) || [];
 
-    // ✅ TOP-1 전역 상태 갱신
-    currentSearchResult = results[0];
-    
-    displayResults(searchResults);
-    
+  if (!list.length || clickedIndex <= 0 || clickedIndex >= list.length) return;
 
-    //document.getElementById('anomalyRefInfo').innerHTML = 
-    //    `✅ ${results[0].image_name} (유사도: ${(results[0].similarity_score * 100).toFixed(1)}%)`;
-    if (refInfo) {
-      refInfo.innerHTML =
-        `✅ ${results[0].image_name} (유사도: ${(results[0].similarity_score * 100).toFixed(1)}%)`;
-    }
-    
-    showStatus(`TOP-1이 ${results[0].image_name}으로 변경되었습니다.`, 'success');
+  const tmp = list[0];
+  list[0] = list[clickedIndex];
+  list[clickedIndex] = tmp;
+
+  // ❗ 전역 Top-1 갱신
+  window.currentSearchResult = list[0];
+
+  // 다시 렌더(카드 data-*도 재설정됨)
+  displayResults(window.searchResults);
+
+  // 선택 표시/안내 텍스트(있을 때만)
+  const refInfo = document.getElementById('anomalyRefInfo');
+  if (refInfo && list[0]) {
+    const s = (list[0].similarity_score ?? 0) * 100;
+    refInfo.innerHTML = `✅ ${list[0].image_name || ''} (유사도: ${s.toFixed(1)}%)`;
+  }
+
+  showStatus(`TOP-1이 ${list[0].image_name || ''}으로 변경되었습니다.`, 'success');
 }
+
 
 // 이상 검출
 // 기존 performAnomalyDetection 함수 수정 - 결과 저장 및 버튼 표시
@@ -802,60 +820,60 @@ function showAnomalyStatus(message, type) {
 
 // 기존 함수 교체
 function getTop1Meta() {
-  // 1) 전역 상태에서 TOP-1 안전하게 가져오기
-  const top1 =
+  // 1) 전역 TOP-1 가장 우선
+  let top1 =
     window.currentSearchResult ??
-    (window.searchResults && window.searchResults.top_k_results
-      ? window.searchResults.top_k_results[0]
-      : null);
+    (window.searchResults &&
+      (window.searchResults.top_k_results ||
+       window.searchResults.results ||
+       window.searchResults.items || [])[0]) ??
+    null;
 
+  // 2) 그래도 없으면 DOM에서 복구 (첫 카드 기준)
   if (!top1) {
-    console.log('[getTop1Meta] currentSearchResult/top_k_results[0] 없음');
-    return { product: null, defect: null, top1_image_path: null };
-  }
-
-  // 2) 파일명 결정 (image_name 우선, 없으면 image_path basename)
-  const rawName =
-    top1.image_name ??
-    (top1.image_path ? top1.image_path.split('/').pop() : '') ??
-    '';
-  const name = rawName.trim();
-
-  // 3) 확장자 제거, 소문자화
-  const stem = name.replace(/\.[a-z0-9]+$/i, '').toLowerCase();
-
-  // 4) 다양한 케이스 허용: prod1_hole_11 / prod1-hole-11 / prod1_ok_0_645 ...
-  //    패턴: product_(defect)_... 또는 product-(defect)-...
-  let product = null;
-  let defect = null;
-
-  // 언더바 우선 시도
-  let parts = stem.split('_');
-  if (parts.length >= 2) {
-    product = parts[0];
-    defect  = parts[1];
-  } else {
-    // 대쉬 시도
-    parts = stem.split('-');
-    if (parts.length >= 2) {
-      product = parts[0];
-      defect  = parts[1];
-    } else {
-      // 정규식 백업: 첫단어_두번째단어_...
-      const m = /^([^_-]+)[_-]([^_-]+)/.exec(stem);
-      if (m) {
-        product = m[1];
-        defect  = m[2];
-      }
+    const card =
+      document.querySelector('.result-card.active') ||
+      document.querySelector('.result-card');
+    if (card) {
+      top1 = {
+        image_path: card.dataset.imagePath || null,
+        image_name: card.dataset.imageName || null,
+      };
     }
   }
 
-  // 5) 최종 반환
-  const top1_image_path = top1.image_path ?? null;
+  if (!top1) {
+    console.warn('[getTop1Meta] no top1 in globals/DOM');
+    return { product: null, defect: null, top1_image_path: null };
+  }
 
-  console.log('[getTop1Meta] name=', name, '=>', { product, defect, top1_image_path });
+  // 파일명 결정
+  const rawName =
+    top1.image_name ||
+    (top1.image_path ? top1.image_path.split('/').pop() : '') ||
+    '';
+  const name = rawName.trim();
+  const stem = name.replace(/\.[a-z0-9]+$/i, '').toLowerCase();
+
+  // product/defect 추출 (언더바/대시 모두 허용)
+  let product = null, defect = null;
+  let parts = stem.split('_');
+  if (parts.length >= 2) {
+    product = parts[0]; defect = parts[1];
+  } else {
+    parts = stem.split('-');
+    if (parts.length >= 2) { product = parts[0]; defect = parts[1]; }
+    else {
+      const m = /^([^_-]+)[_-]([^_-]+)/.exec(stem);
+      if (m) { product = m[1]; defect = m[2]; }
+    }
+  }
+
+  const top1_image_path = top1.image_path || null;
+  console.log('[getTop1Meta]', { name, product, defect, top1_image_path });
   return { product, defect, top1_image_path };
 }
+
 
 
 // [추가] manual 탭 버튼 핸들러 바인딩
