@@ -240,6 +240,8 @@ function displayResults(data) {
     `;
     
     resultsContainer.innerHTML = html;
+    const smbc = document.getElementById('search-manual-button-container');
+    if (smbc && data.top_k_results?.length) smbc.style.display = 'block';
 }
 
 // TOP-1 스왑
@@ -261,8 +263,13 @@ function swapTopResult(clickedIndex) {
     
     displayResults(searchResults);
     
-    document.getElementById('anomalyRefInfo').innerHTML = 
+
+    //document.getElementById('anomalyRefInfo').innerHTML = 
+    //    `✅ ${results[0].image_name} (유사도: ${(results[0].similarity_score * 100).toFixed(1)}%)`;
+    if (refInfo) {
+      refInfo.innerHTML =
         `✅ ${results[0].image_name} (유사도: ${(results[0].similarity_score * 100).toFixed(1)}%)`;
+    }
     
     showStatus(`TOP-1이 ${results[0].image_name}으로 변경되었습니다.`, 'success');
 }
