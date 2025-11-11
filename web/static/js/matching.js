@@ -253,6 +253,9 @@ function swapTopResult(clickedIndex) {
     results.forEach((r, idx) => {
         r.rank = idx + 1;
     });
+
+    // ✅ TOP-1 전역 상태 갱신
+    currentSearchResult = results[0];
     
     displayResults(searchResults);
     
@@ -270,6 +273,12 @@ async function performAnomalyDetection() {
         return;
     }
 
+    const top1 = currentSearchResult;                 // ✅
+    const refPath = top1?.image_path || null;         // ✅
+    const filename = top1?.image_name || '';
+    const parts = filename.split('_');
+    const product = parts[0] || null;                 // 파일명 규칙: prod_defect_xxx
+
     detectButton.disabled = true;
     detectButton.innerHTML = '<span class="loading"></span> 검출 중...';
     showAnomalyStatus('이상 영역을 검출하는 중...', 'info');
@@ -282,8 +291,10 @@ async function performAnomalyDetection() {
             },
             body: JSON.stringify({
                 test_image_path: uploadedImagePath,
-                reference_image_path: null,
-                product_name: null
+                //reference_image_path: null,
+                //product_name: null
+                reference_image_path: refPath,
+                product_name: product
             })
         });
 
@@ -776,6 +787,136 @@ function showAnomalyStatus(message, type) {
     anomalyStatusMessage.className = `status-message ${type}`;
     anomalyStatusMessage.textContent = message;
     anomalyStatusMessage.style.display = 'block';
+}
+
+function getTop1Meta() {
+  const top1 = window.currentSearchResult || null;
+  if (!top1) return { product: null, defect: null, top1_image_path: null };
+
+  const name = top1.image_name || (top1.image_path ? top1.image_path.split('/').pop() : '');
+  const parts = (name || '').split('_');
+  const product = parts[0] || null;
+  const defect  = parts[1] || null;
+
+  return {
+    product,
+    defect,
+    top1_image_path: top1.image_path || null
+  };
+}
+
+// [추가] manual 탭 버튼 핸들러 바인딩
+document.addEventListener('DOMContentLoaded', () => {
+  const btnLLM = document.getElementById('btn-generate-llm');
+  const btnVLM = document.getElementById('btn-generate-vlm');
+
+  if (btnLLM) btnLLM.addEventListener('click', async () => {
+    await generateManualBy('llm');
+  });
+  if (btnVLM) btnVLM.addEventListener('click', async () => {
+    await generateManualBy('vlm');
+  });
+});
+
+// [추가] 생성 공통 함수
+async function generateManualBy(mode /* 'llm' | 'vlm' */) {
+  try {
+    if (!uploadedImagePath) {
+      showStatus('먼저 유사도 검색으로 이미지를 업로드하세요.', 'error');
+      return;
+    }
+    const { product, defect, top1_image_path } = getTop1Meta();
+    if (!product || !defect) {
+      showStatus('TOP-1 이미지에서 제품/불량을 식별할 수 없습니다. (파일명 규칙 확인)', 'error');
+      return;
+    }
+
+    // anomaly 점수 있으면 같이 보냄(매뉴얼 의존도 ↑ 프롬프트에서 사용)
+    const anomaly_score = window.currentAnomalyResult?.image_score ?? null;
+    const is_anomaly    = window.currentAnomalyResult?.is_anomaly ?? null;
+
+    const body = {
+      image_path: uploadedImagePath,
+      top1_image_path,
+      product_name: product,
+      defect_name: defect,
+      anomaly_score,
+      is_anomaly,
+      max_new_tokens: 512,
+      temperature: 0.7
+    };
+
+    const url = mode === 'vlm'
+      ? `${API_BASE_URL}/manual/generate/vlm`
+      : `${API_BASE_URL}/manual/generate/llm`;
+
+    // 로딩 표시
+    const manualStatus = document.getElementById('manual-error-section');
+    if (manualStatus) manualStatus.style.display = 'none';
+    showStatus(`(${mode.toUpperCase()}) 생성 중…`, 'info');
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.detail || data?.message || '생성 실패');
+    }
+
+    // UI 반영
+    // 1) 기본 정보
+    document.getElementById('manual-product').textContent      = data.product || product || '';
+    document.getElementById('manual-defect-ko').textContent     = data.defect_ko || '';
+    document.getElementById('manual-defect-en').textContent     = data.defect_en || '';
+    document.getElementById('manual-full-name-ko').textContent  = data.full_name_ko || '';
+    document.getElementById('manual-anomaly-score').textContent = (data.anomaly_score ?? anomaly_score ?? 0).toFixed?.(4) ?? (data.anomaly_score ?? anomaly_score ?? 0);
+    document.getElementById('manual-is-anomaly').textContent    = (data.is_anomaly ?? is_anomaly) ? '불량' : '정상';
+
+    // 2) 매뉴얼(원인/조치)
+    const causes = (data.manual?.원인 || []).map(t => `<li>${t}</li>`).join('');
+    const acts   = (data.manual?.조치 || []).map(t => `<li>${t}</li>`).join('');
+    document.getElementById('manual-causes').innerHTML  = causes ? `<ul>${causes}</ul>` : '매뉴얼 정보 없음';
+    document.getElementById('manual-actions').innerHTML = acts   ? `<ul>${acts}</ul>`   : '매뉴얼 정보 없음';
+
+    // 3) 분석 결과 영역
+    if (mode === 'llm') {
+      document.getElementById('manual-vlm-analysis').innerText = ''; // VLM 영역 비우기
+      document.getElementById('manual-llm-analysis')?.remove?.();    // 없으면 아래 생성
+      const ctn = document.createElement('div');
+      ctn.id = 'manual-llm-analysis';
+      ctn.className = 'manual-section';
+      ctn.innerHTML = `<h3>🧠 LLM 분석</h3><div>${(data.llm_analysis || '').replaceAll('\n','<br>')}</div>`;
+      document.querySelector('#manual-tab .manual-container').prepend(ctn);
+    } else {
+      document.getElementById('manual-llm-analysis')?.remove?.();
+      const vlmDiv = document.getElementById('manual-vlm-analysis');
+      vlmDiv.innerHTML = (data.vlm_analysis || '').replaceAll('\n','<br>');
+    }
+
+    // 4) 처리 시간
+    if (data.processing_time) {
+      document.getElementById('manual-processing-time').textContent = data.processing_time.toFixed?.(2) ?? data.processing_time;
+    }
+
+    showStatus(`(${mode.toUpperCase()}) 생성 완료`, 'success');
+    // manual 탭으로 전환
+    const manualTab = document.querySelector('.tab[data-tab="manual"]');
+    if (manualTab) switchTab(manualTab);
+
+  } catch (err) {
+    console.error(err);
+    const msg = String(err?.message || err);
+    const errCtn = document.getElementById('manual-error-section');
+    const errMsg = document.getElementById('manual-error-message');
+    if (errCtn && errMsg) {
+      errCtn.style.display = 'block';
+      errMsg.textContent = msg;
+    }
+    showStatus(`생성 실패: ${msg}`, 'error');
+  }
 }
 
 // 페이지 로드 시

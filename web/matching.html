@@ -96,13 +96,9 @@
                     </div>
 
                     <!-- 매뉴얼 생성 버튼 (검색 완료 후 표시) -->
-                    <div id="search-manual-button-container" style="display: none; margin-top: 30px; text-align: center;">
-                        <button onclick="generateManualFromSearch()" class="manual-generate-button">
-                            🤖 대응 매뉴얼 생성
-                        </button>
-                        <p style="color: #666; font-size: 14px; margin-top: 10px;">
-                            검색된 불량에 대한 AI 분석 및 대응 방안을 생성합니다
-                        </p>
+                    <div class="manual-section" style="display:flex; gap:12px; align-items:center; justify-content:flex-start; margin-bottom:16px;">
+                        <button id="btn-generate-llm" class="manual-generate-button">🧠 LLM로 대응 답변 생성</button>
+                        <button id="btn-generate-vlm" class="manual-generate-button" style="background:linear-gradient(135deg,#6366f1 0%,#3b82f6 100%);">🖼️ VLM로 대응 답변 생성</button>
                     </div>
                 </div>
             </div>
@@ -144,13 +140,9 @@
                     </div>
 
                     <!-- 매뉴얼 생성 버튼 (이상 검출 완료 후 표시) -->
-                    <div id="anomaly-manual-button-container" style="display: none; margin-top: 30px; text-align: center;">
-                        <button onclick="generateManualFromAnomaly()" class="manual-generate-button">
-                            🤖 대응 매뉴얼 생성
-                        </button>
-                        <p style="color: #666; font-size: 14px; margin-top: 10px;">
-                            검출된 이상 영역에 대한 AI 분석 및 대응 방안을 생성합니다
-                        </p>
+                    <div class="manual-section" style="display:flex; gap:12px; align-items:center; justify-content:flex-start; margin-bottom:16px;">
+                        <button id="btn-generate-llm" class="manual-generate-button">🧠 LLM로 대응 답변 생성</button>
+                        <button id="btn-generate-vlm" class="manual-generate-button" style="background:linear-gradient(135deg,#6366f1 0%,#3b82f6 100%);">🖼️ VLM로 대응 답변 생성</button>
                     </div>
                 </div>
             </div>

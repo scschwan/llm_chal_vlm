@@ -10,8 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, List, Optional
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig , AutoProcessor
 import uvicorn
+import os
 
 app = FastAPI(title="LLM Server", version="1.0.0")
 
@@ -28,6 +29,10 @@ app.add_middleware(
 model = None
 tokenizer = None
 model_name = None
+
+vlm_model = None
+vlm_processor = None
+vlm_name = None
 
 
 class AnalysisRequest(BaseModel):
@@ -107,6 +112,19 @@ async def load_model():
         print(f"🌐 포트: 5001")
         print("=" * 60)
         
+        try:
+            vlm_name = os.getenv("VLM_MODEL", "llava-hf/llava-1.5-7b-hf")  # 예시
+            print(f"🔄 VLM 로드 시도: {vlm_name}")
+            global vlm_model, vlm_processor
+            vlm_processor = AutoProcessor.from_pretrained(vlm_name, trust_remote_code=True)
+            vlm_model = AutoModelForCausalLM.from_pretrained(
+                vlm_name, device_map="auto", torch_dtype=torch.float16, trust_remote_code=True
+            )
+            print("✅ VLM 로드 완료")
+        except Exception as e:
+            print(f"⚠️ VLM 로드 건너뜀: {e}")
+            vlm_model = None
+            vlm_processor = None
     except Exception as e:
         print(f"❌ 모델 로드 실패: {e}")
         raise
@@ -165,41 +183,68 @@ async def analyze(request: AnalysisRequest):
         print(f"❌ 분석 오류: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+class VLMAnalysisRequest(BaseModel):
+    image_path: str
+    prompt: str
+    max_new_tokens: int = 256
+    temperature: float = 0.2
+
+@app.post("/analyze_vlm")
+async def analyze_vlm(req: VLMAnalysisRequest):
+    if vlm_model is None or vlm_processor is None:
+        raise HTTPException(503, detail="VLM not loaded")
+    try:
+        from PIL import Image
+        img = Image.open(req.image_path).convert("RGB")
+        inputs = vlm_processor(images=img, text=req.prompt, return_tensors="pt").to(vlm_model.device)
+        with torch.no_grad():
+            out_ids = vlm_model.generate(
+                **inputs, max_new_tokens=req.max_new_tokens,
+                temperature=req.temperature, do_sample=req.temperature > 0
+            )
+        text = vlm_processor.batch_decode(out_ids, skip_special_tokens=True)[0]
+        return {"status": "success", "analysis": text, "model": vlm_name}
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
 
 def _build_prompt(request: AnalysisRequest) -> str:
-    """분석 프롬프트 생성"""
-    
     causes = "\n".join([f"- {c}" for c in request.manual_context.get("원인", [])])
     actions = "\n".join([f"- {a}" for a in request.manual_context.get("조치", [])])
-    
-    prompt = f"""당신은 제조업 품질 관리 전문가입니다. 다음 불량 정보를 분석하세요.
 
-## 불량 정보
-- 제품: {request.product}
-- 불량 유형: {request.defect_ko} ({request.defect_en})
-- 정식 명칭: {request.full_name_ko}
-- 이상 검출 점수: {request.anomaly_score:.4f}
-- 불량 판정: {"불량" if request.is_anomaly else "정상"}
+    manual_present = bool(causes.strip() or actions.strip())
+    manual_block = f"""
+    ### 발생 원인(매뉴얼 발췌)
+    {causes if causes else "매뉴얼 정보 없음"}
 
-## 매뉴얼 참조
+    ### 조치 가이드(매뉴얼 발췌)
+    {actions if actions else "매뉴얼 정보 없음"}
+    """
 
-### 발생 원인
-{causes if causes else "매뉴얼 정보 없음"}
+    policy = (
+      "반드시 위의 '매뉴얼 발췌'를 1차 근거로 사용하고, 다른 추정은 금지하세요."
+      if manual_present else
+      "매뉴얼 정보가 없으므로 합리적 가정을 명시적으로 표기해 제시하세요."
+    )
 
-### 조치 가이드
-{actions if actions else "매뉴얼 정보 없음"}
+    prompt = f"""당신은 제조업 품질 전문가입니다. 아래 불량 정보를 분석하세요.
 
-## 작성 요청
-다음 내용을 포함한 분석 보고서를 작성하세요:
+    ## 불량 정보
+    - 제품: {request.product}
+    - 불량 유형: {request.defect_ko} ({request.defect_en})
+    - 정식 명칭: {request.full_name_ko}
+    - 이상 검출 점수: {request.anomaly_score:.4f}
+    - 불량 판정: {"불량" if request.is_anomaly else "정상"}
 
-1. **불량 현황 요약**: 검출된 불량의 특징과 심각도
-2. **원인 분석**: 매뉴얼을 참고한 발생 원인
-3. **대응 방안**: 구체적이고 실행 가능한 조치 방법
-4. **예방 조치**: 재발 방지 권장사항
+    {manual_block}
 
-현장에서 즉시 활용 가능하도록 구체적으로 작성하세요.
-"""
-    
+    ## 작성 규칙
+    1) {policy}
+    2) 매뉴얼 근거 문장을 "따옴표"로 인용하고, 항목별로 매핑해 주세요.
+    3) [불량 현황 요약] → [원인 분석] → [대응 방안] → [예방 조치] 순으로 작성.
+
+    ## 출력:
+    - 불릿/번호 목록 위주로 간결하게.
+    """
     return prompt
 
 

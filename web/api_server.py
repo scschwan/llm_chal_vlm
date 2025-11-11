@@ -198,6 +198,117 @@ class HealthResponse(BaseModel):
     index_built: bool
     gallery_size: int
 
+# ====== 매뉴얼 생성 공용 모델 ======
+class ManualGenRequest(BaseModel):
+    image_path: str
+    top1_image_path: Optional[str] = None
+    product_name: Optional[str] = None
+    defect_name: Optional[str] = None
+    anomaly_score: Optional[float] = None
+    is_anomaly: Optional[bool] = None
+    max_new_tokens: int = 512
+    temperature: float = 0.7
+
+# ====== 공용 코어 ======
+async def _manual_core(mode: str, req: ManualGenRequest):
+    """
+    mode: 'llm' | 'vlm'
+    1) mapper/RAG로 메뉴얼 추출
+    2) (llm) LLM 서버 호출 /analyze
+       (vlm) LLM 서버 호출 /analyze_vlm
+    """
+    t0 = time.time()
+
+    # 0) 제품/불량 보정 (TOP-1 파일명 규칙: {product}_{defect}_...)
+    product = req.product_name
+    defect  = req.defect_name
+    if not product or not defect:
+        name = (req.top1_image_path or '').split('/')[-1]
+        parts = name.split('_')
+        if not product and len(parts) >= 1:
+            product = parts[0]
+        if not defect and len(parts) >= 2:
+            defect = parts[1]
+
+    if not product or not defect:
+        raise HTTPException(400, "product/defect 파악 실패: product_name, defect_name를 제공하거나 TOP-1 파일명 규칙을 확인하세요.")
+
+    # 1) 매핑 + RAG
+    mapper = vlm_components["mapper"]
+    rag    = vlm_components["rag"]
+
+    defect_info = mapper.get_defect_info(product, defect)
+    if not defect_info:
+        raise HTTPException(404, f"불량 정보를 찾을 수 없습니다: {product}/{defect}")
+
+    manual_ctx = {"원인": [], "조치": []}
+    if rag:
+        keywords   = mapper.get_search_keywords(product, defect)
+        manual_ctx = rag.search_defect_manual(product, defect, keywords)
+    else:
+        print("⚠️ RAG 미초기화 상태 - manual_ctx는 빈 값일 수 있음")
+
+    # 2) LLM/VLM 호출
+    llm_analysis = None
+    vlm_analysis = None
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        if mode == "llm":
+            payload = {
+                "product": product,
+                "defect_en": defect_info.en,
+                "defect_ko": defect_info.ko,
+                "full_name_ko": defect_info.full_name_ko,
+                "anomaly_score": float(req.anomaly_score or 0.0),
+                "is_anomaly": bool(req.is_anomaly) if req.is_anomaly is not None else False,
+                "manual_context": manual_ctx,
+                "max_new_tokens": req.max_new_tokens,
+                "temperature": req.temperature
+            }
+            r = await client.post(f"{LLM_SERVER_URL}/analyze", json=payload)
+            r.raise_for_status()
+            llm_analysis = r.json().get("analysis", "")
+
+        elif mode == "vlm":
+            # 간결 프롬프트: 메뉴얼 우선/인용 강제
+            prompt = (
+                f"[제품] {product}\n"
+                f"[불량] {defect_info.ko} ({defect_info.en})\n"
+                f"[정식명칭] {defect_info.full_name_ko}\n"
+                f"[이상점수] {req.anomaly_score if req.anomaly_score is not None else 'N/A'}\n"
+                "아래 매뉴얼을 1차 근거로 사용하여 이미지에서 보이는 불량 현황/원인/조치/예방을 항목별로 간결히 정리하라.\n"
+                f"원인(매뉴얼): {manual_ctx.get('원인', [])}\n"
+                f"조치(매뉴얼): {manual_ctx.get('조치', [])}\n"
+                "매뉴얼 문장을 따옴표로 인용하고, 불확실한 추정은 금지한다."
+            )
+            r = await client.post(f"{LLM_SERVER_URL}/analyze_vlm", json={
+                "image_path": req.image_path,
+                "prompt": prompt,
+                "max_new_tokens": min(256, req.max_new_tokens),
+                "temperature": min(0.3, req.temperature)
+            })
+            r.raise_for_status()
+            vlm_analysis = r.json().get("analysis", "")
+
+        else:
+            raise HTTPException(400, f"mode 지원 안 함: {mode}")
+
+    out = {
+        "status": "success",
+        "product": product,
+        "defect_en": defect_info.en,
+        "defect_ko": defect_info.ko,
+        "full_name_ko": defect_info.full_name_ko,
+        "manual": manual_ctx,
+        "anomaly_score": float(req.anomaly_score or 0.0),
+        "is_anomaly": bool(req.is_anomaly) if req.is_anomaly is not None else False,
+        "processing_time": round(time.time() - t0, 2)
+    }
+    if llm_analysis is not None:
+        out["llm_analysis"] = llm_analysis
+    if vlm_analysis is not None:
+        out["vlm_analysis"] = vlm_analysis
+    return out
 
 # ====================
 # FastAPI 앱 생성
@@ -1085,6 +1196,27 @@ async def generate_manual_advanced(request: dict):
         traceback.print_exc()
         raise HTTPException(500, f"고급 분석 오류: {str(e)}")
    
+# ====== 라우트: LLM 전용 ======
+@app.post("/manual/generate/llm")
+async def manual_generate_llm(req: ManualGenRequest):
+    try:
+        return await _manual_core("llm", req)
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        raise HTTPException(500, f"LLM 생성 오류: {str(e)}")
+
+# ====== 라우트: VLM 전용 ======
+@app.post("/manual/generate/vlm")
+async def manual_generate_vlm(req: ManualGenRequest):
+    try:
+        return await _manual_core("vlm", req)
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        raise HTTPException(500, f"VLM 생성 오류: {str(e)}")
 
 @app.get("/vlm/status")
 async def vlm_status():
