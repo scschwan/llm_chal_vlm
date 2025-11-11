@@ -64,7 +64,26 @@ def init_vlm_components():
         # 경로 설정
         #pdf_path = project_root / "prod1_menual.pdf"
         vector_store_path = project_root / "manual_store"
-        pdf_path = vector_store_path / "prod1_menual.pdf"
+        #pdf_path = vector_store_path / "prod1_menual.pdf"
+
+            # PDF 경로를 두 곳에서 확인
+        pdf_candidates = [
+            vector_store_path / "prod1_menual.pdf",  # 벡터 스토어 내부
+            project_root / "prod1_menual.pdf"         # 프로젝트 루트
+        ]
+
+        pdf_path = None
+        for candidate in pdf_candidates:
+            if candidate.exists():
+                pdf_path = candidate
+                print(f"✅ PDF 파일 발견: {pdf_path}")
+                break
+        
+        if not pdf_path:
+            print("⚠️  prod1_menual.pdf를 찾을 수 없습니다")
+            print(f"   확인 경로: {[str(p) for p in pdf_candidates]}")
+
+
         mapping_file = project_root / "web" / "defect_mapping.json"
         
         # 매핑 파일이 없으면 생성
@@ -1220,6 +1239,57 @@ async def vlm_status():
         "prompt_builder_loaded": vlm_components["prompt_builder"] is not None
     }
 
+
+@app.post("/analyze_defect_complete")
+async def analyze_defect_complete(
+    image_path: str,
+    product: Optional[str] = None,
+    defect: Optional[str] = None
+):
+    """완전한 불량 분석 파이프라인"""
+    
+    # 1. 유사도 검색
+    search_result = matcher.search(image_path, top_k=5)
+    top1 = search_result.top_k_results[0]
+    
+    # product/defect 추출
+    if not product or not defect:
+        filename = Path(top1["image_path"]).stem
+        product, defect, _ = filename.split("_")
+    
+    # 2. PatchCore 이상 검출
+    anomaly_result = detector.detect_with_normal_reference(
+        test_image_path=image_path,
+        product_name=product,
+        similarity_matcher=matcher,
+        output_dir=str(ANOMALY_OUTPUT_DIR / Path(image_path).stem)
+    )
+    
+    # 3. RAG 매뉴얼 검색
+    mapper = vlm_components["mapper"]
+    rag = vlm_components["rag"]
+    
+    keywords = mapper.get_search_keywords(product, defect)
+    manual_context = rag.search_defect_manual(product, defect, keywords)
+    
+    # 4. LLM 답변 생성
+    defect_info = mapper.get_defect_info(product, defect)
+    llm_analysis = await call_llm_server(
+        product=product,
+        defect_en=defect_info.en,
+        defect_ko=defect_info.ko,
+        full_name_ko=defect_info.full_name_ko,
+        anomaly_score=float(anomaly_result["image_score"]),  # ✅ 실제 스코어
+        is_anomaly=bool(anomaly_result["is_anomaly"]),        # ✅ 실제 판정
+        manual_context=manual_context
+    )
+    
+    return {
+        "similarity": search_result,
+        "anomaly": anomaly_result,
+        "manual": manual_context,
+        "llm_analysis": llm_analysis
+    }
 
 @app.post("/vlm/reload")
 async def vlm_reload():

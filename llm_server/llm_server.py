@@ -62,6 +62,14 @@ def _build_prompt(req: AnalysisRequest) -> str:
     causes = "\n".join([f"- {c}" for c in req.manual_context.get("원인", [])])
     actions = "\n".join([f"- {a}" for a in req.manual_context.get("조치", [])])
 
+     # 디버깅 로그
+    print(f"[DEBUG] 매뉴얼 컨텍스트 수신:")
+    print(f"  원인 개수: {len(req.manual_context.get('원인', []))}")
+    print(f"  조치 개수: {len(req.manual_context.get('조치', []))}")
+    
+    if not causes.strip() and not actions.strip():
+        print("⚠️  매뉴얼 정보가 비어있습니다!")
+        
     manual_present = bool(causes.strip() or actions.strip())
     manual_block = f"""
 ### 발생 원인(매뉴얼 발췌)

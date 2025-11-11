@@ -81,7 +81,8 @@ class RAGManager:
         from langchain_community.document_loaders import PyPDFLoader
         loader = PyPDFLoader(str(self.pdf_path))
         documents = loader.load()
-        
+
+       
         if self.verbose:
             print(f"   로드된 페이지 수: {len(documents)}")
         
@@ -110,7 +111,22 @@ class RAGManager:
         if self.verbose:
             print(f"✅ 벡터 DB 저장 완료: {self.vector_store_path}")
         
+        
+        # PDF 로드 시 구조 파싱
+        documents = self._load_and_parse_pdf()  # 구조화된 Document 생성
+        
+        if not documents:
+            # 파싱 실패 시 기본 분할 방식 사용
+            print("⚠️  구조 파싱 실패, 기본 분할 방식 사용")
+            loader = PyPDFLoader(str(self.pdf_path))
+            raw_docs = loader.load()
+            text_splitter = RecursiveCharacterTextSplitter(...)
+            documents = text_splitter.split_documents(raw_docs)
+        
+        vectorstore = FAISS.from_documents(documents, self.embeddings)
         return vectorstore
+        
+        #return vectorstore
     
     def _load_and_parse_pdf(self) -> List[Document]:
         """
