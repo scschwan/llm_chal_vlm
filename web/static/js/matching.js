@@ -939,12 +939,21 @@ async function generateManualBy(mode /* 'llm' | 'vlm' */) {
 
     // UI 반영
     // 1) 기본 정보
-    document.getElementById('manual-product').textContent      = data.product || product || '';
-    document.getElementById('manual-defect-ko').textContent     = data.defect_ko || '';
-    document.getElementById('manual-defect-en').textContent     = data.defect_en || '';
-    document.getElementById('manual-full-name-ko').textContent  = data.full_name_ko || '';
-    document.getElementById('manual-anomaly-score').textContent = (data.anomaly_score ?? anomaly_score ?? 0).toFixed?.(4) ?? (data.anomaly_score ?? anomaly_score ?? 0);
-    document.getElementById('manual-is-anomaly').textContent    = (data.is_anomaly ?? is_anomaly) ? '불량' : '정상';
+    document.getElementById('manual-product')?.textContent = data.product || product || '';
+    document.getElementById('manual-defect')?.textContent  =
+    data.defect || data.defect_ko || data.defect_en || (defect || '');
+    document.getElementById('manual-score')?.textContent   =
+    ((data.anomaly_score ?? anomaly_score ?? 0) * 100).toFixed(1) + '%';
+
+    // VLM 텍스트
+    if (data.vlm_analysis) {
+        document.getElementById('manual-vlm-analysis')?.textContent = data.vlm_analysis;
+    }
+
+    document.getElementById('manual-info-section')?.style.display   = 'block';
+    document.getElementById('manual-result-section')?.style.display = 'block';
+    document.getElementById('manual-processing')?.style.display     = 'none';
+    document.getElementById('manual-error-section')?.style.display  = 'none';
 
     // 2) 매뉴얼(원인/조치)
     const causes = (data.manual?.원인 || []).map(t => `<li>${t}</li>`).join('');
