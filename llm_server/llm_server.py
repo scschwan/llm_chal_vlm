@@ -130,8 +130,8 @@ async def load_models_on_startup():
 
     # ---- LLM ----
     try:
-        #llm_name = os.getenv("LLM_MODEL", "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B")
-        llm_name = os.getenv("LLM_MODEL", "LGAI-EXAONE/EXAONE-4.0-1.2B")
+        llm_name = os.getenv("LLM_MODEL", "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B")
+        #llm_name = os.getenv("LLM_MODEL", "LGAI-EXAONE/EXAONE-4.0-1.2B")
         print(f"🔄 LLM 로드 시도: {llm_name}")
 
         # 토크나이저: fast 우선, 실패 시 slow
