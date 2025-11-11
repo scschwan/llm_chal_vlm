@@ -637,7 +637,8 @@ async def _manual_core(mode: str, req: ManualGenRequest):
                 "is_anomaly": bool(is_anomaly),
                 "manual_context": manual_ctx,
                 "max_new_tokens": req.max_new_tokens,
-                "temperature": req.temperature
+                "temperature": req.temperature,
+                "model_provider": "hyperclovax"  # ✅ 추가: 기본값 또는 req에서 받기
             }
             
             r = await client.post(f"{LLM_SERVER_URL}/analyze", json=payload)
