@@ -124,7 +124,8 @@ def get_or_load_vlm():
             print("🤖 VLM 모델 초기화 실패 => LLM 모델 대체")
             try:
                 vlm_components["llm"] = LLMInference(
-                    model_name="mistralai/Mistral-7B-Instruct-v0.2",
+                    #model_name="mistralai/Mistral-7B-Instruct-v0.2",
+                    model_name="hyperclovax",
                     use_4bit=True,
                     verbose=True
                 )
