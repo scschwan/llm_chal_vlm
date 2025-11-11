@@ -73,11 +73,25 @@ async def load_model():
         )
         
         print("🔄 토크나이저 로드 중...")
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_name,
-            trust_remote_code=True
-        )
-        print("✅ 토크나이저 로드 완료")
+        try :
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_name,
+                trust_remote_code=True,
+                use_fast=True,
+                local_files_only=False,
+                force_download=True,   # 캐시가 이상하면 새로 받기
+            )
+            print("✅ 토크나이저 로드 완료")
+        except Exception as e :
+            print(f"[WARN] Fast tokenizer failed: {e}\n--> Falling back to slow tokenizer.")
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_name,
+                trust_remote_code=True,
+                use_fast=False,
+                local_files_only=False,
+                force_download=True,
+            )
+            print("✅ 토크나이저 로드 완료 (slow)")
         
         print("🔄 모델 로드 중 (4-bit 양자화)...")
         model = AutoModelForCausalLM.from_pretrained(

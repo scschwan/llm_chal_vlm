@@ -5,6 +5,7 @@ venv/
 runs/
 utils/
 results/
+similar_image_search_web/
 .venv_patch/
 .venv-patchcore/
 .idea
