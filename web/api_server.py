@@ -1058,8 +1058,8 @@ async def generate_manual_advanced(request: dict):
                 defect_en=defect_info.en,
                 defect_ko=defect_info.ko,
                 full_name_ko=defect_info.full_name_ko,
-                anomaly_score=result["score"],
-                is_anomaly=result["is_anomaly"],
+                anomaly_score=float(result["anomaly"]["score"]),     # ✅ 여기!
+                is_anomaly=bool(result["anomaly"]["is_anomaly"]),    # ✅ 여기!
                 manual_context=result.get("manual", {})
             )
             print(f"✅ LLM 분석 완료 ({len(llm_analysis)} 문자)")
