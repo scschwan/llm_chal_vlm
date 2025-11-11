@@ -227,20 +227,24 @@ class ManualGenRequest(BaseModel):
     is_anomaly: Optional[bool] = None
     max_new_tokens: int = 512
     temperature: float = 0.7
+    verbose: bool = False  # ✅ 추가: 디버그 로그 출력
 
 # ====== 공용 코어 ======
+# ====== 매뉴얼 생성 공용 코어 ======
 async def _manual_core(mode: str, req: ManualGenRequest):
     """
     mode: 'llm' | 'vlm'
-    1) mapper/RAG로 메뉴얼 추출
-    2) (llm) LLM 서버 호출 /analyze
-       (vlm) LLM 서버 호출 /analyze_vlm
+    1) 제품/불량 추출
+    2) PatchCore 이상 검출 (추가!)
+    3) mapper/RAG로 메뉴얼 추출
+    4) LLM/VLM 호출
     """
     t0 = time.time()
 
     # 0) 제품/불량 보정 (TOP-1 파일명 규칙: {product}_{defect}_...)
     product = req.product_name
     defect  = req.defect_name
+    
     if not product or not defect:
         name = (req.top1_image_path or '').split('/')[-1]
         parts = name.split('_')
@@ -252,7 +256,56 @@ async def _manual_core(mode: str, req: ManualGenRequest):
     if not product or not defect:
         raise HTTPException(400, "product/defect 파악 실패: product_name, defect_name를 제공하거나 TOP-1 파일명 규칙을 확인하세요.")
 
-    # 1) 매핑 + RAG
+    # ========================================
+    # ✅ 1) PatchCore 이상 검출 (추가!)
+    # ========================================
+    anomaly_score = req.anomaly_score or 0.0
+    is_anomaly = req.is_anomaly if req.is_anomaly is not None else False
+    
+    # req에 anomaly_score가 없으면 직접 검출
+    if req.anomaly_score is None and detector is not None:
+        try:
+            if req.verbose:
+                print(f"\n🔍 PatchCore 이상 검출 시작: {req.image_path}")
+            
+            # 출력 디렉토리
+            image_stem = Path(req.image_path).stem
+            output_dir = ANOMALY_OUTPUT_DIR / image_stem
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # ✅ PatchCore 실행
+            if req.top1_image_path:
+                # TOP-1 이미지를 기준으로 사용
+                anomaly_result = detector.detect_with_reference(
+                    test_image_path=req.image_path,
+                    reference_image_path=req.top1_image_path,
+                    product_name=product,
+                    output_dir=str(output_dir)
+                )
+            else:
+                # 자동 정상 이미지 선정
+                anomaly_result = detector.detect_with_normal_reference(
+                    test_image_path=req.image_path,
+                    product_name=product,
+                    similarity_matcher=matcher,
+                    output_dir=str(output_dir)
+                )
+            
+            anomaly_score = float(anomaly_result["image_score"])
+            is_anomaly = bool(anomaly_result["is_anomaly"])
+            
+            if req.verbose:
+                print(f"✅ 이상 검출 완료: score={anomaly_score:.4f}, anomaly={is_anomaly}")
+        
+        except Exception as e:
+            print(f"⚠️ PatchCore 이상 검출 실패: {e}")
+            import traceback
+            traceback.print_exc()
+            # 실패해도 계속 진행 (score=0.0)
+
+    # ========================================
+    # 2) 매핑 + RAG
+    # ========================================
     mapper = vlm_components["mapper"]
     rag    = vlm_components["rag"]
 
@@ -267,7 +320,9 @@ async def _manual_core(mode: str, req: ManualGenRequest):
     else:
         print("⚠️ RAG 미초기화 상태 - manual_ctx는 빈 값일 수 있음")
 
-    # 2) LLM/VLM 호출
+    # ========================================
+    # 3) LLM/VLM 호출
+    # ========================================
     llm_analysis = None
     vlm_analysis = None
 
@@ -278,8 +333,8 @@ async def _manual_core(mode: str, req: ManualGenRequest):
                 "defect_en": defect_info.en,
                 "defect_ko": defect_info.ko,
                 "full_name_ko": defect_info.full_name_ko,
-                "anomaly_score": float(req.anomaly_score or 0.0),
-                "is_anomaly": bool(req.is_anomaly) if req.is_anomaly is not None else False,
+                "anomaly_score": float(anomaly_score),  # ✅ 실제 검출 값
+                "is_anomaly": bool(is_anomaly),          # ✅ 실제 판정
                 "manual_context": manual_ctx,
                 "max_new_tokens": req.max_new_tokens,
                 "temperature": req.temperature
@@ -289,12 +344,12 @@ async def _manual_core(mode: str, req: ManualGenRequest):
             llm_analysis = r.json().get("analysis", "")
 
         elif mode == "vlm":
-            # 간결 프롬프트: 메뉴얼 우선/인용 강제
             prompt = (
                 f"[제품] {product}\n"
                 f"[불량] {defect_info.ko} ({defect_info.en})\n"
                 f"[정식명칭] {defect_info.full_name_ko}\n"
-                f"[이상점수] {req.anomaly_score if req.anomaly_score is not None else 'N/A'}\n"
+                f"[이상점수] {anomaly_score:.4f}\n"  # ✅ 실제 값
+                f"[판정] {'불량' if is_anomaly else '정상'}\n"
                 "아래 매뉴얼을 1차 근거로 사용하여 이미지에서 보이는 불량 현황/원인/조치/예방을 항목별로 간결히 정리하라.\n"
                 f"원인(매뉴얼): {manual_ctx.get('원인', [])}\n"
                 f"조치(매뉴얼): {manual_ctx.get('조치', [])}\n"
@@ -312,6 +367,9 @@ async def _manual_core(mode: str, req: ManualGenRequest):
         else:
             raise HTTPException(400, f"mode 지원 안 함: {mode}")
 
+    # ========================================
+    # 4) 결과 반환
+    # ========================================
     out = {
         "status": "success",
         "product": product,
@@ -319,8 +377,8 @@ async def _manual_core(mode: str, req: ManualGenRequest):
         "defect_ko": defect_info.ko,
         "full_name_ko": defect_info.full_name_ko,
         "manual": manual_ctx,
-        "anomaly_score": float(req.anomaly_score or 0.0),
-        "is_anomaly": bool(req.is_anomaly) if req.is_anomaly is not None else False,
+        "anomaly_score": float(anomaly_score),   # ✅ 실제 값
+        "is_anomaly": bool(is_anomaly),          # ✅ 실제 판정
         "processing_time": round(time.time() - t0, 2)
     }
     if llm_analysis is not None:
