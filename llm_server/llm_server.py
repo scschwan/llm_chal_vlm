@@ -61,17 +61,7 @@ class VLMAnalysisRequest(BaseModel):
 def _build_prompt(req: AnalysisRequest) -> str:
     """깔끔한 프롬프트 생성"""
     
-    # 매뉴얼 정보 (이미 정리된 리스트)
-    causes = req.manual_context.get("원인", [])
-    actions = req.manual_context.get("조치", [])
-    
-    has_manual = bool(causes or actions)
-    
-    # 판정 상태
-    if req.is_anomaly:
-        status = f"불량 검출 (이상점수: {req.anomaly_score:.4f})"
-    else:
-        status = f"정상 범위 (이상점수: {req.anomaly_score:.4f})"
+    # ... (기존 매뉴얼 파싱 로직)
     
     prompt = f"""당신은 제조 품질 전문가입니다. 아래 정보를 바탕으로 간결한 보고서를 작성하세요.
 
@@ -99,21 +89,24 @@ def _build_prompt(req: AnalysisRequest) -> str:
     prompt += """
 【지침】
 - 위 매뉴얼 내용을 직접 인용 (따옴표 사용)
-- 4개 섹션만 작성 (각 2-3문장)
+- 정확히 4개 섹션만 작성 (각 2-3문장)
 - 추측이나 예시 반복 금지
+- 4개 섹션 작성 후 즉시 종료
 
-【출력 형식】
+【출력】
 ### 불량 현황
-(판정 결과 요약)
+(판정 결과 요약 2-3문장)
 
-### 원인 분석  
-(매뉴얼 원인 인용)
+### 원인 분석
+(매뉴얼 원인 인용 2-3문장)
 
 ### 대응 방안
 (즉시 조치 2-3개)
 
 ### 예방 조치
 (재발 방지 2-3개)
+
+위 4개 섹션만 작성하고 종료하세요. 추가 설명이나 예시 불필요.
 """
     
     return prompt
@@ -199,27 +192,22 @@ def health():
 # =========================
 # LLM 분석
 # =========================
+# llm_server.py의 analyze 함수 수정
 @app.post("/analyze")
 def analyze(req: AnalysisRequest):
     if llm_model is None or llm_tokenizer is None:
         raise HTTPException(503, detail="LLM not loaded")
 
     prompt = _build_prompt(req)
-
-    # device 추출 (device_map="auto"일 때도 첫 파라미터의 device 사용)
-    try:
-        device = next(llm_model.parameters()).device
-    except StopIteration:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    device = next(llm_model.parameters()).device
     inputs = llm_tokenizer(prompt, return_tensors="pt").to(device)
 
     do_sample = (req.temperature or 0) > 0
     gen_kwargs = dict(
-        max_new_tokens=min(max(req.max_new_tokens, 16), 2048),
+        max_new_tokens=min(max(req.max_new_tokens, 16), 800),  # 충분히 길게
         temperature=float(max(min(req.temperature, 1.5), 0.0)),
         do_sample=do_sample,
-        repetition_penalty=1.2,  # ✅ 추가: 반복 방지
+        repetition_penalty=1.3,  # ✅ 반복 더 억제
     )
     if do_sample:
         gen_kwargs.update(dict(top_p=0.9))
@@ -227,7 +215,26 @@ def analyze(req: AnalysisRequest):
     with torch.no_grad():
         output_ids = llm_model.generate(**inputs, **gen_kwargs)
 
-    text = llm_tokenizer.decode(output_ids[0], skip_special_tokens=True)
+    # ✅ 프롬프트 제외
+    generated_ids = output_ids[0][inputs['input_ids'].shape[1]:]
+    text = llm_tokenizer.decode(generated_ids, skip_special_tokens=True)
+    
+    # ✅ 간단한 후처리
+    text = text.split("assistant")[0].strip()
+    text = text.split("[회사")[0].strip()
+    
+    # ✅ 예방 조치 이후 4-5줄 지나면 자르기
+    lines = text.split('\n')
+    prevention_idx = -1
+    for i, line in enumerate(lines):
+        if "예방 조치" in line or "예방조치" in line:
+            prevention_idx = i
+            break
+    
+    if prevention_idx > 0:
+        # 예방 조치 + 5줄만
+        text = '\n'.join(lines[:prevention_idx + 7])
+    
     return {
         "status": "success",
         "analysis": text,

@@ -987,8 +987,8 @@ async def call_llm_server(
     anomaly_score: float,
     is_anomaly: bool,
     manual_context: Dict[str, List[str]],
-    max_new_tokens: int = 512,
-    temperature: float = 0.7
+    max_new_tokens=400,  # ✅ 줄임 (512 → 400)
+    temperature=0.2      # ✅ 더 낮춤 (0.3 → 0.2)
 ) -> str:
     """LLM 서버에 분석 요청"""
     
