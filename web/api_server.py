@@ -1168,9 +1168,52 @@ async def generate_manual_advanced(request: dict):
             }
         else:
             keywords = mapper.get_search_keywords(product, defect)
-            manual_context = rag.search_defect_manual(product, defect, keywords)
-            result["manual"] = manual_context
-            print(f"✅ 매뉴얼 검색 완료")
+            raw_manual_context = rag.search_defect_manual(product, defect, keywords)
+
+            # ✅ 매뉴얼 정제: 해당 불량만 필터링
+            manual_context = {
+                "원인": [],
+                "조치": []
+            }
+
+            for cause_text in raw_manual_context.get("원인", []):
+                # defect 키워드 포함 여부 확인
+                if defect.lower() in cause_text.lower():
+                    # 해당 불량 섹션만 추출
+                    lines = []
+                    in_section = False
+                    for line in cause_text.split('\n'):
+                        line = line.strip()
+                        if defect.lower() in line.lower():
+                            in_section = True
+                        elif line.startswith(('burr', 'hole', 'scratch')) and defect.lower() not in line.lower():
+                            break  # 다른 불량 시작
+                        elif in_section and line and line.startswith('•'):
+                            lines.append(line)
+                    
+                    if lines:
+                        manual_context["원인"].append('\n'.join(lines[:3]))
+
+            # 조치도 동일하게 처리
+            for action_text in raw_manual_context.get("조치", []):
+                if defect.lower() in action_text.lower():
+                    lines = []
+                    in_section = False
+                    for line in action_text.split('\n'):
+                        line = line.strip()
+                        if defect.lower() in line.lower():
+                            in_section = True
+                        elif line.startswith(('burr', 'hole', 'scratch')) and defect.lower() not in line.lower():
+                            break
+                        elif in_section and line and line.startswith('•'):
+                            lines.append(line)
+                    
+                    if lines:
+                        manual_context["조치"].append('\n'.join(lines[:3]))
+
+            print(f"✅ 매뉴얼 정제 완료:")
+            print(f"  원인: {len(manual_context['원인'])}개")
+            print(f"  조치: {len(manual_context['조치'])}개")
         
         # Step 5: VLM 분석 (선택적)
         print("[Step 5] LLM 분석...")
@@ -1182,7 +1225,9 @@ async def generate_manual_advanced(request: dict):
                 full_name_ko=defect_info.full_name_ko,
                 anomaly_score=float(result["anomaly"]["score"]),     # ✅ 여기!
                 is_anomaly=bool(result["anomaly"]["is_anomaly"]),    # ✅ 여기!
-                manual_context=result.get("manual", {})
+                manual_context=result.get("manual", {}),
+                max_new_tokens=512,  # 충분히 길게
+                temperature=0.3       # ✅ 낮춤 (0.7 → 0.3): 더 일관된 출력
             )
             print(f"✅ LLM 분석 완료 ({len(llm_analysis)} 문자)")
             

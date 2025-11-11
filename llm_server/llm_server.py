@@ -59,53 +59,93 @@ class VLMAnalysisRequest(BaseModel):
 # 유틸: 프롬프트 빌더(LLM)
 # =========================
 def _build_prompt(req: AnalysisRequest) -> str:
-    causes = "\n".join([f"- {c}" for c in req.manual_context.get("원인", [])])
-    actions = "\n".join([f"- {a}" for a in req.manual_context.get("조치", [])])
-
-     # 디버깅 로그
-    print(f"[DEBUG] 매뉴얼 컨텍스트 수신:")
-    print(f"  원인 개수: {len(req.manual_context.get('원인', []))}")
-    print(f"  조치 개수: {len(req.manual_context.get('조치', []))}")
+    """개선된 프롬프트 빌더"""
     
-    if not causes.strip() and not actions.strip():
-        print("⚠️  매뉴얼 정보가 비어있습니다!")
-        
-    manual_present = bool(causes.strip() or actions.strip())
-    manual_block = f"""
-### 발생 원인(매뉴얼 발췌)
-{causes if causes else "매뉴얼 정보 없음"}
+    # 매뉴얼 정리 (중복 제거 및 간결화)
+    causes_list = req.manual_context.get("원인", [])
+    actions_list = req.manual_context.get("조치", [])
+    
+    # 해당 불량만 필터링 (defect_en 기준)
+    causes = []
+    actions = []
+    
+    for cause_text in causes_list:
+        # 현재 불량(defect_en)과 관련된 내용만 추출
+        if req.defect_en.lower() in cause_text.lower() or req.defect_ko in cause_text:
+            # 깔끔하게 정리
+            lines = [line.strip() for line in cause_text.split('\n') 
+                    if line.strip() and not line.strip().startswith(('burr', 'hole', 'scratch', 'Hole', 'burr', 'Scratch'))]
+            causes.extend(lines[:3])  # 최대 3줄
+    
+    for action_text in actions_list:
+        if req.defect_en.lower() in action_text.lower() or req.defect_ko in action_text:
+            lines = [line.strip() for line in action_text.split('\n') 
+                    if line.strip() and not line.strip().startswith(('burr', 'hole', 'scratch', 'Hole', 'burr', 'Scratch'))]
+            actions.extend(lines[:3])  # 최대 3줄
+    
+    # 매뉴얼 정보 유무 확인
+    has_manual = bool(causes or actions)
+    
+    # 이상 검출 판정 설명
+    anomaly_status = "불량" if req.is_anomaly else "정상"
+    score_interpretation = ""
+    if req.anomaly_score > 0.5:
+        score_interpretation = "(높은 이상 점수 - 명확한 불량)"
+    elif req.anomaly_score > 0.1:
+        score_interpretation = "(중간 이상 점수 - 경미한 불량)"
+    elif req.is_anomaly:
+        score_interpretation = "(낮은 이상 점수 - 경계선상)"
+    else:
+        score_interpretation = "(정상 범위 - 불량 미검출)"
+    
+    prompt = f"""당신은 제조업 품질 전문가입니다. 아래 불량 정보를 **간결하게** 분석하세요.
 
-### 조치 가이드(매뉴얼 발췌)
-{actions if actions else "매뉴얼 정보 없음"}
-""".strip()
-
-    policy = (
-        "반드시 위의 '매뉴얼 발췌'를 1차 근거로 사용하고, 다른 추정은 금지하세요."
-        if manual_present else
-        "매뉴얼 정보가 없으므로 합리적 가정을 명시적으로 표기해 제시하세요."
-    )
-
-    prompt = f"""당신은 제조업 품질 전문가입니다. 아래 불량 정보를 분석하세요.
-
-## 불량 정보
+## 검사 정보
 - 제품: {req.product}
 - 불량 유형: {req.defect_ko} ({req.defect_en})
 - 정식 명칭: {req.full_name_ko}
-- 이상 검출 점수: {req.anomaly_score:.4f}
-- 불량 판정: {"불량" if req.is_anomaly else "정상"}
+- 이상 검출 점수: {req.anomaly_score:.4f} {score_interpretation}
+- 최종 판정: {anomaly_status}
 
-{manual_block}
+## 매뉴얼 정보
+"""
+    
+    if has_manual:
+        if causes:
+            prompt += "\n**발생 원인:**\n"
+            for i, cause in enumerate(causes[:3], 1):
+                prompt += f"{i}. {cause}\n"
+        
+        if actions:
+            prompt += "\n**조치 가이드:**\n"
+            for i, action in enumerate(actions[:3], 1):
+                prompt += f"{i}. {action}\n"
+    else:
+        prompt += "- 매뉴얼 정보 없음 (일반적인 제조 지식 기반 분석 필요)\n"
+    
+    prompt += f"""
+## 작성 지침
+1. 위 매뉴얼 정보를 **직접 인용**하며 분석
+2. 매뉴얼 문장은 "따옴표"로 표시
+3. **4개 섹션만** 작성: [불량 현황] → [원인 분석] → [대응 방안] → [예방 조치]
+4. 각 섹션은 **2-3줄로 간결하게**
+5. 예시나 템플릿 문구 반복 금지
 
-## 작성 규칙
-1) {policy}
-2) 매뉴얼 근거 문장을 "따옴표"로 인용하고, 항목별로 매핑해 주세요.
-3) [불량 현황 요약] → [원인 분석] → [대응 방안] → [예방 조치] 순으로 작성.
+## 출력 형식
+### 불량 현황 요약
+- (2-3줄 요약)
 
-## 출력:
-- 불릿/번호 목록 위주로 간결하게.
-""".strip()
+### 원인 분석
+- (매뉴얼 인용 + 분석)
+
+### 대응 방안
+- (즉시 조치사항 2-3개)
+
+### 예방 조치
+- (재발 방지 방안 2-3개)
+"""
+    
     return prompt
-
 # =========================
 # 모델 로더
 # =========================
@@ -208,6 +248,7 @@ def analyze(req: AnalysisRequest):
         max_new_tokens=min(max(req.max_new_tokens, 16), 2048),
         temperature=float(max(min(req.temperature, 1.5), 0.0)),
         do_sample=do_sample,
+        repetition_penalty=1.2,  # ✅ 추가: 반복 방지
     )
     if do_sample:
         gen_kwargs.update(dict(top_p=0.9))
