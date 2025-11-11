@@ -979,72 +979,53 @@ async function generateManualBy(mode /* 'llm' | 'vlm' */) {
             const actions = (data.manual?.조치 || []).map(t => `<li>${t}</li>`).join('');
             actionsEl.innerHTML = actions ? `<ul>${actions}</ul>` : '매뉴얼 정보 없음';
         }
+
+        console.log('[generateManualBy] mode:', mode);
+        console.log('[generateManualBy] Response data:', JSON.stringify(data, null, 2));
         
+        const vlmSection = document.getElementById('manual-vlm-section');
+        const llmSection = document.getElementById('manual-llm-section');
+        const vlmContent = document.getElementById('manual-vlm-content');
+        const llmContent = document.getElementById('manual-llm-content');
+
+
         // 3) 분석 결과 영역 - ✅ 수정된 부분
         if (mode === 'llm') {
             // LLM 모드
-            const vlmAnalysisEl = document.getElementById('manual-vlm-analysis');
-            if (vlmAnalysisEl) {
-                vlmAnalysisEl.style.display = 'none'; // VLM 영역 숨기기
+            if (vlmSection) vlmSection.style.display = 'none';
+            if (llmSection && llmContent) {
+                llmSection.style.display = 'block';
+                const analysis = data.llm_analysis || '분석 결과를 가져올 수 없습니다.';
+                console.log('[LLM] Analysis length:', analysis.length);
+                llmContent.innerHTML = analysis.replace(/\n/g, '<br>');
             }
-            
-            // LLM 영역 표시
-            let llmAnalysisEl = document.getElementById('manual-llm-analysis');
-            if (!llmAnalysisEl) {
-                // LLM 영역이 없으면 생성
-                const container = document.querySelector('#manual-tab .manual-container');
-                if (container) {
-                    llmAnalysisEl = document.createElement('div');
-                    llmAnalysisEl.id = 'manual-llm-analysis';
-                    llmAnalysisEl.className = 'manual-section';
-                    llmAnalysisEl.style.display = 'block';
-                    container.appendChild(llmAnalysisEl);
-                }
-            }
-            
-            if (llmAnalysisEl) {
-                llmAnalysisEl.style.display = 'block';
-                llmAnalysisEl.innerHTML = `
-                    <h3>🧠 LLM 분석 결과</h3>
-                    <div class="analysis-content">
-                        ${(data.llm_analysis || '분석 결과가 없습니다.').replace(/\n/g, '<br>')}
-                    </div>
-                `;
-            }
-            
-        } else {
+        } else if (mode === 'vlm') {
             // VLM 모드
-            const llmAnalysisEl = document.getElementById('manual-llm-analysis');
-            if (llmAnalysisEl) {
-                llmAnalysisEl.style.display = 'none'; // LLM 영역 숨기기
-            }
-            
-            // VLM 영역 표시
-            const vlmAnalysisEl = document.getElementById('manual-vlm-analysis');
-            if (vlmAnalysisEl) {
-                vlmAnalysisEl.style.display = 'block';
+            if (llmSection) llmSection.style.display = 'none';
+            if (vlmSection && vlmContent) {
+                vlmSection.style.display = 'block';
+                let analysis = data.vlm_analysis || '';
                 
-                // ✅ vlm_analysis 전체 텍스트 처리
-                let vlmText = data.vlm_analysis || '';
+                console.log('[VLM] Raw analysis:', analysis);
+                console.log('[VLM] Analysis length:', analysis.length);
                 
-                // "ASSISTANT:" 이후 텍스트만 추출 (서버에서 처리했으면 불필요)
-                if (vlmText.includes('ASSISTANT:')) {
-                    vlmText = vlmText.split('ASSISTANT:').pop().trim();
+                // ASSISTANT: 이후 텍스트만 추출
+                if (analysis.includes('ASSISTANT:')) {
+                    analysis = analysis.split('ASSISTANT:').pop().trim();
                 }
                 
-                // "USER:" 부분 제거
-                if (vlmText.includes('USER:')) {
-                    vlmText = vlmText.split('USER:')[0].trim();
+                // USER: 이전 텍스트 제거
+                if (analysis.includes('USER:')) {
+                    analysis = analysis.split('USER:')[0].trim();
                 }
                 
-                console.log('[VLM] Processed text:', vlmText); // 디버깅
+                console.log('[VLM] Cleaned analysis:', analysis);
                 
-                vlmAnalysisEl.innerHTML = `
-                    <h3>🤖 VLM 분석 결과</h3>
-                    <div class="analysis-content">
-                        ${vlmText ? vlmText.replace(/\n/g, '<br>') : '분석 결과가 없습니다.'}
-                    </div>
-                `;
+                if (analysis) {
+                    vlmContent.innerHTML = analysis.replace(/\n/g, '<br>');
+                } else {
+                    vlmContent.innerHTML = '<p style="color: #94a3b8;">분석 결과를 가져올 수 없습니다.</p>';
+                }
             }
         }
         

@@ -207,45 +207,101 @@ def health():
 # llm_server.py의 analyze 함수 수정
 @app.post("/analyze")
 def analyze(req: AnalysisRequest):
+    print("\n" + "="*60)
+    print("[LLM ANALYZE] 요청 시작")
+    print("="*60)
+    
     if llm_model is None or llm_tokenizer is None:
+        print("[ERROR] LLM 모델이 로드되지 않음")
         raise HTTPException(503, detail="LLM not loaded")
 
+    # 1. 프롬프트 생성
     prompt = _build_prompt(req)
+    print(f"\n[PROMPT] 길이: {len(prompt)} 문자")
+    print(f"[PROMPT] 첫 200자:\n{prompt[:200]}...")
+    
+    # 2. 토크나이징
     device = next(llm_model.parameters()).device
+    print(f"\n[DEVICE] {device}")
+    
     inputs = llm_tokenizer(prompt, return_tensors="pt").to(device)
+    input_length = inputs['input_ids'].shape[1]
+    print(f"[INPUT] 토큰 수: {input_length}")
 
+    # 3. 생성 파라미터
     do_sample = (req.temperature or 0) > 0
     gen_kwargs = dict(
-        max_new_tokens=min(max(req.max_new_tokens, 16), 800),  # 충분히 길게
+        max_new_tokens=min(max(req.max_new_tokens, 16), 800),
         temperature=float(max(min(req.temperature, 1.5), 0.0)),
         do_sample=do_sample,
-        repetition_penalty=1.3,  # ✅ 반복 더 억제
+        repetition_penalty=1.3,
     )
     if do_sample:
         gen_kwargs.update(dict(top_p=0.9))
+    
+    print(f"\n[GEN_KWARGS]")
+    print(f"  - max_new_tokens: {gen_kwargs['max_new_tokens']}")
+    print(f"  - temperature: {gen_kwargs['temperature']}")
+    print(f"  - do_sample: {do_sample}")
+    print(f"  - repetition_penalty: {gen_kwargs['repetition_penalty']}")
 
+    # 4. 생성
+    print(f"\n[GENERATE] 시작...")
+    start_time = time.time()
+    
     with torch.no_grad():
         output_ids = llm_model.generate(**inputs, **gen_kwargs)
+    
+    gen_time = time.time() - start_time
+    output_length = output_ids.shape[1]
+    print(f"[GENERATE] 완료 ({gen_time:.2f}초)")
+    print(f"[OUTPUT] 전체 토큰 수: {output_length}")
+    print(f"[OUTPUT] 생성된 토큰 수: {output_length - input_length}")
 
-    # ✅ 프롬프트 제외
-    generated_ids = output_ids[0][inputs['input_ids'].shape[1]:]
+    # 5. 디코딩
+    print(f"\n[DECODE] 시작...")
+    generated_ids = output_ids[0][input_length:]
     text = llm_tokenizer.decode(generated_ids, skip_special_tokens=True)
     
-    # ✅ 간단한 후처리
-    text = text.split("assistant")[0].strip()
-    text = text.split("[회사")[0].strip()
+    print(f"[DECODE] 원본 길이: {len(text)} 문자")
+    print(f"[DECODE] 원본 첫 300자:\n{text[:300]}...")
     
-    # ✅ 예방 조치 이후 4-5줄 지나면 자르기
+    # 6. 후처리
+    print(f"\n[POST-PROCESS] 시작...")
+    
+    # assistant 분리
+    if "assistant" in text:
+        before_len = len(text)
+        text = text.split("assistant")[0].strip()
+        print(f"  - 'assistant' 분리: {before_len} -> {len(text)} 문자")
+    
+    # [회사 분리
+    if "[회사" in text:
+        before_len = len(text)
+        text = text.split("[회사")[0].strip()
+        print(f"  - '[회사' 분리: {before_len} -> {len(text)} 문자")
+    
+    # 예방 조치 이후 자르기
     lines = text.split('\n')
     prevention_idx = -1
     for i, line in enumerate(lines):
         if "예방 조치" in line or "예방조치" in line:
             prevention_idx = i
+            print(f"  - '예방 조치' 발견: 라인 {i}")
             break
     
     if prevention_idx > 0:
-        # 예방 조치 + 5줄만
+        before_lines = len(lines)
         text = '\n'.join(lines[:prevention_idx + 7])
+        print(f"  - 예방 조치 이후 자르기: {before_lines} -> {prevention_idx + 7} 라인")
+    
+    print(f"\n[FINAL] 최종 길이: {len(text)} 문자")
+    print(f"[FINAL] 최종 라인 수: {len(text.split(chr(10)))}")
+    print(f"[FINAL] 첫 500자:\n{text[:500]}...")
+    
+    print("\n" + "="*60)
+    print("[LLM ANALYZE] 요청 완료")
+    print("="*60 + "\n")
     
     return {
         "status": "success",
@@ -253,6 +309,12 @@ def analyze(req: AnalysisRequest):
         "model": llm_name,
         "used_temperature": gen_kwargs["temperature"],
         "max_new_tokens": gen_kwargs["max_new_tokens"],
+        "debug_info": {
+            "input_tokens": input_length,
+            "output_tokens": output_length - input_length,
+            "generation_time": f"{gen_time:.2f}s",
+            "final_length": len(text)
+        }
     }
 
 # =========================
@@ -260,15 +322,28 @@ def analyze(req: AnalysisRequest):
 # =========================
 @app.post("/analyze_vlm")
 def analyze_vlm(req: VLMAnalysisRequest):
+    print("\n" + "="*60)
+    print("[VLM ANALYZE] 요청 시작")
+    print("="*60)
+    
     if vlm_model is None or vlm_processor is None:
+        print("[ERROR] VLM 모델이 로드되지 않음")
         raise HTTPException(503, detail="VLM not loaded")
+    
     if not os.path.exists(req.image_path):
+        print(f"[ERROR] 이미지 파일 없음: {req.image_path}")
         raise HTTPException(400, detail=f"image_path not found: {req.image_path}")
 
     try:
+        # 1. 이미지 로드
+        print(f"\n[IMAGE] 로드: {req.image_path}")
         img = Image.open(req.image_path).convert("RGB")
+        print(f"[IMAGE] 크기: {img.size}")
 
-        # 신형 Processor: 채팅 템플릿(멀티모달) 지원
+        # 2. 프롬프트 준비
+        print(f"\n[PROMPT] 길이: {len(req.prompt)} 문자")
+        print(f"[PROMPT] 첫 200자:\n{req.prompt[:200]}...")
+        
         try:
             messages = [
                 {
@@ -282,12 +357,17 @@ def analyze_vlm(req: VLMAnalysisRequest):
             prompt_text = vlm_processor.apply_chat_template(
                 messages, add_generation_prompt=True, tokenize=False
             )
-        except Exception:
-            # 구형 호환: 텍스트 그대로
+            print("[TEMPLATE] Chat template 적용 성공")
+        except Exception as e:
+            print(f"[TEMPLATE] Chat template 실패, 기본 텍스트 사용: {e}")
             prompt_text = req.prompt.strip()
 
+        # 3. 입력 준비
+        print(f"\n[PROCESSOR] 입력 준비 중...")
         inputs = vlm_processor(images=img, text=prompt_text, return_tensors="pt").to(vlm_model.device)
+        print(f"[PROCESSOR] 완료")
 
+        # 4. 생성 파라미터
         do_sample = (req.temperature or 0) > 0
         gen_kwargs = dict(
             max_new_tokens=min(max(req.max_new_tokens, 16), 1024),
@@ -296,22 +376,50 @@ def analyze_vlm(req: VLMAnalysisRequest):
         )
         if do_sample:
             gen_kwargs.update(dict(top_p=0.9))
+        
+        print(f"\n[GEN_KWARGS]")
+        print(f"  - max_new_tokens: {gen_kwargs['max_new_tokens']}")
+        print(f"  - temperature: {gen_kwargs['temperature']}")
+        print(f"  - do_sample: {do_sample}")
 
+        # 5. 생성
+        print(f"\n[GENERATE] 시작...")
+        start_time = time.time()
+        
         with torch.no_grad():
             out = vlm_model.generate(**inputs, **gen_kwargs)
+        
+        gen_time = time.time() - start_time
+        print(f"[GENERATE] 완료 ({gen_time:.2f}초)")
 
+        # 6. 디코딩
+        print(f"\n[DECODE] 시작...")
         text = vlm_processor.batch_decode(out, skip_special_tokens=True)[0]
+        
+        print(f"[DECODE] 원본 길이: {len(text)} 문자")
+        print(f"[DECODE] 원본 전체:\n{text}")
+        
+        print("\n" + "="*60)
+        print("[VLM ANALYZE] 요청 완료")
+        print("="*60 + "\n")
+        
         return {
             "status": "success",
             "analysis": text,
             "model": vlm_name,
             "used_temperature": gen_kwargs["temperature"],
             "max_new_tokens": gen_kwargs["max_new_tokens"],
+            "debug_info": {
+                "generation_time": f"{gen_time:.2f}s",
+                "output_length": len(text)
+            }
         }
     except HTTPException:
         raise
     except Exception as e:
-        import traceback; traceback.print_exc()
+        print(f"\n[ERROR] VLM 추론 오류:")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(500, detail=f"VLM inference error: {e}")
 
 # =========================
