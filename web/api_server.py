@@ -1063,11 +1063,12 @@ async def generate_manual_advanced(request: dict):
                 manual_context=result.get("manual", {})
             )
             print(f"✅ LLM 분석 완료 ({len(llm_analysis)} 문자)")
+            
         except Exception as e:
             print(f"⚠️  LLM 분석 실패: {e}")
             llm_analysis = f"LLM 분석 실패: {str(e)}"
 
-
+        result["vlm_analysis"] = llm_analysis
         # 처리 시간
         result["processing_time"] = round(time.time() - start_time, 2)
         
