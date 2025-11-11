@@ -7,13 +7,16 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Query, Form
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import Dict,List, Optional
 import os
 import sys
 import shutil
 from pathlib import Path
 import uvicorn
 from fastapi.staticfiles import StaticFiles
+import httpx
+
+
 import time  # 기존 import에 추가
 
 # 프로젝트 루트를 Python 경로에 추가
@@ -845,7 +848,7 @@ async def generate_manual(request: dict):
         traceback.print_exc()
         raise HTTPException(500, f"매뉴얼 생성 오류: {str(e)}")
 
-import httpx
+
 
 # LLM 서버 URL
 LLM_SERVER_URL = "http://localhost:5001"
