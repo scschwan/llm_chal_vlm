@@ -127,42 +127,6 @@ def init_vlm_components():
         import traceback
         traceback.print_exc()
 
-def get_or_load_vlm():
-    global vlm_load_complete
-
-    """VLM 모델 로드 (lazy loading)"""
-    if vlm_components["vlm"] is None:
-        print("🤖 VLM 모델을 처음 로드합니다...")
-        try:
-            vlm_components["vlm"] = VLMInference(
-                #model_name="llava-hf/llava-v1.6-mistral-7b-hf",
-                model_name="llava-hf/llava-1.5-7b-hf",
-                use_4bit=True,  # 메모리 절약
-                verbose=True
-            )
-        except Exception as e:
-            vlm_load_complete = False
-            # Qwen-VL 같은 다른 모델 사용
-            print("🤖 VLM 모델 초기화 실패 => LLM 모델 대체")
-            try:
-                vlm_components["llm"] = LLMInference(
-                    #model_name="mistralai/Mistral-7B-Instruct-v0.2",
-                    #model_name="hyperclovax",
-                    model_name="exaone",
-                    use_4bit=True,
-                    verbose=True
-                )
-                print("✅ LLM 로드 완료 (텍스트 기반 분석)")
-            except Exception as e:
-                print(f"⚠️  LLM 로드 실패: {e}")
-                vlm_components["llm"] = None
-                    
-        
-    return vlm_components["vlm"]
-
-
-
-
 # ====================
 # Pydantic 모델
 # ====================
