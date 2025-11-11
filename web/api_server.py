@@ -189,8 +189,10 @@ class ManualGenRequest(BaseModel):
     defect_name: Optional[str] = None
     anomaly_score: Optional[float] = None
     is_anomaly: Optional[bool] = None
-    max_new_tokens: int = 512
-    temperature: float = 0.7
+    #max_new_tokens: int = 512
+    max_new_tokens: int = 1024
+    #temperature: float = 0.7
+    temperature: float = 0.3
     verbose: bool = False  # ✅ 추가: 디버그 로그 출력
 
 # ====== 공용 코어 ======
@@ -315,14 +317,14 @@ async def _manual_core(mode: str, req: ManualGenRequest):
                 f"[이상점수] {anomaly_score:.4f}\n"  # ✅ 실제 값
                 f"[판정] {'불량' if is_anomaly else '정상'}\n"
                 "아래 매뉴얼을 1차 근거로 사용하여 이미지에서 보이는 불량 현황/원인/조치/예방을 항목별로 간결히 정리하라.\n"
-                f"원인(매뉴얼): {manual_ctx.get('원인', [])}\n"
-                f"조치(매뉴얼): {manual_ctx.get('조치', [])}\n"
+                f"원인(매뉴얼): {manual_ctx.get("원인", [])}\n"
+                f"조치(매뉴얼): {manual_ctx.get("조치", [])}\n"
                 "매뉴얼 문장을 따옴표로 인용하고, 불확실한 추정은 금지한다."
             )
             r = await client.post(f"{LLM_SERVER_URL}/analyze_vlm", json={
                 "image_path": req.image_path,
                 "prompt": prompt,
-                "max_new_tokens": min(256, req.max_new_tokens),
+                "max_new_tokens": min(1024, req.max_new_tokens),
                 "temperature": min(0.3, req.temperature)
             })
             r.raise_for_status()
@@ -1009,7 +1011,8 @@ async def call_llm_server(
     anomaly_score: float,
     is_anomaly: bool,
     manual_context: Dict[str, List[str]],
-    max_new_tokens=400,  # ✅ 줄임 (512 → 400)
+    #max_new_tokens=400,  # ✅ 줄임 (512 → 400)
+    max_new_tokens=1024,  # ✅ 줄임 (512 → 400)
     temperature=0.2      # ✅ 더 낮춤 (0.3 → 0.2)
 ) -> str:
     """LLM 서버에 분석 요청"""
@@ -1249,7 +1252,8 @@ async def generate_manual_advanced(request: dict):
                 anomaly_score=float(result["anomaly"]["score"]),     # ✅ 여기!
                 is_anomaly=bool(result["anomaly"]["is_anomaly"]),    # ✅ 여기!
                 manual_context=result.get("manual", {}),
-                max_new_tokens=512,  # 충분히 길게
+                #max_new_tokens=512,  # 충분히 길게
+                max_new_tokens=1024,  # 충분히 길게
                 temperature=0.3       # ✅ 낮춤 (0.7 → 0.3): 더 일관된 출력
             )
             print(f"✅ LLM 분석 완료 ({len(llm_analysis)} 문자)")

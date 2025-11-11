@@ -264,7 +264,8 @@ def analyze(req: AnalysisRequest):
     text = llm_tokenizer.decode(generated_ids, skip_special_tokens=True)
     
     print(f"[DECODE] 원본 길이: {len(text)} 문자")
-    print(f"[DECODE] 원본 첫 300자:\n{text[:300]}...")
+    #print(f"[DECODE] 원본 첫 300자:\n{text[:300]}...")
+    print(f"[DECODE] 원본 첫 300자:\n{text}...")
     
     # 6. 후처리
     print(f"\n[POST-PROCESS] 시작...")
