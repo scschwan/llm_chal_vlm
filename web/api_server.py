@@ -503,6 +503,154 @@ async def register_defect(
         "index_rebuilt": index_rebuilt
     })
 
+
+
+# ====================
+# 인덱스 관리 엔드포인트 (추가)
+# ====================
+@app.get("/index/info")
+async def get_index_info():
+    """
+    인덱스 상태 정보 조회
+    
+    Returns:
+        {
+            "status": "index_built" | "not_built",
+            "gallery_size": int,
+            "model_id": str,
+            "device": str,
+            "faiss_enabled": bool
+        }
+    """
+    if matcher is None:
+        return JSONResponse(content={
+            "status": "not_built",
+            "message": "매처가 초기화되지 않았습니다",
+            "gallery_size": 0
+        })
+    
+    if not matcher.index_built:
+        return JSONResponse(content={
+            "status": "not_built",
+            "message": "인덱스가 구축되지 않았습니다",
+            "gallery_size": 0
+        })
+    
+    return JSONResponse(content={
+        "status": "index_built",
+        "gallery_size": len(matcher.gallery_paths) if matcher.gallery_paths else 0,
+        "model_id": matcher.model_id if hasattr(matcher, 'model_id') else "ViT-B-32/openai",
+        "device": str(matcher.device) if hasattr(matcher, 'device') else "unknown",
+        "faiss_enabled": matcher.faiss_index is not None if hasattr(matcher, 'faiss_index') else False
+    })
+
+
+@app.post("/build_index")
+async def build_index(request: dict):
+    """
+    인덱스 수동 구축
+    
+    Request:
+        {
+            "gallery_dir": "경로",
+            "save_index": true,
+            "index_save_dir": "./index_cache"
+        }
+    
+    Returns:
+        {
+            "status": "success",
+            "num_images": int,
+            "index_saved": bool
+        }
+    """
+    if matcher is None:
+        raise HTTPException(500, "매처가 초기화되지 않았습니다")
+    
+    gallery_dir = request.get("gallery_dir")
+    save_index = request.get("save_index", True)
+    index_save_dir = request.get("index_save_dir", "./index_cache")
+    
+    if not gallery_dir:
+        raise HTTPException(400, "gallery_dir 필수")
+    
+    # 경로 정규화
+    gallery_path = Path(gallery_dir)
+    if not gallery_path.is_absolute():
+        gallery_path = project_root / gallery_dir
+    
+    if not gallery_path.exists():
+        raise HTTPException(404, f"갤러리 디렉토리를 찾을 수 없습니다: {gallery_path}")
+    
+    try:
+        print(f"\n🔄 인덱스 구축 시작: {gallery_path}")
+        
+        # 인덱스 구축
+        info = matcher.build_index(str(gallery_path))
+        
+        # 저장
+        index_saved = False
+        if save_index:
+            save_path = Path(index_save_dir)
+            if not save_path.is_absolute():
+                save_path = project_root / index_save_dir
+            
+            save_path.mkdir(parents=True, exist_ok=True)
+            matcher.save_index(str(save_path))
+            index_saved = True
+            print(f"✅ 인덱스 저장 완료: {save_path}")
+        
+        print(f"✅ 인덱스 구축 완료: {info['num_images']}개 이미지\n")
+        
+        return JSONResponse(content={
+            "status": "success",
+            "num_images": info['num_images'],
+            "index_saved": index_saved,
+            "gallery_dir": str(gallery_path)
+        })
+        
+    except Exception as e:
+        print(f"❌ 인덱스 구축 실패: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"인덱스 구축 실패: {str(e)}")
+
+
+@app.get("/defect/stats/{product_name}/{defect_name}")
+async def get_defect_stats(product_name: str, defect_name: str):
+    """
+    특정 제품/불량의 통계 조회
+    
+    Args:
+        product_name: 제품명 (예: prod1)
+        defect_name: 불량명 (예: hole)
+    
+    Returns:
+        {
+            "total_count": int,
+            "next_seqno": int
+        }
+    """
+    defect_dir = project_root / "data" / "def_split"
+    
+    if not defect_dir.exists():
+        return JSONResponse(content={
+            "total_count": 0,
+            "next_seqno": 1
+        })
+    
+    # 해당 제품/불량 파일 카운트
+    pattern = f"{product_name}_{defect_name}_*"
+    existing_files = list(defect_dir.glob(pattern))
+    
+    # 다음 seqno 계산
+    next_seqno = get_next_seqno(defect_dir, product_name, defect_name)
+    
+    return JSONResponse(content={
+        "total_count": len(existing_files),
+        "next_seqno": next_seqno
+    })
+
 # ====================
 # LLM 대응 매뉴얼 생성 (핵심 로직)
 # ====================
