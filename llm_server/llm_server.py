@@ -46,14 +46,18 @@ class AnalysisRequest(BaseModel):
     anomaly_score: float = 0.0
     is_anomaly: bool = False
     manual_context: Dict[str, List[str]] = {}
-    max_new_tokens: int = 512
-    temperature: float = 0.7
+    #max_new_tokens: int = 512
+    max_new_tokens: int = 1024
+    #temperature: float = 0.7
+    temperature: float = 0.3
 
 class VLMAnalysisRequest(BaseModel):
     image_path: str
     prompt: str
-    max_new_tokens: int = 256
-    temperature: float = 0.2
+    #max_new_tokens: int = 256
+    max_new_tokens: int = 1024
+    #temperature: float = 0.2
+    temperature: float = 0.3
 
 # =========================
 # 유틸: 프롬프트 빌더(LLM)

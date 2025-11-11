@@ -915,8 +915,10 @@ async function generateManualBy(mode /* 'llm' | 'vlm' */) {
         defect_name: defect,
         anomaly_score,
         is_anomaly,
-        max_new_tokens: 512,
-        temperature: 0.7
+        //max_new_tokens: 512,
+        max_new_tokens: 1024,
+        //temperature: 0.7
+        temperature: 0.3
         };
 
         const url = mode === 'vlm'
