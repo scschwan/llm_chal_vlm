@@ -59,90 +59,61 @@ class VLMAnalysisRequest(BaseModel):
 # 유틸: 프롬프트 빌더(LLM)
 # =========================
 def _build_prompt(req: AnalysisRequest) -> str:
-    """개선된 프롬프트 빌더"""
+    """깔끔한 프롬프트 생성"""
     
-    # 매뉴얼 정리 (중복 제거 및 간결화)
-    causes_list = req.manual_context.get("원인", [])
-    actions_list = req.manual_context.get("조치", [])
+    # 매뉴얼 정보 (이미 정리된 리스트)
+    causes = req.manual_context.get("원인", [])
+    actions = req.manual_context.get("조치", [])
     
-    # 해당 불량만 필터링 (defect_en 기준)
-    causes = []
-    actions = []
-    
-    for cause_text in causes_list:
-        # 현재 불량(defect_en)과 관련된 내용만 추출
-        if req.defect_en.lower() in cause_text.lower() or req.defect_ko in cause_text:
-            # 깔끔하게 정리
-            lines = [line.strip() for line in cause_text.split('\n') 
-                    if line.strip() and not line.strip().startswith(('burr', 'hole', 'scratch', 'Hole', 'burr', 'Scratch'))]
-            causes.extend(lines[:3])  # 최대 3줄
-    
-    for action_text in actions_list:
-        if req.defect_en.lower() in action_text.lower() or req.defect_ko in action_text:
-            lines = [line.strip() for line in action_text.split('\n') 
-                    if line.strip() and not line.strip().startswith(('burr', 'hole', 'scratch', 'Hole', 'burr', 'Scratch'))]
-            actions.extend(lines[:3])  # 최대 3줄
-    
-    # 매뉴얼 정보 유무 확인
     has_manual = bool(causes or actions)
     
-    # 이상 검출 판정 설명
-    anomaly_status = "불량" if req.is_anomaly else "정상"
-    score_interpretation = ""
-    if req.anomaly_score > 0.5:
-        score_interpretation = "(높은 이상 점수 - 명확한 불량)"
-    elif req.anomaly_score > 0.1:
-        score_interpretation = "(중간 이상 점수 - 경미한 불량)"
-    elif req.is_anomaly:
-        score_interpretation = "(낮은 이상 점수 - 경계선상)"
+    # 판정 상태
+    if req.is_anomaly:
+        status = f"불량 검출 (이상점수: {req.anomaly_score:.4f})"
     else:
-        score_interpretation = "(정상 범위 - 불량 미검출)"
+        status = f"정상 범위 (이상점수: {req.anomaly_score:.4f})"
     
-    prompt = f"""당신은 제조업 품질 전문가입니다. 아래 불량 정보를 **간결하게** 분석하세요.
+    prompt = f"""당신은 제조 품질 전문가입니다. 아래 정보를 바탕으로 간결한 보고서를 작성하세요.
 
-## 검사 정보
-- 제품: {req.product}
-- 불량 유형: {req.defect_ko} ({req.defect_en})
-- 정식 명칭: {req.full_name_ko}
-- 이상 검출 점수: {req.anomaly_score:.4f} {score_interpretation}
-- 최종 판정: {anomaly_status}
+【검사 결과】
+제품: {req.product}
+불량: {req.defect_ko} ({req.defect_en})
+판정: {status}
 
-## 매뉴얼 정보
+【매뉴얼】
 """
     
     if has_manual:
         if causes:
-            prompt += "\n**발생 원인:**\n"
-            for i, cause in enumerate(causes[:3], 1):
+            prompt += "발생 원인:\n"
+            for i, cause in enumerate(causes, 1):
                 prompt += f"{i}. {cause}\n"
         
         if actions:
-            prompt += "\n**조치 가이드:**\n"
-            for i, action in enumerate(actions[:3], 1):
+            prompt += "\n조치 방법:\n"
+            for i, action in enumerate(actions, 1):
                 prompt += f"{i}. {action}\n"
     else:
-        prompt += "- 매뉴얼 정보 없음 (일반적인 제조 지식 기반 분석 필요)\n"
+        prompt += "※ 매뉴얼 정보 없음\n"
     
-    prompt += f"""
-## 작성 지침
-1. 위 매뉴얼 정보를 **직접 인용**하며 분석
-2. 매뉴얼 문장은 "따옴표"로 표시
-3. **4개 섹션만** 작성: [불량 현황] → [원인 분석] → [대응 방안] → [예방 조치]
-4. 각 섹션은 **2-3줄로 간결하게**
-5. 예시나 템플릿 문구 반복 금지
+    prompt += """
+【지침】
+- 위 매뉴얼 내용을 직접 인용 (따옴표 사용)
+- 4개 섹션만 작성 (각 2-3문장)
+- 추측이나 예시 반복 금지
 
-## 출력 형식
-### 불량 현황 요약
-- (2-3줄 요약)
+【출력 형식】
+### 불량 현황
+(판정 결과 요약)
 
-### 원인 분석
-- (매뉴얼 인용 + 분석)
+### 원인 분석  
+(매뉴얼 원인 인용)
 
 ### 대응 방안
-- (즉시 조치사항 2-3개)
+(즉시 조치 2-3개)
 
 ### 예방 조치
-- (재발 방지 방안 2-3개)
+(재발 방지 2-3개)
 """
     
     return prompt

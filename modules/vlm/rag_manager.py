@@ -103,23 +103,75 @@ class RAGManager:
         keywords: List[str],
         top_k: int = 3
     ) -> Dict[str, List[str]]:
-        """불량 매뉴얼 검색"""
+        """불량 매뉴얼 검색 - 완전 재작성"""
+        
         query = " ".join(keywords)
         
         if self.verbose:
             print(f"🔍 매뉴얼 검색: {query}")
         
-        results = self.vectorstore.similarity_search(query, k=top_k * 2)
+        # 1. 벡터 검색으로 관련 청크 가져오기
+        results = self.vectorstore.similarity_search(query, k=top_k * 3)
         
-        # 모든 결과를 원인/조치로 나눔 (메타데이터 없이)
-        all_results = [doc.page_content for doc in results]
+        if self.verbose:
+            print(f"   검색된 청크: {len(results)}개")
         
-        # 간단히 절반씩 나눔 (또는 전부 원인과 조치 모두에 포함)
-        mid = len(all_results) // 2
+        # 2. 불량별로 원인/조치 분리
+        causes = []
+        actions = []
+        
+        for doc in results:
+            content = doc.page_content
+            
+            # 해당 불량(defect_en) 포함 여부 확인
+            if defect_en.lower() not in content.lower():
+                continue
+            
+            # "발생 원인" 섹션 추출
+            if "발생 원인" in content:
+                # "발생 원인"부터 "조치 가이드" 전까지
+                import re
+                cause_match = re.search(
+                    r'발생 원인\s*(.*?)(?:조치 가이드|burr|Scratch|$)',
+                    content,
+                    re.DOTALL
+                )
+                if cause_match:
+                    cause_text = cause_match.group(1).strip()
+                    # 불릿 포인트만 추출
+                    cause_lines = [
+                        line.strip().lstrip('•').strip()
+                        for line in cause_text.split('\n')
+                        if line.strip().startswith('•')
+                    ]
+                    causes.extend(cause_lines)
+            
+            # "조치 가이드" 섹션 추출
+            if "조치 가이드" in content or "조치" in content:
+                action_match = re.search(
+                    r'조치\s*가이드\s*(.*?)(?:burr|Scratch|발생 원인|$)',
+                    content,
+                    re.DOTALL
+                )
+                if action_match:
+                    action_text = action_match.group(1).strip()
+                    action_lines = [
+                        line.strip().lstrip('•').strip()
+                        for line in action_text.split('\n')
+                        if line.strip().startswith('•')
+                    ]
+                    actions.extend(action_lines)
+        
+        # 3. 중복 제거 및 개수 제한
+        causes = list(dict.fromkeys(causes))[:top_k]
+        actions = list(dict.fromkeys(actions))[:top_k]
+        
+        if self.verbose:
+            print(f"   추출: 원인 {len(causes)}개, 조치 {len(actions)}개")
         
         return {
-            "원인": all_results[:top_k],
-            "조치": all_results[top_k:top_k*2] if len(all_results) > top_k else all_results
+            "원인": causes,
+            "조치": actions
         }
 
 
