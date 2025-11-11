@@ -845,6 +845,57 @@ async def generate_manual(request: dict):
         traceback.print_exc()
         raise HTTPException(500, f"매뉴얼 생성 오류: {str(e)}")
 
+import httpx
+
+# LLM 서버 URL
+LLM_SERVER_URL = "http://localhost:5001"
+
+# 전역 변수에서 llm_manager 제거 또는 None으로 설정
+llm_manager = None  # 사용하지 않음
+
+# LLM 서버 호출 함수 추가
+async def call_llm_server(
+    product: str,
+    defect_en: str,
+    defect_ko: str,
+    full_name_ko: str,
+    anomaly_score: float,
+    is_anomaly: bool,
+    manual_context: Dict[str, List[str]],
+    max_new_tokens: int = 512,
+    temperature: float = 0.7
+) -> str:
+    """LLM 서버에 분석 요청"""
+    
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"{LLM_SERVER_URL}/analyze",
+                json={
+                    "product": product,
+                    "defect_en": defect_en,
+                    "defect_ko": defect_ko,
+                    "full_name_ko": full_name_ko,
+                    "anomaly_score": anomaly_score,
+                    "is_anomaly": is_anomaly,
+                    "manual_context": manual_context,
+                    "max_new_tokens": max_new_tokens,
+                    "temperature": temperature
+                }
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                return result["analysis"]
+            else:
+                raise Exception(f"LLM 서버 오류: {response.status_code} - {response.text}")
+                
+    except httpx.ConnectError:
+        raise Exception("LLM 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.")
+    except Exception as e:
+        raise Exception(f"LLM 서버 호출 실패: {str(e)}")
+
+
 
 @app.post("/generate_manual_advanced")
 async def generate_manual_advanced(request: dict):
@@ -997,80 +1048,22 @@ async def generate_manual_advanced(request: dict):
             print(f"✅ 매뉴얼 검색 완료")
         
         # Step 5: VLM 분석 (선택적)
-        global vlm_load_complete
-        if vlm_load_complete :
-            print(f"\n[Step 5] VLM 분석...")
-            result["steps"].append("5. VLM 분석 중...")
-            
-            try:
-                vlm = get_or_load_vlm()
-                prompt_builder = vlm_components["prompt_builder"]
-                
-                # 프롬프트 생성
-                prompt = prompt_builder.build_defect_analysis_prompt(
-                    product=product,
-                    defect_en=defect_info.en,
-                    defect_ko=defect_info.ko,
-                    full_name_ko=defect_info.full_name_ko,
-                    anomaly_regions=anomaly_result.get("regions", []),
-                    manual_context=result.get("manual", {})
-                )
-                
-                # VLM 추론
-                overlay_path = output_dir / "overlay.png"
-                normal_path = Path(anomaly_result.get("reference_image_path", ""))
-                
-                if overlay_path.exists() and normal_path.exists():
-                    vlm_analysis = vlm.analyze_defect_with_segmentation(
-                        normal_image_path=str(normal_path),
-                        defect_image_path=str(image_path_obj),
-                        overlay_image_path=str(overlay_path),
-                        prompt=prompt,
-                        max_new_tokens=512,
-                        temperature=0.7
-                    )
-                    result["vlm_analysis"] = vlm_analysis
-                    print(f"✅ VLM 분석 완료")
-                else:
-                    result["vlm_analysis"] = "VLM 분석을 위한 이미지를 찾을 수 없습니다."
-                    print(f"⚠️  VLM 이미지 누락 - Normal:{normal_path.exists()}, Overlay:{overlay_path.exists()}")
-                    
-            except Exception as e:
-                print(f"⚠️  VLM 분석 실패: {e}")
-                result["vlm_analysis"] = f"VLM 분석 중 오류: {str(e)}"
-            
-            result["steps"].append("✅ 분석 완료")
-        else :
-            print(f"\n[Step 5] LLM 분석...")
-            result["steps"].append("5. LLM 기반 매뉴얼 생성 중...")
+        print("[Step 5] LLM 분석...")
+        try:
+            llm_analysis = await call_llm_server(
+                product=product,
+                defect_en=defect_info.en,
+                defect_ko=defect_info.ko,
+                full_name_ko=defect_info.full_name_ko,
+                anomaly_score=result["anomaly_score"],
+                is_anomaly=result["is_anomaly"],
+                manual_context=result.get("manual", {})
+            )
+            print(f"✅ LLM 분석 완료 ({len(llm_analysis)} 문자)")
+        except Exception as e:
+            print(f"⚠️  LLM 분석 실패: {e}")
+            llm_analysis = f"LLM 분석 실패: {str(e)}"
 
-            try:
-                llm = vlm_components.get("llm")
-                
-                if llm is None:
-                    raise Exception("LLM이 초기화되지 않았습니다")
-                
-                # LLM으로 분석
-                llm_analysis = llm.analyze_defect_with_context(
-                    product=product,
-                    defect_en=defect_info.en,
-                    defect_ko=defect_info.ko,
-                    full_name_ko=defect_info.full_name_ko,
-                    anomaly_score=anomaly_result["image_score"],
-                    is_anomaly=anomaly_result["is_anomaly"],
-                    manual_context=result.get("manual", {}),
-                    max_new_tokens=512,
-                    temperature=0.7
-                )
-                
-                result["llm_analysis"] = llm_analysis
-                print(f"✅ LLM 분석 완료")
-                
-            except Exception as e:
-                print(f"⚠️  LLM 분석 실패: {e}")
-                import traceback
-                traceback.print_exc()
-                result["llm_analysis"] = f"LLM 분석 중 오류: {str(e)}"
 
         # 처리 시간
         result["processing_time"] = round(time.time() - start_time, 2)
