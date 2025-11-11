@@ -227,7 +227,6 @@ class ManualGenRequest(BaseModel):
     is_anomaly: Optional[bool] = None
     max_new_tokens: int = 512
     temperature: float = 0.7
-    verbose: bool = False  # ✅ 추가: 디버그 로그 출력
 
 # ====== 공용 코어 ======
 # ====== 매뉴얼 생성 공용 코어 ======
