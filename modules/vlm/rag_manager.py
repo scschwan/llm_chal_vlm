@@ -11,6 +11,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
+import re
 
 
 class RAGManager:
@@ -130,7 +131,7 @@ class RAGManager:
             # "발생 원인" 섹션 추출
             if "발생 원인" in content:
                 # "발생 원인"부터 "조치 가이드" 전까지
-                import re
+                
                 cause_match = re.search(
                     r'발생 원인\s*(.*?)(?:조치 가이드|burr|Scratch|$)',
                     content,
