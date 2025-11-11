@@ -61,7 +61,17 @@ class VLMAnalysisRequest(BaseModel):
 def _build_prompt(req: AnalysisRequest) -> str:
     """깔끔한 프롬프트 생성"""
     
-    # ... (기존 매뉴얼 파싱 로직)
+    # 매뉴얼 정보 (이미 정리된 리스트)
+    causes = req.manual_context.get("원인", [])
+    actions = req.manual_context.get("조치", [])
+    
+    has_manual = bool(causes or actions)
+    
+    # 판정 상태
+    if req.is_anomaly:
+        status = f"불량 검출 (이상점수: {req.anomaly_score:.4f})"
+    else:
+        status = f"정상 범위 (이상점수: {req.anomaly_score:.4f})"
     
     prompt = f"""당신은 제조 품질 전문가입니다. 아래 정보를 바탕으로 간결한 보고서를 작성하세요.
 
@@ -89,22 +99,22 @@ def _build_prompt(req: AnalysisRequest) -> str:
     prompt += """
 【지침】
 - 위 매뉴얼 내용을 직접 인용 (따옴표 사용)
-- 정확히 4개 섹션만 작성 (각 2-3문장)
+- 4개 섹션만 작성 (각 2-3문장)
 - 추측이나 예시 반복 금지
-- 4개 섹션 작성 후 즉시 종료
 
-【출력】
+【출력 형식】
 ### 불량 현황
-(판정 결과 요약 2-3문장)
+(판정 결과 요약)
 
-### 원인 분석
-(매뉴얼 원인 인용 2-3문장)
+### 원인 분석  
+(매뉴얼 원인 인용)
 
 ### 대응 방안
 (즉시 조치 2-3개)
 
 ### 예방 조치
 (재발 방지 2-3개)
+
 
 위 4개 섹션만 작성하고 종료하세요. 추가 설명이나 예시 불필요.
 """
@@ -188,7 +198,6 @@ def health():
         "llm": {"name": llm_name, "loaded": llm_model is not None},
         "vlm": {"name": vlm_name, "loaded": vlm_model is not None},
     }
-
 
 # =========================
 # LLM 분석
