@@ -11,6 +11,7 @@ import sys
 import shutil
 from typing import Optional
 import uvicorn
+from pydantic import BaseModel, Field
 
 # 프로젝트 루트 경로
 project_root = Path(__file__).parent.parent
@@ -74,6 +75,13 @@ vlm_components = {
     "mapper": None,
     "prompt_builder": PromptBuilder()
 }
+
+class HealthResponse(BaseModel):
+    """헬스체크 응답"""
+    status: str
+    message: str
+    index_built: bool
+    gallery_size: int
 
 # ====================
 # 라이프사이클 이벤트
@@ -301,7 +309,7 @@ async def get_index_status():
 @app.post("/build_index")
 async def build_index(request: dict):
     """인덱스 재구축"""
-    from pydantic import BaseModel, Field
+    
     
     class BuildIndexRequest(BaseModel):
         gallery_dir: str = Field(..., description="갤러리 디렉토리")
@@ -417,6 +425,16 @@ async def register_defect(
         "index_rebuilt": index_rebuilt
     })
 
+
+@app.get("/health2", response_model=HealthResponse)
+async def health_check():
+    """헬스체크 엔드포인트"""
+    return HealthResponse(
+        status="healthy",
+        message="API 서버가 정상 작동 중입니다",
+        index_built=matcher.index_built if matcher else False,
+        gallery_size=len(matcher.gallery_paths) if matcher and matcher.index_built else 0
+    )
 
 # ====================
 # 서버 실행
