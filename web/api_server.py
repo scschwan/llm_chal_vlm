@@ -440,7 +440,6 @@ async def register_defect(
 # ====================
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(
         "api_server:app",
         host="0.0.0.0",
