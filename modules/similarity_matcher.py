@@ -1,251 +1,258 @@
 """
-TOP-K 유사도 매칭 모듈
-기존 modules/clip_search.py를 활용하여 웹 API에서 호출 가능한 형태로 구성
+CLIP 기반 TOP-K 유사도 매칭 (배치 처리 + 다중 프로세스 최적화)
 """
-
-from __future__ import annotations
-from dataclasses import dataclass, asdict
-from typing import List, Optional, Dict, Any
-from pathlib import Path
-import json
-import pickle
 import torch
-from PIL import Image
 import open_clip
+from PIL import Image
+from pathlib import Path
+from typing import List, Union, Optional, Dict
+from dataclasses import dataclass
+import numpy as np
+from tqdm import tqdm
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms
 
 try:
     import faiss
     _HAS_FAISS = True
-except Exception:
+except ImportError:
     _HAS_FAISS = False
+    print("⚠️  FAISS 미설치: 검색 속도가 느릴 수 있습니다. 설치 권장: pip install faiss-gpu")
 
 
 @dataclass
-class SimilarityResult:
-    """유사도 검색 결과"""
-    query_image: str
-    top_k_results: List[Dict[str, Any]]
+class SearchResult:
+    """검색 결과"""
+    top_k_results: List[Dict]
     total_gallery_size: int
-    model_info: str
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
-    
-    def to_json(self) -> str:
-        return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
+    model_info: Dict
 
 
-@dataclass
-class ImageMatch:
-    """개별 매칭 결과"""
-    image_path: str
-    image_name: str
-    similarity_score: float
-    rank: int
+class ImageDataset(Dataset):
+    """이미지 데이터셋 (배치 로딩용)"""
+    
+    def __init__(self, image_paths: List[Path], target_size: tuple = (224, 224)):
+        self.image_paths = image_paths
+        self.target_size = target_size
+        
+        # ✅ 전처리 파이프라인 (리사이즈 최적화)
+        self.transform = transforms.Compose([
+            transforms.Resize(target_size, interpolation=transforms.InterpolationMode.BILINEAR),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.48145466, 0.4578275, 0.40821073],
+                std=[0.26862954, 0.26130258, 0.27577711]
+            )
+        ])
+    
+    def __len__(self):
+        return len(self.image_paths)
+    
+    def __getitem__(self, idx):
+        img_path = self.image_paths[idx]
+        
+        try:
+            # 이미지 로드 (RGB 변환)
+            image = Image.open(img_path).convert('RGB')
+            
+            # 전처리 적용
+            image_tensor = self.transform(image)
+            
+            return image_tensor, str(img_path)
+            
+        except Exception as e:
+            print(f"⚠️  이미지 로드 실패: {img_path} - {e}")
+            # 빈 이미지 반환
+            return torch.zeros(3, *self.target_size), str(img_path)
 
 
 class TopKSimilarityMatcher:
     """
-    CLIP 기반 TOP-K 유사이미지 검색 모듈
+    CLIP 기반 TOP-K 유사도 매칭 (최적화 버전)
     
-    Features:
-    - CLIP 모델 기반 이미지 임베딩
-    - FAISS 인덱스 활용 고속 검색
-    - 인덱스 저장/로드 기능
-    - JSON 형태 결과 반환
+    개선 사항:
+    - 배치 처리 (batch_size=32)
+    - 다중 프로세스 이미지 로딩 (num_workers=4)
+    - 이미지 리사이즈 최적화 (224x224)
     """
     
     def __init__(
         self,
-        model_id: str = "ViT-B-32/openai",
-        device: str = "cuda" if torch.cuda.is_available() else "cpu",
-        use_fp16: bool = True,
-        verbose: bool = False
+        model_id: str = "ViT-B-32",
+        pretrained: str = "openai",
+        device: str = "auto",
+        use_fp16: bool = False,
+        batch_size: int = 32,
+        num_workers: int = 4,
+        verbose: bool = True
     ):
-        """
-        Args:
-            model_id: CLIP 모델 ID (예: "ViT-B-32/openai")
-            device: 연산 디바이스 ("cuda" or "cpu")
-            use_fp16: FP16 사용 여부 (GPU 시 권장)
-            verbose: 로그 출력 여부
-        """
-        self.device = device
-        self.verbose = verbose
         self.model_id = model_id
+        self.pretrained = pretrained
+        self.use_fp16 = use_fp16
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.verbose = verbose
+        
+        # 디바이스 설정
+        if device == "auto":
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            self.device = device
+        
+        if self.verbose:
+            print(f"[TopKMatcher] 디바이스: {self.device}")
+            print(f"[TopKMatcher] 배치 크기: {self.batch_size}")
+            print(f"[TopKMatcher] 워커 수: {self.num_workers}")
         
         # CLIP 모델 로드
-        self.model, self.preprocess = self._load_clip(model_id, device, use_fp16)
+        self.model, _, self.preprocess = open_clip.create_model_and_transforms(
+            model_id,
+            pretrained=pretrained,
+            device=self.device
+        )
+        self.model.eval()
         
-        # 갤러리 정보
-        self.gallery_paths: List[str] = []
+        # FP16 설정
+        if self.use_fp16 and self.device == "cuda":
+            self.model = self.model.half()
+            if self.verbose:
+                print("[TopKMatcher] FP16 모드 활성화")
+        
+        # 갤러리 데이터
+        self.gallery_paths: Optional[List[str]] = None
         self.gallery_embs: Optional[torch.Tensor] = None
         self.faiss_index = None
         self.index_built = False
-        
-        if self.verbose:
-            print(f"[TopKMatcher] 초기화 완료 - Model: {model_id}, Device: {device}")
     
-    def _resolve_model_pretrained(self, model_id: str) -> tuple[str, str]:
-        """모델명과 pretrained 태그 파싱"""
-        try:
-            all_models = set(open_clip.list_models())
-        except Exception:
-            all_models = set()
-        
-        model_id = model_id.strip()
-        
-        # "A/B" 형태 처리
-        if "/" in model_id:
-            a, b = [x.strip() for x in model_id.split("/", 1)]
-            if a in all_models:
-                return a, b
-            if b in all_models:
-                return b, a
-        
-        # 단일 토큰이 모델명인 경우
-        if model_id in all_models:
-            return model_id, "openai"
-        
-        # 안전 폴백
-        return "ViT-B-32", "openai"
-    
-    def _load_clip(self, model_id: str, device: str, use_fp16: bool):
-        """CLIP 모델 로드"""
-        model_name, pretrained = self._resolve_model_pretrained(model_id)
-        
-        try:
-            model, _, preprocess = open_clip.create_model_and_transforms(
-                model_name=model_name, 
-                pretrained=pretrained, 
-                device=device
-            )
-        except Exception:
-            # 폴백: ViT-B-32 + openai
-            model, _, preprocess = open_clip.create_model_and_transforms(
-                model_name="ViT-B-32", 
-                pretrained="openai", 
-                device=device
-            )
-        
-        model.eval()
-        if use_fp16 and device.startswith("cuda"):
-            model.half()
-        
-        return model, preprocess
-    
-    @torch.no_grad()
-    def _embed_image(self, image_path: str) -> torch.Tensor:
-        """이미지를 임베딩 벡터로 변환 (L2 정규화)"""
-        img = Image.open(image_path).convert("RGB")
-        x = self.preprocess(img).unsqueeze(0).to(self.device)
-        feat = self.model.encode_image(x)
-        feat = feat / (feat.norm(dim=-1, keepdim=True) + 1e-6)
-        return feat.squeeze(0).detach().to("cpu", dtype=torch.float32)
-    
-    def _gather_image_paths(self, gallery_dir: str) -> List[str]:
-        """디렉토리에서 이미지 파일 수집"""
-        exts = {".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff"}
-        paths = [str(p) for p in Path(gallery_dir).rglob("*") if p.suffix.lower() in exts]
-        return sorted(paths)
-    
-    def build_index(self, gallery_dir: str, recursive: bool = True) -> Dict[str, Any]:
+    def build_index(self, gallery_dir: Union[str, Path]) -> Dict:
         """
-        갤러리 이미지 인덱스 구축
+        갤러리 인덱스 구축 (배치 처리)
         
         Args:
-            gallery_dir: 갤러리 이미지 디렉토리 경로
-            
-        Returns:
-            인덱스 구축 정보 딕셔너리
-        """
-        paths = self._gather_image_paths(gallery_dir)
+            gallery_dir: 갤러리 이미지 디렉토리
         
-        if not paths:
-            raise FileNotFoundError(f"갤러리 이미지가 없습니다: {gallery_dir}")
+        Returns:
+            구축 정보 딕셔너리
+        """
+        gallery_dir = Path(gallery_dir)
+        
+        if not gallery_dir.exists():
+            raise FileNotFoundError(f"디렉토리를 찾을 수 없습니다: {gallery_dir}")
+        
+        # 이미지 파일 수집
+        image_paths = []
+        for ext in ['*.jpg', '*.jpeg', '*.png', '*.webp']:
+            image_paths.extend(gallery_dir.rglob(ext))
+        
+        image_paths = sorted(image_paths)
+        
+        if len(image_paths) == 0:
+            raise ValueError(f"이미지를 찾을 수 없습니다: {gallery_dir}")
         
         if self.verbose:
-            print(f"[TopKMatcher] 인덱스 구축 시작: {len(paths)}개 이미지")
+            print(f"[TopKMatcher] 인덱스 구축 시작: {len(image_paths)}개 이미지")
         
-        # 임베딩 생성
-        embs = []
-        for i, path in enumerate(paths):
-            if self.verbose and (i + 1) % 100 == 0:
-                print(f"  진행: {i+1}/{len(paths)}")
-            embs.append(self._embed_image(path))
+        # ✅ 데이터셋 생성
+        dataset = ImageDataset(image_paths, target_size=(224, 224))
         
-        embs = torch.stack(embs, dim=0)  # [N, D]
+        # ✅ DataLoader 생성 (다중 프로세스)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers,
+            pin_memory=True if self.device == "cuda" else False,
+            prefetch_factor=2 if self.num_workers > 0 else None
+        )
         
-        self.gallery_paths = paths
-        self.gallery_embs = embs
+        # ✅ 배치 임베딩 생성
+        all_embeddings = []
+        all_paths = []
+        
+        with torch.no_grad():
+            for batch_images, batch_paths in tqdm(
+                dataloader,
+                desc="임베딩 생성",
+                disable=not self.verbose
+            ):
+                # GPU로 이동
+                batch_images = batch_images.to(self.device)
+                
+                # FP16 변환
+                if self.use_fp16 and self.device == "cuda":
+                    batch_images = batch_images.half()
+                
+                # 배치 임베딩 생성
+                batch_embs = self.model.encode_image(batch_images)
+                batch_embs = batch_embs / batch_embs.norm(dim=-1, keepdim=True)
+                
+                # CPU로 이동
+                all_embeddings.append(batch_embs.cpu().float())
+                all_paths.extend(batch_paths)
+        
+        # 결합
+        self.gallery_embs = torch.cat(all_embeddings, dim=0)
+        self.gallery_paths = all_paths
         
         # FAISS 인덱스 구축
         if _HAS_FAISS:
-            d = int(embs.shape[1])
-            index = faiss.IndexFlatIP(d)  # Inner Product (코사인 유사도)
-            index.add(embs.numpy().astype("float32"))
-            self.faiss_index = index
+            embeddings_np = self.gallery_embs.numpy()
+            dim = embeddings_np.shape[1]
+            
+            self.faiss_index = faiss.IndexFlatIP(dim)  # Inner Product (코사인 유사도)
+            self.faiss_index.add(embeddings_np)
+            
             if self.verbose:
-                print(f"[TopKMatcher] FAISS 인덱스 구축 완료 (dim={d})")
-        else:
-            self.faiss_index = None
-            if self.verbose:
-                print("[TopKMatcher] FAISS 미설치 - Torch 기반 검색 사용")
+                print(f"[TopKMatcher] FAISS 인덱스 구축 완료 (dim={dim})")
         
         self.index_built = True
         
         return {
-            "status": "success",
-            "gallery_dir": gallery_dir,
-            "num_images": len(paths),
-            "embedding_dim": int(embs.shape[1]),
-            "faiss_enabled": _HAS_FAISS
+            "num_images": len(self.gallery_paths),
+            "embedding_dim": self.gallery_embs.shape[1],
+            "device": self.device,
+            "has_faiss": _HAS_FAISS
         }
     
-    def save_index(self, save_dir: str):
-        """
-        인덱스를 파일로 저장 (재사용)
-        
-        Args:
-            save_dir: 저장 디렉토리 경로
-        """
+    def save_index(self, save_dir: Union[str, Path]):
+        """인덱스 저장"""
         if not self.index_built:
-            raise RuntimeError("인덱스가 구축되지 않았습니다. build_index()를 먼저 호출하세요.")
+            raise RuntimeError("인덱스가 구축되지 않았습니다")
         
-        save_path = Path(save_dir)
-        save_path.mkdir(parents=True, exist_ok=True)
+        save_dir = Path(save_dir)
+        save_dir.mkdir(parents=True, exist_ok=True)
         
-        # 경로 및 임베딩 저장
-        data = {
+        # PyTorch 데이터 저장
+        torch.save({
             "gallery_paths": self.gallery_paths,
             "gallery_embs": self.gallery_embs,
-            "model_id": self.model_id
-        }
-        torch.save(data, save_path / "index_data.pt")
+            "model_id": self.model_id,
+            "pretrained": self.pretrained
+        }, save_dir / "index_data.pt")
         
         # FAISS 인덱스 저장
         if self.faiss_index is not None:
-            faiss.write_index(self.faiss_index, str(save_path / "faiss_index.bin"))
+            faiss.write_index(self.faiss_index, str(save_dir / "faiss_index.bin"))
         
         if self.verbose:
-            print(f"[TopKMatcher] 인덱스 저장 완료: {save_path}")
+            print(f"[TopKMatcher] 인덱스 저장 완료: {save_dir}")
     
-    def load_index(self, load_dir: str):
-        """
-        저장된 인덱스 로드
+    def load_index(self, load_dir: Union[str, Path]):
+        """인덱스 로드"""
+        load_dir = Path(load_dir)
         
-        Args:
-            load_dir: 인덱스 디렉토리 경로
-        """
-        load_path = Path(load_dir)
+        if not (load_dir / "index_data.pt").exists():
+            raise FileNotFoundError(f"인덱스 파일을 찾을 수 없습니다: {load_dir}")
         
-        # 데이터 로드
-        data = torch.load(load_path / "index_data.pt")
+        # PyTorch 데이터 로드
+        data = torch.load(load_dir / "index_data.pt", map_location="cpu")
         self.gallery_paths = data["gallery_paths"]
         self.gallery_embs = data["gallery_embs"]
         
         # FAISS 인덱스 로드
-        if _HAS_FAISS and (load_path / "faiss_index.bin").exists():
-            self.faiss_index = faiss.read_index(str(load_path / "faiss_index.bin"))
+        faiss_path = load_dir / "faiss_index.bin"
+        if faiss_path.exists() and _HAS_FAISS:
+            self.faiss_index = faiss.read_index(str(faiss_path))
         
         self.index_built = True
         
@@ -253,142 +260,108 @@ class TopKSimilarityMatcher:
             print(f"[TopKMatcher] 인덱스 로드 완료: {len(self.gallery_paths)}개 이미지")
     
     def search(
-        self, 
-        query_image_path: str, 
+        self,
+        query_image_path: Union[str, Path],
         top_k: int = 5
-    ) -> SimilarityResult:
+    ) -> SearchResult:
         """
-        쿼리 이미지와 유사한 TOP-K 이미지 검색
+        유사 이미지 검색
         
         Args:
             query_image_path: 쿼리 이미지 경로
-            top_k: 반환할 상위 K개 결과 수
-            
+            top_k: 상위 K개 결과
+        
         Returns:
-            SimilarityResult 객체 (JSON 변환 가능)
+            SearchResult 객체
         """
         if not self.index_built:
-            raise RuntimeError("인덱스가 구축되지 않았습니다. build_index() 또는 load_index()를 먼저 호출하세요.")
+            raise RuntimeError("인덱스가 구축되지 않았습니다")
         
-        # 쿼리 임베딩
-        q_emb = self._embed_image(query_image_path)
+        # 쿼리 이미지 로드 및 전처리
+        query_image = Image.open(query_image_path).convert('RGB')
+        
+        # ✅ 리사이즈 최적화 (CLIP 입력 크기)
+        query_image = query_image.resize((224, 224), Image.BILINEAR)
+        
+        query_tensor = self.preprocess(query_image).unsqueeze(0).to(self.device)
+        
+        if self.use_fp16 and self.device == "cuda":
+            query_tensor = query_tensor.half()
+        
+        # 쿼리 임베딩 생성
+        with torch.no_grad():
+            query_emb = self.model.encode_image(query_tensor)
+            query_emb = query_emb / query_emb.norm(dim=-1, keepdim=True)
+            query_emb = query_emb.cpu().float()
         
         # 검색
         if self.faiss_index is not None:
             # FAISS 검색
-            k = min(top_k, len(self.gallery_paths))
-            sims, indices = self.faiss_index.search(
-                q_emb.unsqueeze(0).numpy(), 
-                k=k
-            )
-            idx_list = indices[0].tolist()
-            sim_list = sims[0].tolist()
+            query_np = query_emb.numpy()
+            similarities, indices = self.faiss_index.search(query_np, top_k)
+            similarities = similarities[0]
+            indices = indices[0]
         else:
-            # Torch 검색
-            sims = torch.mv(self.gallery_embs, q_emb)
-            k = min(top_k, sims.numel())
-            top_values, top_indices = torch.topk(sims, k=k)
-            idx_list = top_indices.tolist()
-            sim_list = top_values.tolist()
+            # PyTorch 검색
+            similarities = (query_emb @ self.gallery_embs.T).squeeze(0)
+            similarities, indices = torch.topk(similarities, k=top_k)
+            similarities = similarities.numpy()
+            indices = indices.numpy()
         
         # 결과 구성
-        matches = []
-        for rank, (idx, sim) in enumerate(zip(idx_list, sim_list), start=1):
-            path = self.gallery_paths[idx]
-            matches.append({
-                "rank": rank,
-                "image_path": path,
-                "image_name": Path(path).name,
+        results = []
+        for idx, sim in zip(indices, similarities):
+            results.append({
+                "image_path": self.gallery_paths[idx],
                 "similarity_score": float(sim)
             })
         
-        result = SimilarityResult(
-            query_image=query_image_path,
-            top_k_results=matches,
+        return SearchResult(
+            top_k_results=results,
             total_gallery_size=len(self.gallery_paths),
-            model_info=self.model_id
+            model_info={
+                "model_id": self.model_id,
+                "pretrained": self.pretrained,
+                "device": self.device
+            }
         )
-        
-        if self.verbose:
-            print(f"[TopKMatcher] 검색 완료 - Top-1: {matches[0]['image_name']} "
-                  f"(similarity: {matches[0]['similarity_score']:.4f})")
-        
-        return result
 
 
-# API 용 헬퍼 함수들
 def create_matcher(
     model_id: str = "ViT-B-32/openai",
     device: str = "auto",
-    use_fp16: bool = True,
+    use_fp16: bool = False,
+    batch_size: int = 32,
+    num_workers: int = 4,
     verbose: bool = True
 ) -> TopKSimilarityMatcher:
     """
-    매처 인스턴스 생성 헬퍼
+    매처 생성 헬퍼 함수
     
     Args:
-        model_id: CLIP 모델 ID
-        device: "auto", "cuda", "cpu"
+        model_id: CLIP 모델 ID (예: "ViT-B-32/openai")
+        device: 디바이스 ("auto", "cuda", "cpu")
         use_fp16: FP16 사용 여부
+        batch_size: 배치 크기 (기본 32)
+        num_workers: 워커 수 (기본 4)
         verbose: 로그 출력 여부
+    
+    Returns:
+        TopKSimilarityMatcher 인스턴스
     """
-    if device == "auto":
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+    # model_id 파싱 (ViT-B-32/openai → model=ViT-B-32, pretrained=openai)
+    if "/" in model_id:
+        model, pretrained = model_id.split("/", 1)
+    else:
+        model = model_id
+        pretrained = "openai"
     
     return TopKSimilarityMatcher(
-        model_id=model_id,
+        model_id=model,
+        pretrained=pretrained,
         device=device,
         use_fp16=use_fp16,
+        batch_size=batch_size,
+        num_workers=num_workers,
         verbose=verbose
     )
-
-
-def search_similar_images(
-    matcher: TopKSimilarityMatcher,
-    query_image: str,
-    top_k: int = 5,
-    return_json: bool = True
-) -> str | SimilarityResult:
-    """
-    유사 이미지 검색 (단순 래퍼)
-    
-    Args:
-        matcher: TopKSimilarityMatcher 인스턴스
-        query_image: 쿼리 이미지 경로
-        top_k: 상위 K개
-        return_json: JSON 문자열 반환 여부
-        
-    Returns:
-        JSON 문자열 또는 SimilarityResult 객체
-    """
-    result = matcher.search(query_image, top_k=top_k)
-    
-    if return_json:
-        return result.to_json()
-    return result
-
-
-# 사용 예제
-if __name__ == "__main__":
-    # 1. 매처 생성
-    matcher = create_matcher(
-        model_id="ViT-B-32/openai",
-        device="auto",
-        verbose=True
-    )
-    
-    # 2. 인덱스 구축 (최초 1회)
-    gallery_dir = "./data/ok_front"
-    info = matcher.build_index(gallery_dir)
-    print(f"인덱스 구축 완료: {info}")
-    
-    # 3. 인덱스 저장 (선택)
-    # matcher.save_index("./index_cache")
-    
-    # 4. 검색
-    query_image = "./data/def_front/sample_defect.jpg"
-    result = matcher.search(query_image, top_k=5)
-    
-    # 5. 결과 출력
-    print("\n=== 검색 결과 ===")
-    print(result.to_json())
