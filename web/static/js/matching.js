@@ -71,7 +71,7 @@ function initializeEventListeners() {
 }
 
 // 탭 전환
-function switchTab(tab) {
+function switchTab(tabElement) {
     /*
     const targetTab = tab.dataset.tab;
     
