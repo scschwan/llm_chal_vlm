@@ -566,7 +566,8 @@ async def startup_event():
         print(f"\n[1/2] ⚠️  불량 이미지 디렉토리 없음: {defect_dir}")
     
     # 2-2. 정상 이미지 인덱스 구축
-    normal_dir = project_root / "data" / "ok_split"
+    #normal_dir = project_root / "data" / "ok_split"
+    normal_dir = project_root / "data" / "patchCore" / "prod1"
     normal_index_path = INDEX_DIR / "normal"
     normal_index_path.mkdir(parents=True, exist_ok=True)
     
