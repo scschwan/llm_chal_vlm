@@ -167,8 +167,8 @@ async def startup_event():
         model_id="ViT-B-32/openai",
         device="auto",
         use_fp16=False,  # FP16은 안정성 확인 후 활성화
-        batch_size=64,   # ✅ 배치 크기 32
-        num_workers=8,   # ✅ 워커 4개 (CPU 코어 수에 맞게 조정)
+        batch_size=32,   # ✅ 배치 크기 32
+        num_workers=4,   # ✅ 워커 4개 (CPU 코어 수에 맞게 조정)
         verbose=True
     )
     
