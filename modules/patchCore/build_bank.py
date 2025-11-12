@@ -270,36 +270,20 @@ def calibrate_tau_pixel_image(model: ResNet50Multi,
     image_tau = float(np.percentile(image_scores, image_pctl*100.0)) if image_scores else 0.0
     return pixel_tau, image_tau
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--ok_dir", required=True, help="정상 이미지 폴더 (예: ./data/patchCore/prod1/ok)")
-    ap.add_argument("--out_dir", required=True, help="메모리뱅크/설정 저장 폴더 (예: ./data/patchCore/prod1)")
-    ap.add_argument("--shorter", type=int, default=512)
-    ap.add_argument("--stride", type=int, default=2)
-    ap.add_argument("--layers", nargs="+", default=["layer2","layer3","layer4"], choices=["layer2","layer3","layer4"])
-    ap.add_argument("--coreset", type=float, default=0.02, help="0~1, 메모리뱅크 압축 비율")
-    ap.add_argument("--reservoir_max", type=int, default=100_000)
-    ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--pixel_pct", type=float, default=0.995, help="OK pixel score 상위 퍼센타일")
-    ap.add_argument("--image_pct", type=float, default=0.995, help="OK image score 상위 퍼센타일")
-    args = ap.parse_args()
-
-    ensure_dir(args.out_dir)
-    ok_paths = list_images(args.ok_dir)
+def run_once(model, device, ok_dir, out_dir, args):
+    ensure_dir(out_dir)
+    ok_paths = list_images(ok_dir)
     if len(ok_paths) == 0:
-        raise RuntimeError(f"OK 이미지가 없습니다: {args.ok_dir}")
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    log(f"device: {device}")
-    log("load backbone...")
-    model = ResNet50Multi(layers=tuple(args.layers)).to(device).eval()
+        log(f"[SKIP] OK 이미지 없음: {ok_dir}")
+        return
 
     # 1) OK patches 수집
     R = extract_ok_patches(model, ok_paths, device,
                            shorter=args.shorter, stride=args.stride,
                            reservoir_max=args.reservoir_max, seed=args.seed)
     if R.shape[0] == 0:
-        raise RuntimeError("수집된 패치가 없습니다.")
+        log(f"[SKIP] 수집된 패치 없음: {ok_dir}")
+        return
 
     # 2) coreset 압축
     if args.coreset > 0:
@@ -317,8 +301,8 @@ def main():
     log(f"τ pixel: {pixel_tau:.4f}, τ image: {image_tau:.4f}")
 
     # 4) 저장
-    torch.save(torch.from_numpy(bank), os.path.join(args.out_dir, "memory_bank.pt"))
-    with open(os.path.join(args.out_dir, "bank_config.json"), "w") as f:
+    torch.save(torch.from_numpy(bank), os.path.join(out_dir, "memory_bank.pt"))
+    with open(os.path.join(out_dir, "bank_config.json"), "w") as f:
         json.dump({
             "shorter": args.shorter,
             "stride": args.stride,
@@ -327,11 +311,76 @@ def main():
             "reservoir_max": args.reservoir_max,
             "seed": args.seed
         }, f, indent=2)
-    with open(os.path.join(args.out_dir, "tau.json"), "w") as f:
+    with open(os.path.join(out_dir, "tau.json"), "w") as f:
         json.dump({"pixel": pixel_tau, "image": image_tau}, f, indent=2)
 
-    log(f"saved: {args.out_dir}/memory_bank.pt, bank_config.json, tau.json")
-    log("done.")
+    log(f"saved: {out_dir}/memory_bank.pt, bank_config.json, tau.json")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    # 단일 실행 모드와의 호환성 유지를 위해 옵션으로 전환
+    ap.add_argument("--ok_dir", required=False, help="(옵션) 단일 실행: 정상 이미지 폴더 (예: ./data/patchCore/prod1/ok)")
+    ap.add_argument("--out_dir", required=False, help="(옵션) 단일 실행: 산출물 저장 폴더 (예: ./data/patchCore/prod1)")
+    # 자동 스캔 모드
+    ap.add_argument("--root", default="./data/patchCore",
+                    help="자동 스캔 루트. 하위의 각 폴더에서 ok 폴더를 찾아 처리 (기본: ./data/patchCore)")
+
+    ap.add_argument("--shorter", type=int, default=512)
+    ap.add_argument("--stride", type=int, default=2)
+    ap.add_argument("--layers", nargs="+", default=["layer2","layer3","layer4"],
+                    choices=["layer2","layer3","layer4"])
+    ap.add_argument("--coreset", type=float, default=0.02, help="0~1, 메모리뱅크 압축 비율")
+    ap.add_argument("--reservoir_max", type=int, default=100_000)
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--pixel_pct", type=float, default=0.995, help="OK pixel score 상위 퍼센타일")
+    ap.add_argument("--image_pct", type=float, default=0.995, help="OK image score 상위 퍼센타일")
+    args = ap.parse_args()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    log(f"device: {device}")
+    log("load backbone...")
+    model = ResNet50Multi(layers=tuple(args.layers)).to(device).eval()
+
+    # ---------------------------
+    # 1) 단일 실행 모드 (기존과 동일)
+    # ---------------------------
+    if args.ok_dir and args.out_dir:
+        log(f"[single] ok_dir={args.ok_dir} -> out_dir={args.out_dir}")
+        run_once(model, device, args.ok_dir, args.out_dir, args)
+        log("done.")
+        return
+
+    # ---------------------------
+    # 2) 자동 스캔 모드
+    # ---------------------------
+    root = os.path.abspath(args.root)
+    log(f"[auto] scan root: {root}")
+
+    if not os.path.isdir(root):
+        raise RuntimeError(f"존재하지 않는 root: {root}")
+
+    # 1-depth 하위 폴더를 순회하며 '<폴더>/ok' 를 찾음
+    subdirs = [d for d in sorted(os.listdir(root))
+               if os.path.isdir(os.path.join(root, d))]
+    if not subdirs:
+        raise RuntimeError(f"하위 폴더가 없습니다: {root}")
+
+    total = 0
+    for name in subdirs:
+        out_dir = os.path.join(root, name)
+        ok_dir  = os.path.join(out_dir, "ok")
+        if not os.path.isdir(ok_dir):
+            log(f"[SKIP] ok 폴더가 없음: {ok_dir}")
+            continue
+
+        log(f"[auto] {ok_dir} -> {out_dir}")
+        run_once(model, device, ok_dir, out_dir, args)
+        total += 1
+
+    if total == 0:
+        raise RuntimeError(f"처리할 대상이 없습니다. (ok 폴더 미발견)")
+    log(f"auto scan finished. processed: {total} folders")
 
 if __name__ == "__main__":
     main()
