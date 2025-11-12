@@ -1,7 +1,8 @@
-# llm_server.py  (LLM + VLM 동시 지원 버전)
+# llm_server.py 수정
 
 import os
 import time
+import re
 from typing import Dict, List, Optional
 
 import torch
@@ -46,29 +47,25 @@ class AnalysisRequest(BaseModel):
     anomaly_score: float = 0.0
     is_anomaly: bool = False
     manual_context: Dict[str, List[str]] = {}
-    #max_new_tokens: int = 512
-    max_new_tokens: int = 1024
+    max_new_tokens: int = 1024  # ✅ 기본값 증가
     #temperature: float = 0.7
-    temperature: float = 0.3
+    temperature: float = 0.2
 
 class VLMAnalysisRequest(BaseModel):
     image_path: str
     prompt: str
-    #max_new_tokens: int = 256
-    max_new_tokens: int = 1024
-    #temperature: float = 0.2
-    temperature: float = 0.3
+    max_new_tokens: int = 1024  # ✅ 기본값 증가
+    temperature: float = 0.2
 
 # =========================
 # 유틸: 프롬프트 빌더(LLM)
 # =========================
 def _build_prompt(req: AnalysisRequest) -> str:
-    """깔끔한 프롬프트 생성"""
+    """LLM용 프롬프트 생성"""
     
-    # 매뉴얼 정보 (이미 정리된 리스트)
+    # 매뉴얼 정보
     causes = req.manual_context.get("원인", [])
     actions = req.manual_context.get("조치", [])
-    
     has_manual = bool(causes or actions)
     
     # 판정 상태
@@ -103,27 +100,199 @@ def _build_prompt(req: AnalysisRequest) -> str:
     prompt += """
 【지침】
 - 위 매뉴얼 내용을 직접 인용 (따옴표 사용)
-- 4개 섹션만 작성 (각 2-3문장)
+- 정확히 4개 섹션만 작성 (각 2-3문장)
 - 추측이나 예시 반복 금지
+- 각 섹션은 반드시 "**섹션명**" 형식으로 시작
 
 【출력 형식】
-### 불량 현황
-(판정 결과 요약)
+**불량 현황**
+(판정 결과 요약 2-3문장)
 
-### 원인 분석  
-(매뉴얼 원인 인용)
+**원인 분석**
+(매뉴얼 원인 인용 2-3문장)
 
-### 대응 방안
-(즉시 조치 2-3개)
+**대응 방안**
+(즉시 조치 2-3개 항목)
 
-### 예방 조치
-(재발 방지 2-3개)
+**예방 조치**
+(재발 방지 2-3개 항목)
 
-
-위 4개 섹션만 작성하고 종료하세요. 추가 설명이나 예시 불필요.
+위 4개 섹션만 작성하고 즉시 종료하세요. 추가 설명 불필요.
 """
     
     return prompt
+
+# =========================
+# 유틸: 프롬프트 빌더(VLM) ✅ 추가
+# =========================
+def _build_prompt_vlm(
+    image_path: str,
+    product: str,
+    defect_en: str,
+    defect_ko: str,
+    full_name_ko: str,
+    anomaly_score: float,
+    is_anomaly: bool,
+    manual_context: Dict[str, List[str]]
+) -> str:
+    """VLM용 프롬프트 생성 (이미지 포함)"""
+    
+    causes = manual_context.get("원인", [])
+    actions = manual_context.get("조치", [])
+    has_manual = bool(causes or actions)
+    
+    # 판정 상태
+    if is_anomaly:
+        status = f"불량 검출 (이상점수: {anomaly_score:.4f})"
+    else:
+        status = f"정상 범위 (이상점수: {anomaly_score:.4f})"
+    
+    prompt = f"""당신은 제조 품질 전문가입니다. 이미지를 보고 아래 정보를 바탕으로 보고서를 작성하세요.
+
+【검사 결과】
+제품: {product}
+불량: {defect_ko} ({defect_en})
+정식명칭: {full_name_ko}
+판정: {status}
+
+【매뉴얼】
+"""
+    
+    if has_manual:
+        if causes:
+            prompt += "발생 원인:\n"
+            for i, cause in enumerate(causes, 1):
+                prompt += f"{i}. {cause}\n"
+        
+        if actions:
+            prompt += "\n조치 방법:\n"
+            for i, action in enumerate(actions, 1):
+                prompt += f"{i}. {action}\n"
+    else:
+        prompt += "※ 매뉴얼 정보 없음\n"
+    
+    prompt += """
+【지침】
+- 이미지에서 보이는 불량을 매뉴얼과 연관지어 분석
+- 매뉴얼 문장을 따옴표로 인용
+- 정확히 4개 섹션만 작성
+- 불확실한 추정 금지
+
+【출력 형식】
+**불량 현황**
+(이미지 기반 판정 2-3문장)
+
+**원인 분석**
+(매뉴얼 원인 + 이미지 분석 2-3문장)
+
+**대응 방안**
+(즉시 조치 2-3개 항목)
+
+**예방 조치**
+(재발 방지 2-3개 항목)
+
+위 4개 섹션만 작성하고 종료하세요.
+"""
+    
+    return prompt
+
+# =========================
+# 유틸: LLM 응답 슬라이싱 ✅ 개선
+# =========================
+def _extract_four_sections(text: str) -> str:
+    """
+    4개 섹션(불량 현황, 원인 분석, 대응 방안, 예방 조치)만 추출
+    
+    Args:
+        text: LLM 원본 응답
+    
+    Returns:
+        4개 섹션만 포함된 정제된 텍스트
+    """
+    
+    # 1. 불필요한 앞부분 제거
+    text = text.split("assistant")[0].strip()
+    text = text.split("[회사")[0].strip()
+    
+    # 불필요한 서론 제거
+    unwanted_prefixes = [
+        "제출된 문서에서",
+        "보고서 제목:",
+        "보고서를 작성합니다",
+        "다음과 같이 작성하였습니다"
+    ]
+    for prefix in unwanted_prefixes:
+        if text.startswith(prefix):
+            # 첫 번째 **로 시작하는 라인까지 제거
+            lines = text.split('\n')
+            for i, line in enumerate(lines):
+                if line.strip().startswith('**'):
+                    text = '\n'.join(lines[i:])
+                    break
+    
+    # 2. 4개 섹션 헤더 찾기
+    section_patterns = [
+        r'\*\*불량\s*현황\*\*',
+        r'\*\*원인\s*분석\*\*',
+        r'\*\*대응\s*방안\*\*',
+        r'\*\*예방\s*조치\*\*'
+    ]
+    
+    section_positions = []
+    for pattern in section_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            section_positions.append((match.start(), match.group()))
+    
+    # 섹션을 찾지 못한 경우 원본 반환
+    if len(section_positions) < 4:
+        print(f"[WARN] 4개 섹션을 찾지 못함 (발견: {len(section_positions)}개)")
+        return text
+    
+    # 3. 섹션별로 분리
+    section_positions.sort(key=lambda x: x[0])
+    
+    # 예방 조치 섹션 끝 찾기
+    last_section_start = section_positions[3][0]
+    
+    # 예방 조치 이후 3-5개 라인만 포함
+    lines = text[last_section_start:].split('\n')
+    
+    # 빈 라인 제외하고 실제 내용만 카운트
+    content_lines = 0
+    end_line_idx = 0
+    
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped and not stripped.startswith('**'):
+            content_lines += 1
+        
+        # 예방 조치 내용 3-5줄 확보
+        if content_lines >= 4:
+            end_line_idx = i + 1
+            break
+    
+    # 섹션 4개 추출
+    if end_line_idx > 0:
+        extracted = text[:last_section_start] + '\n'.join(lines[:end_line_idx])
+    else:
+        # 기본값: 예방 조치 + 7줄
+        end_pos = len(text)
+        for i, line in enumerate(lines[:10], 1):
+            if i == 7:
+                end_pos = text.index(line, last_section_start) + len(line)
+                break
+        extracted = text[:end_pos]
+    
+    # 4. 마지막 정제
+    extracted = extracted.strip()
+    
+    # 코드 블록이나 이상한 마크다운 제거
+    extracted = re.sub(r'```.*?```', '', extracted, flags=re.DOTALL)
+    extracted = re.sub(r'```.*', '', extracted)
+    
+    return extracted
+
 # =========================
 # 모델 로더
 # =========================
@@ -132,20 +301,22 @@ async def load_models_on_startup():
     global llm_name, llm_model, llm_tokenizer
     global vlm_name, vlm_model, vlm_processor
 
+    print("\n" + "="*60)
+    print("LLM/VLM 서버 시작")
+    print("="*60)
+
     # ---- LLM ----
     try:
         llm_name = os.getenv("LLM_MODEL", "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B")
-        #llm_name = os.getenv("LLM_MODEL", "LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct")
-        print(f"🔄 LLM 로드 시도: {llm_name}")
+        print(f"\n[1/2] LLM 로드 시도: {llm_name}")
 
-        # 토크나이저: fast 우선, 실패 시 slow
         try:
             llm_tokenizer = AutoTokenizer.from_pretrained(
                 llm_name, use_fast=True, trust_remote_code=True
             )
             print("✅ LLM 토크나이저 로드 완료 (fast)")
         except Exception as e:
-            print(f"[WARN] LLM fast tokenizer 실패: {e} → slow 재시도")
+            print(f"[WARN] LLM fast tokenizer 실패 → slow 재시도")
             llm_tokenizer = AutoTokenizer.from_pretrained(
                 llm_name, use_fast=False, trust_remote_code=True
             )
@@ -157,8 +328,8 @@ async def load_models_on_startup():
             device_map="auto",
             trust_remote_code=True,
         )
-
         print("✅ LLM 로드 완료")
+        
     except Exception as e:
         print(f"⚠️ LLM 로드 실패: {e}")
         llm_name = None
@@ -168,7 +339,7 @@ async def load_models_on_startup():
     # ---- VLM (LLaVA) ----
     try:
         vlm_name = os.getenv("VLM_MODEL", "llava-hf/llava-1.5-7b-hf")
-        print(f"🔄 VLM 로드 시도: {vlm_name}")
+        print(f"\n[2/2] VLM 로드 시도: {vlm_name}")
 
         vlm_model = LlavaForConditionalGeneration.from_pretrained(
             vlm_name,
@@ -177,11 +348,16 @@ async def load_models_on_startup():
         )
         vlm_processor = AutoProcessor.from_pretrained(vlm_name)
         print("✅ VLM 로드 완료")
+        
     except Exception as e:
-        print(f"⚠️ VLM 로드 건너뜀: {e}")
+        print(f"⚠️ VLM 로드 실패: {e}")
         vlm_name = None
         vlm_model = None
         vlm_processor = None
+    
+    print("\n" + "="*60)
+    print("서버 초기화 완료")
+    print("="*60 + "\n")
 
 # =========================
 # 루트/헬스
@@ -206,9 +382,8 @@ def health():
     }
 
 # =========================
-# LLM 분석
+# LLM 분석 ✅ 개선
 # =========================
-# llm_server.py의 analyze 함수 수정
 @app.post("/analyze")
 def analyze(req: AnalysisRequest):
     print("\n" + "="*60)
@@ -222,11 +397,10 @@ def analyze(req: AnalysisRequest):
     # 1. 프롬프트 생성
     prompt = _build_prompt(req)
     print(f"\n[PROMPT] 길이: {len(prompt)} 문자")
-    print(f"[PROMPT] 첫 200자:\n{prompt[:200]}...")
     
     # 2. 토크나이징
     device = next(llm_model.parameters()).device
-    print(f"\n[DEVICE] {device}")
+    print(f"[DEVICE] {device}")
     
     inputs = llm_tokenizer(prompt, return_tensors="pt").to(device)
     input_length = inputs['input_ids'].shape[1]
@@ -235,7 +409,7 @@ def analyze(req: AnalysisRequest):
     # 3. 생성 파라미터
     do_sample = (req.temperature or 0) > 0
     gen_kwargs = dict(
-        max_new_tokens=min(max(req.max_new_tokens, 16), 800),
+        max_new_tokens=min(max(req.max_new_tokens, 16), 1024),  # ✅ 최대 1024
         temperature=float(max(min(req.temperature, 1.5), 0.0)),
         do_sample=do_sample,
         repetition_penalty=1.3,
@@ -243,14 +417,10 @@ def analyze(req: AnalysisRequest):
     if do_sample:
         gen_kwargs.update(dict(top_p=0.9))
     
-    print(f"\n[GEN_KWARGS]")
-    print(f"  - max_new_tokens: {gen_kwargs['max_new_tokens']}")
-    print(f"  - temperature: {gen_kwargs['temperature']}")
-    print(f"  - do_sample: {do_sample}")
-    print(f"  - repetition_penalty: {gen_kwargs['repetition_penalty']}")
+    print(f"\n[GEN_KWARGS] max_new_tokens={gen_kwargs['max_new_tokens']}, temp={gen_kwargs['temperature']}")
 
     # 4. 생성
-    print(f"\n[GENERATE] 시작...")
+    print(f"[GENERATE] 시작...")
     start_time = time.time()
     
     with torch.no_grad():
@@ -258,54 +428,20 @@ def analyze(req: AnalysisRequest):
     
     gen_time = time.time() - start_time
     output_length = output_ids.shape[1]
-    print(f"[GENERATE] 완료 ({gen_time:.2f}초)")
-    print(f"[OUTPUT] 전체 토큰 수: {output_length}")
-    print(f"[OUTPUT] 생성된 토큰 수: {output_length - input_length}")
+    print(f"[GENERATE] 완료 ({gen_time:.2f}초, 생성 토큰: {output_length - input_length})")
 
     # 5. 디코딩
-    print(f"\n[DECODE] 시작...")
     generated_ids = output_ids[0][input_length:]
     text = llm_tokenizer.decode(generated_ids, skip_special_tokens=True)
     
     print(f"[DECODE] 원본 길이: {len(text)} 문자")
-    #print(f"[DECODE] 원본 첫 300자:\n{text[:300]}...")
-    print(f"[DECODE] 원본 첫 300자:\n{text}...")
     
-    # 6. 후처리
-    print(f"\n[POST-PROCESS] 시작...")
+    # 6. 4개 섹션 추출 ✅ 개선된 슬라이싱
+    text = _extract_four_sections(text)
     
-    # assistant 분리
-    if "assistant" in text:
-        before_len = len(text)
-        text = text.split("assistant")[0].strip()
-        print(f"  - 'assistant' 분리: {before_len} -> {len(text)} 문자")
-    
-    # [회사 분리
-    if "[회사" in text:
-        before_len = len(text)
-        text = text.split("[회사")[0].strip()
-        print(f"  - '[회사' 분리: {before_len} -> {len(text)} 문자")
-    
-    # 예방 조치 이후 자르기
-    lines = text.split('\n')
-    prevention_idx = -1
-    for i, line in enumerate(lines):
-        if "예방 조치" in line or "예방조치" in line:
-            prevention_idx = i
-            print(f"  - '예방 조치' 발견: 라인 {i}")
-            break
-    
-    if prevention_idx > 0:
-        before_lines = len(lines)
-        text = '\n'.join(lines[:prevention_idx + 7])
-        print(f"  - 예방 조치 이후 자르기: {before_lines} -> {prevention_idx + 7} 라인")
-    
-    print(f"\n[FINAL] 최종 길이: {len(text)} 문자")
+    print(f"[FINAL] 최종 길이: {len(text)} 문자")
     print(f"[FINAL] 최종 라인 수: {len(text.split(chr(10)))}")
-    print(f"[FINAL] 첫 500자:\n{text[:500]}...")
     
-    print("\n" + "="*60)
-    print("[LLM ANALYZE] 요청 완료")
     print("="*60 + "\n")
     
     return {
@@ -314,16 +450,10 @@ def analyze(req: AnalysisRequest):
         "model": llm_name,
         "used_temperature": gen_kwargs["temperature"],
         "max_new_tokens": gen_kwargs["max_new_tokens"],
-        "debug_info": {
-            "input_tokens": input_length,
-            "output_tokens": output_length - input_length,
-            "generation_time": f"{gen_time:.2f}s",
-            "final_length": len(text)
-        }
     }
 
 # =========================
-# VLM 분석 (LLaVA)
+# VLM 분석 ✅ 개선 (프롬프트 정제 추가)
 # =========================
 @app.post("/analyze_vlm")
 def analyze_vlm(req: VLMAnalysisRequest):
@@ -345,17 +475,18 @@ def analyze_vlm(req: VLMAnalysisRequest):
         img = Image.open(req.image_path).convert("RGB")
         print(f"[IMAGE] 크기: {img.size}")
 
-        # 2. 프롬프트 준비
-        print(f"\n[PROMPT] 길이: {len(req.prompt)} 문자")
-        print(f"[PROMPT] 첫 200자:\n{req.prompt[:200]}...")
+        # 2. 프롬프트 사용 (기존 prompt 또는 정제된 prompt)
+        prompt_text = req.prompt.strip()
+        print(f"[PROMPT] 길이: {len(prompt_text)} 문자")
         
+        # Chat template 적용 시도
         try:
             messages = [
                 {
                     "role": "user",
                     "content": [
                         {"type": "image"},
-                        {"type": "text", "text": req.prompt.strip()},
+                        {"type": "text", "text": prompt_text},
                     ],
                 }
             ]
@@ -363,32 +494,26 @@ def analyze_vlm(req: VLMAnalysisRequest):
                 messages, add_generation_prompt=True, tokenize=False
             )
             print("[TEMPLATE] Chat template 적용 성공")
-        except Exception as e:
-            print(f"[TEMPLATE] Chat template 실패, 기본 텍스트 사용: {e}")
-            prompt_text = req.prompt.strip()
+        except Exception:
+            print("[TEMPLATE] Chat template 실패, 기본 텍스트 사용")
 
         # 3. 입력 준비
-        print(f"\n[PROCESSOR] 입력 준비 중...")
         inputs = vlm_processor(images=img, text=prompt_text, return_tensors="pt").to(vlm_model.device)
-        print(f"[PROCESSOR] 완료")
 
         # 4. 생성 파라미터
         do_sample = (req.temperature or 0) > 0
         gen_kwargs = dict(
-            max_new_tokens=min(max(req.max_new_tokens, 16), 1024),
+            max_new_tokens=min(max(req.max_new_tokens, 16), 1024),  # ✅ 최대 1024
             temperature=float(max(min(req.temperature, 1.5), 0.0)),
             do_sample=do_sample,
         )
         if do_sample:
             gen_kwargs.update(dict(top_p=0.9))
         
-        print(f"\n[GEN_KWARGS]")
-        print(f"  - max_new_tokens: {gen_kwargs['max_new_tokens']}")
-        print(f"  - temperature: {gen_kwargs['temperature']}")
-        print(f"  - do_sample: {do_sample}")
+        print(f"[GEN_KWARGS] max_new_tokens={gen_kwargs['max_new_tokens']}, temp={gen_kwargs['temperature']}")
 
         # 5. 생성
-        print(f"\n[GENERATE] 시작...")
+        print(f"[GENERATE] 시작...")
         start_time = time.time()
         
         with torch.no_grad():
@@ -398,14 +523,24 @@ def analyze_vlm(req: VLMAnalysisRequest):
         print(f"[GENERATE] 완료 ({gen_time:.2f}초)")
 
         # 6. 디코딩
-        print(f"\n[DECODE] 시작...")
         text = vlm_processor.batch_decode(out, skip_special_tokens=True)[0]
-        
         print(f"[DECODE] 원본 길이: {len(text)} 문자")
-        print(f"[DECODE] 원본 전체:\n{text}")
         
-        print("\n" + "="*60)
-        print("[VLM ANALYZE] 요청 완료")
+        # 7. VLM 응답 정제 ✅
+        # ASSISTANT: 이후 텍스트만 추출
+        if "ASSISTANT:" in text:
+            text = text.split("ASSISTANT:")[-1].strip()
+            print("[CLEAN] ASSISTANT: 이후 추출")
+        
+        # USER: 이전까지만
+        if "USER:" in text:
+            text = text.split("USER:")[0].strip()
+            print("[CLEAN] USER: 이전까지 추출")
+        
+        # 4개 섹션 추출
+        text = _extract_four_sections(text)
+        
+        print(f"[FINAL] 최종 길이: {len(text)} 문자")
         print("="*60 + "\n")
         
         return {
@@ -414,11 +549,8 @@ def analyze_vlm(req: VLMAnalysisRequest):
             "model": vlm_name,
             "used_temperature": gen_kwargs["temperature"],
             "max_new_tokens": gen_kwargs["max_new_tokens"],
-            "debug_info": {
-                "generation_time": f"{gen_time:.2f}s",
-                "output_length": len(text)
-            }
         }
+        
     except HTTPException:
         raise
     except Exception as e:
