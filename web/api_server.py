@@ -499,7 +499,7 @@ ANOMALY_OUTPUT_DIR.mkdir(exist_ok=True)
 @app.on_event("startup")
 async def startup_event():
     """서버 시작 시 초기화"""
-    global matcher, detector
+    global matcher, detector, current_index_type
     
     print("=" * 60)
     print("유사도 매칭 + Anomaly Detection API 서버 시작")
@@ -539,10 +539,66 @@ async def startup_event():
         else:
             print(f"⚠️  기본 갤러리 디렉토리 없음: {default_gallery}")
     '''
-     # 2. 기본 인덱스 자동 로드 (불량 이미지)
+    # 2. 두 인덱스 모두 미리 구축
+    print("\n" + "="*60)
+    print("인덱스 사전 구축 시작")
+    print("="*60)
+    
+    # 2-1. 불량 이미지 인덱스 구축
+    defect_dir = project_root / "data" / "def_split"
+    defect_index_path = INDEX_DIR / "defect"
+    defect_index_path.mkdir(parents=True, exist_ok=True)
+    
+    if defect_dir.exists():
+        try:
+            print(f"\n[1/2] 불량 이미지 인덱스 구축 중...")
+            print(f"      경로: {defect_dir}")
+            
+            info = matcher.build_index(str(defect_dir))
+            matcher.save_index(str(defect_index_path))
+            
+            print(f"      ✅ 완료: {info['num_images']}개 이미지")
+        except Exception as e:
+            print(f"      ❌ 실패: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        print(f"\n[1/2] ⚠️  불량 이미지 디렉토리 없음: {defect_dir}")
+    
+    # 2-2. 정상 이미지 인덱스 구축
+    normal_dir = project_root / "data" / "ok_split"
+    normal_index_path = INDEX_DIR / "normal"
+    normal_index_path.mkdir(parents=True, exist_ok=True)
+    
+    if normal_dir.exists():
+        try:
+            print(f"\n[2/2] 정상 이미지 인덱스 구축 중...")
+            print(f"      경로: {normal_dir}")
+            
+            info = matcher.build_index(str(normal_dir))
+            matcher.save_index(str(normal_index_path))
+            
+            print(f"      ✅ 완료: {info['num_images']}개 이미지")
+        except Exception as e:
+            print(f"      ❌ 실패: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        print(f"\n[2/2] ⚠️  정상 이미지 디렉토리 없음: {normal_dir}")
+    
+    print("\n" + "="*60)
+    print("인덱스 사전 구축 완료")
+    print("="*60)
+    
+    # 3. 기본 인덱스를 불량 이미지로 설정
     try:
         print("\n🔄 기본 인덱스 로드 중 (불량 이미지)...")
-        await switch_index("defect")
+        if (defect_index_path / "index_data.pt").exists():
+            matcher.load_index(str(defect_index_path))
+            current_index_type = "defect"
+            print(f"✅ 불량 이미지 인덱스 로드 완료: {len(matcher.gallery_paths)}개")
+        else:
+            print("⚠️  저장된 불량 인덱스를 찾을 수 없습니다")
     except Exception as e:
         print(f"⚠️  기본 인덱스 로드 실패: {e}")
 
