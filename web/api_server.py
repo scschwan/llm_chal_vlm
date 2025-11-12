@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import sys
 from typing import Optional
+from pydantic import BaseModel, Field
 
 # 프로젝트 루트 경로
 project_root = Path(__file__).parent.parent
@@ -21,6 +22,14 @@ from modules.vlm import RAGManager, DefectMapper, PromptBuilder
 
 # 라우터 imports
 from routers.upload import router as upload_router, init_upload_router
+
+
+class HealthResponse(BaseModel):
+    """헬스체크 응답"""
+    status: str
+    message: str
+    index_built: bool
+    gallery_size: int
 
 # ====================
 # FastAPI 앱 생성
@@ -281,11 +290,20 @@ async def get_index_status():
         "model_id": matcher.model_id if hasattr(matcher, 'model_id') else None
     }
 
+@app.get("/health2", response_model=HealthResponse)
+async def health_check():
+    """헬스체크 엔드포인트"""
+    return HealthResponse(
+        status="healthy",
+        message="API 서버가 정상 작동 중입니다",
+        index_built=matcher.index_built if matcher else False,
+        gallery_size=len(matcher.gallery_paths) if matcher and matcher.index_built else 0
+    )
 
 @app.post("/build_index")
 async def build_index(request: dict):
     """인덱스 재구축"""
-    from pydantic import BaseModel, Field
+
     
     class BuildIndexRequest(BaseModel):
         gallery_dir: str = Field(..., description="갤러리 디렉토리")
