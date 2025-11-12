@@ -652,7 +652,7 @@ def analyze_exaone(req: ExaoneAnalysisRequest):
     else:
         text = full_text
     '''
-    text = _extract_four_sections(text)
+    text = _extract_four_sections(full_text)
     
     print(f"[EXAONE] 완료 ({gen_time:.2f}초, {len(text)} 문자)")
     print(f"[FINAL] 최종 라인 수: {len(text.split(chr(10)))}")
