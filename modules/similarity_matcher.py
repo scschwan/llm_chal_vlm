@@ -148,7 +148,7 @@ class TopKSimilarityMatcher:
         paths = [str(p) for p in Path(gallery_dir).rglob("*") if p.suffix.lower() in exts]
         return sorted(paths)
     
-    def build_index(self, gallery_dir: str) -> Dict[str, Any]:
+    def build_index(self, gallery_dir: str, recursive: bool = True) -> Dict[str, Any]:
         """
         갤러리 이미지 인덱스 구축
         

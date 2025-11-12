@@ -1,0 +1,232 @@
+/* 업로드 화면 전용 스타일 */
+
+.upload-section {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* 업로드 존 */
+.upload-zone {
+    border: 3px dashed var(--primary-color);
+    border-radius: 16px;
+    padding: 60px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: var(--bg-color);
+}
+
+.upload-zone:hover {
+    background: #eff6ff;
+    border-color: var(--primary-hover);
+}
+
+.upload-zone.dragover {
+    background: #dbeafe;
+    border-color: var(--primary-hover);
+    transform: scale(1.02);
+}
+
+.upload-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+}
+
+.upload-zone h2 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.upload-description {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin-bottom: 20px;
+}
+
+.upload-button {
+    padding: 14px 32px;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.upload-button:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+}
+
+/* 업로드 진행바 */
+.upload-progress {
+    margin-top: 30px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary-color);
+    transition: width 0.3s;
+    width: 0%;
+}
+
+.progress-text {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* 프리뷰 섹션 */
+.preview-section {
+    margin-top: 30px;
+}
+
+.preview-section h3 {
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
+
+.preview-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.preview-image {
+    width: 100%;
+    max-height: 400px;
+    object-fit: contain;
+    border-radius: 12px;
+    border: 2px solid var(--border-color);
+}
+
+.image-info {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.info-row {
+    padding: 12px;
+    background: var(--bg-color);
+    border-radius: 8px;
+}
+
+.info-label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.info-value {
+    display: block;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    word-break: break-all;
+}
+
+/* 액션 버튼 */
+.action-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end;
+}
+
+/* 사이드바 */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.index-card,
+.recent-files {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.index-card h3,
+.recent-files h3 {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    color: var(--text-primary);
+}
+
+.index-status {
+    padding: 15px;
+    background: var(--bg-color);
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+}
+
+.status-loading {
+    color: var(--text-secondary);
+}
+
+.status-ok {
+    color: var(--success-color);
+}
+
+.status-error {
+    color: var(--danger-color);
+}
+
+.index-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.index-actions .btn {
+    flex: 1;
+}
+
+/* 최근 파일 목록 */
+.file-list {
+    list-style: none;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.file-list li {
+    padding: 10px;
+    background: var(--bg-color);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.file-list li:hover {
+    background: #e5e7eb;
+}
+
+.file-list .no-files {
+    color: var(--text-secondary);
+    text-align: center;
+    cursor: default;
+}
+
+.file-list .no-files:hover {
+    background: var(--bg-color);
+}

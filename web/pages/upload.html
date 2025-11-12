@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이미지 업로드 | 불량 검출 시스템</title>
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/upload.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <header class="header">
+            <h1>📸 이미지 업로드</h1>
+            <p class="subtitle">불량 의심 이미지를 업로드하세요</p>
+        </header>
+
+        <!-- 네비게이션 -->
+        <nav class="nav">
+            <a href="/upload.html" class="nav-btn active">1. 이미지 업로드</a>
+            <a href="/search.html" class="nav-btn disabled">2. 유사도 매칭</a>
+            <a href="/anomaly.html" class="nav-btn disabled">3. 이상 검출</a>
+            <a href="/manual.html" class="nav-btn disabled">4. 대응 매뉴얼</a>
+        </nav>
+
+        <!-- 메인 컨텐츠 -->
+        <main class="main-content">
+            <!-- 업로드 영역 -->
+            <section class="upload-section">
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">📸</div>
+                    <h2>이미지를 드래그하거나 클릭하여 업로드</h2>
+                    <p class="upload-description">JPG, PNG, WEBP 지원 (최대 10MB)</p>
+                    <input 
+                        type="file" 
+                        id="fileInput" 
+                        accept="image/jpeg,image/png,image/webp"
+                        style="display: none;"
+                    >
+                    <button class="upload-button" id="uploadButton">파일 선택</button>
+                </div>
+
+                <!-- 업로드 진행 상태 -->
+                <div class="upload-progress" id="uploadProgress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <p class="progress-text" id="progressText">업로드 중...</p>
+                </div>
+
+                <!-- 프리뷰 영역 -->
+                <div class="preview-section" id="previewSection" style="display: none;">
+                    <h3>업로드된 이미지</h3>
+                    <div class="preview-container">
+                        <img id="previewImage" class="preview-image" alt="Preview">
+                        <div class="image-info">
+                            <div class="info-row">
+                                <span class="info-label">파일명:</span>
+                                <span class="info-value" id="fileName">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">파일 크기:</span>
+                                <span class="info-value" id="fileSize">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">해상도:</span>
+                                <span class="info-value" id="resolution">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">업로드 경로:</span>
+                                <span class="info-value" id="filePath">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 액션 버튼 -->
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" id="reuploadBtn">
+                            🔄 다시 업로드
+                        </button>
+                        <button class="btn btn-primary" id="nextBtn">
+                            다음: 유사도 매칭 →
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 인덱스 관리 영역 -->
+            <aside class="sidebar">
+                <div class="index-card">
+                    <h3>🔧 인덱스 관리</h3>
+                    
+                    <div class="index-status" id="indexStatus">
+                        <p class="status-loading">상태 확인 중...</p>
+                    </div>
+
+                    <div class="index-actions">
+                        <button class="btn btn-small" id="checkIndexBtn">
+                            📊 상태 확인
+                        </button>
+                        <button class="btn btn-small" id="rebuildIndexBtn">
+                            🔄 재구축
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 최근 업로드 파일 -->
+                <div class="recent-files">
+                    <h3>📁 최근 업로드</h3>
+                    <ul id="recentFilesList" class="file-list">
+                        <li class="no-files">업로드된 파일이 없습니다</li>
+                    </ul>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <script src="/static/js/common.js"></script>
+    <script src="/static/js/upload.js"></script>
+</body>
+</html>
