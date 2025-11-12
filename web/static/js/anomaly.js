@@ -90,7 +90,7 @@ function restoreSessionData() {
     
     console.log('[ANOMALY] 데이터 복원 완료');
     console.log('  입력 이미지:', uploadedImageData.filename);
-    console.log('  TOP-1 매칭:', selectedMatchData.image_path);
+    console.log('  TOP-1 불량 이미지:', selectedMatchData.image_path);
     console.log('  제품:', selectedMatchData.product);
     console.log('  불량:', selectedMatchData.defect);
 }
@@ -100,14 +100,15 @@ function restoreSessionData() {
  */
 async function performDetection() {
     console.log('[ANOMALY] 이상 검출 시작');
+    console.log('[ANOMALY] 정상 이미지 인덱스로 전환하여 검출 수행');
     
     try {
         // UI 상태 변경
         detectionProgress.style.display = 'block';
         detectionResults.style.display = 'none';
-        progressMessage.textContent = 'PatchCore 모델 로딩 중...';
+        progressMessage.textContent = '정상 이미지 인덱스 로딩 중...';
         
-        // 검출 요청
+        // ✅ 검출 요청 (정상 이미지 기준)
         const response = await fetch(`${API_BASE_URL}/anomaly/detect`, {
             method: 'POST',
             headers: {
@@ -115,10 +116,13 @@ async function performDetection() {
             },
             body: JSON.stringify({
                 test_image_path: uploadedImageData.file_path,
-                reference_image_path: selectedMatchData.image_path,
-                product_name: selectedMatchData.product
+                product_name: selectedMatchData.product,
+                // ✅ TOP-1 불량 이미지는 표시용으로만 전달
+                top1_defect_image: selectedMatchData.image_path
             })
         });
+        
+        progressMessage.textContent = 'PatchCore 이상 검출 중...';
         
         if (!response.ok) {
             const errorData = await response.json();
@@ -127,6 +131,7 @@ async function performDetection() {
         
         const data = await response.json();
         console.log('[ANOMALY] 검출 완료:', data);
+        console.log('[ANOMALY] 정상 기준 이미지:', data.reference_normal_path);
         
         // 결과 저장
         detectionResult = data;
@@ -139,7 +144,8 @@ async function performDetection() {
             ...data,
             product: selectedMatchData.product,
             defect: selectedMatchData.defect,
-            similarity: selectedMatchData.similarity_score
+            similarity: selectedMatchData.similarity_score,
+            top1_defect_image: selectedMatchData.image_path  // ✅ TOP-1 불량 이미지 저장
         });
         
         showNotification('이상 검출 완료', 'success');
@@ -148,7 +154,6 @@ async function performDetection() {
         console.error('[ANOMALY] 검출 실패:', error);
         showNotification(`이상 검출 실패: ${error.message}`, 'error');
         
-        // 에러 시 검색 페이지로 돌아가기 옵션
         setTimeout(() => {
             if (confirm('이상 검출에 실패했습니다. 유사도 매칭 페이지로 돌아가시겠습니까?')) {
                 window.location.href = '/search.html';
@@ -176,8 +181,8 @@ function displayResults(data) {
         detectionBadge.className = 'detection-badge normal';
     }
     
-    // 이미지 표시
-    normalImage.src = `/api/image/${selectedMatchData.image_path}`;
+    // ✅ 이미지 표시: 정상 기준 이미지 사용
+    normalImage.src = `/api/image/${data.reference_normal_path}`;
     overlayImage.src = data.overlay_url;
     maskImage.src = data.mask_url;
     comparisonImage.src = data.comparison_url;
@@ -197,7 +202,7 @@ function displayResults(data) {
         judgment.style.color = 'var(--success-color)';
     }
     
-    // 유사도 점수
+    // 유사도 점수 (TOP-1 불량 이미지 대비)
     if (selectedMatchData.similarity_score !== undefined) {
         similarityScore.textContent = `${(selectedMatchData.similarity_score * 100).toFixed(1)}%`;
     } else {

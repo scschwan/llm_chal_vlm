@@ -210,7 +210,8 @@ async def startup_event():
     
     init_upload_router(UPLOAD_DIR)
     init_search_router(matcher, INDEX_DIR, project_root)
-    init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root)
+    init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR)  # ✅ INDEX_DIR 추가
+    
     
     print("\n" + "=" * 60)
     print("서버 초기화 완료")

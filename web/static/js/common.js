@@ -87,6 +87,11 @@ const SessionData = {
     },
     clear() {
         sessionStorage.clear();
+    },
+    // ✅ 새 워크플로우 시작 (완전 초기화)
+    startNewWorkflow() {
+        console.log('[SESSION] 새 워크플로우 시작 - 전체 초기화');
+        sessionStorage.clear();
     }
 };
 

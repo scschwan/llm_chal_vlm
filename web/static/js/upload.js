@@ -28,18 +28,55 @@ const rebuildIndexBtn = document.getElementById('rebuildIndexBtn');
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[UPLOAD] 페이지 로드 완료');
     
-    // ✅ 업로드 페이지 진입 시 세션 초기화
-    console.log('[UPLOAD] 이전 세션 데이터 삭제');
-    SessionData.remove('uploadedImage');
-    SessionData.remove('searchResults');
-    SessionData.remove('selectedMatch');
+    // ✅ 업로드 페이지 진입 시에만 세션 초기화 (뒤로가기 제외)
+    // performance.navigation.type: 0=일반, 1=새로고침, 2=뒤로/앞으로
+    const navigationType = performance.navigation.type;
+    
+    if (navigationType === 0 || navigationType === 1) {
+        // 일반 진입이나 새로고침인 경우에만 초기화
+        // 단, 세션에 uploadedImage가 없는 경우에만
+        const existingData = SessionData.get('uploadedImage');
+        if (!existingData) {
+            console.log('[UPLOAD] 새 세션 시작 - 초기화');
+            SessionData.clear();
+        } else {
+            console.log('[UPLOAD] 기존 세션 유지');
+        }
+    }
     
     // 이벤트 리스너 등록
     initEventListeners();
     
     // 인덱스 상태 확인
     checkIndexStatus();
+    
+    // ✅ 세션 데이터 복원 (있으면)
+    restoreSessionData();
 });
+
+/**
+ * 세션 데이터 복원
+ */
+function restoreSessionData() {
+    const savedData = SessionData.get('uploadedImage');
+    if (savedData && savedData.preview) {
+        console.log('[UPLOAD] 세션 데이터 복원:', savedData.filename);
+        
+        // 이미지 표시
+        previewImage.src = savedData.preview;
+        preprocessedImage.src = savedData.preview;
+        fileName.textContent = savedData.filename;
+        fileSize.textContent = formatFileSize(savedData.file_size);
+        resolution.textContent = savedData.resolution;
+        
+        // UI 전환
+        uploadZone.style.display = 'none';
+        previewSection.style.display = 'block';
+        imageInfoCard.style.display = 'block';
+        
+        uploadedFileData = savedData;
+    }
+}
 
 /**
  * 이벤트 리스너 초기화
@@ -236,8 +273,15 @@ function resetUpload() {
     uploadedFileData = null;
     progressFill.style.width = '0%';
     
+     // ✅ 전체 워크플로우 초기화
+    SessionData.startNewWorkflow();
+    
     // ✅ 세션 데이터도 삭제
+    // ✅ 세션 데이터 삭제 (다시 업로드 버튼만)
     SessionData.remove('uploadedImage');
+    SessionData.remove('searchResults');
+    SessionData.remove('selectedMatch');
+    SessionData.remove('anomalyResult');
 }
 
 /**
