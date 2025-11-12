@@ -1001,7 +1001,7 @@ async function generateManualBy(mode /* 'llm' | 'llm_exaone' |  'vlm' */) {
 
 
         // 3) 분석 결과 영역 - ✅ 수정된 부분
-        if (mode === 'llm') {
+        if (mode === 'llm' || mode === 'llm_exaone') {
             // LLM 모드
             if (vlmSection) vlmSection.style.display = 'none';
             if (llmSection && llmContent) {
