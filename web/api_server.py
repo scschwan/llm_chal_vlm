@@ -76,6 +76,67 @@ vlm_components = {
     "prompt_builder": PromptBuilder()
 }
 
+def init_vlm_components():
+    """VLM 컴포넌트 초기화 (서버 시작 시 1회)"""
+    global vlm_components
+    
+    try:
+        print("\n" + "="*50)
+        print("VLM 컴포넌트 초기화 중...")
+        print("="*50)
+        
+        # 경로 설정
+        vector_store_path = project_root / "manual_store"
+        mapping_file = project_root / "web" / "defect_mapping.json"
+        
+        # PDF 경로 확인
+        pdf_candidates = [
+            vector_store_path / "prod1_menual.pdf",
+            project_root / "prod1_menual.pdf"
+        ]
+        
+        pdf_path = None
+        for candidate in pdf_candidates:
+            if candidate.exists():
+                pdf_path = candidate
+                print(f"✅ PDF 파일 발견: {pdf_path}")
+                break
+        
+        if not pdf_path:
+            print("⚠️  prod1_menual.pdf를 찾을 수 없습니다")
+        
+        # 매핑 파일이 없으면 생성
+        if not mapping_file.exists():
+            print("⚠️  매핑 파일이 없습니다. 기본 파일을 생성합니다...")
+            from modules.vlm.defect_mapper import create_default_mapping
+            create_default_mapping(mapping_file)
+        
+        # DefectMapper 초기화
+        print("\n1. DefectMapper 초기화...")
+        vlm_components["mapper"] = DefectMapper(mapping_file)
+        
+        # RAGManager 초기화
+        print("\n2. RAGManager 초기화...")
+        if pdf_path and pdf_path.exists():
+            vlm_components["rag"] = RAGManager(
+                pdf_path=pdf_path,
+                vector_store_path=vector_store_path,
+                device="cuda",
+                verbose=True
+            )
+        else:
+            print("   → PDF 없음: RAG 비활성화")
+            vlm_components["rag"] = None
+        
+        print("\n" + "="*50)
+        print("✅ VLM 컴포넌트 초기화 완료")
+        print("="*50 + "\n")
+        
+    except Exception as e:
+        print(f"\n❌ VLM 초기화 오류: {e}")
+        import traceback
+        traceback.print_exc()
+
 # ====================
 # 라이프사이클 이벤트
 # ====================
@@ -200,17 +261,24 @@ async def startup_event():
         detector = None
     
     # 5. VLM 컴포넌트 초기화 (기존 함수 있다면)
-    # init_vlm_components()
+    init_vlm_components()
     print("✅ VLM Component 초기화 완료")
 
     # ✅ 6. 라우터 초기화 (매처를 전달)
     from routers.upload import init_upload_router
     from routers.search import init_search_router
     from routers.anomaly import init_anomaly_router
+    from routers.manual import init_manual_router
     
     init_upload_router(UPLOAD_DIR)
     init_search_router(matcher, INDEX_DIR, project_root)
     init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR)  # ✅ INDEX_DIR 추가
+    init_manual_router(
+        vlm_components.get("mapper"),
+        vlm_components.get("rag"),
+        project_root,
+        "http://localhost:5001"  # LLM 서버 URL
+    )
     
     
     print("\n" + "=" * 60)
@@ -231,10 +299,12 @@ async def shutdown_event():
 from routers.upload import router as upload_router
 from routers.search import router as search_router
 from routers.anomaly import router as anomaly_router
+from routers.manual import router as manual_router
 
 app.include_router(upload_router)
 app.include_router(search_router)
 app.include_router(anomaly_router)
+app.include_router(manual_router)
 
 
 # ====================

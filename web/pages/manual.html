@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대응 매뉴얼 생성 | 불량 검출 시스템</title>
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/manual.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <header class="header">
+            <h1>📋 대응 매뉴얼 생성</h1>
+            <p class="subtitle">AI 기반 불량 대응 매뉴얼 자동 생성</p>
+        </header>
+
+        <!-- 네비게이션 -->
+        <nav class="nav">
+            <a href="/upload.html" class="nav-btn">1. 이미지 업로드</a>
+            <a href="/search.html" class="nav-btn">2. 유사도 매칭</a>
+            <a href="/anomaly.html" class="nav-btn">3. 이상 검출</a>
+            <a href="/manual.html" class="nav-btn active">4. 대응 매뉴얼</a>
+        </nav>
+
+        <!-- 메인 컨텐츠 -->
+        <main class="main-content">
+            <!-- 좌측: 이미지 섹션 -->
+            <section class="image-section">
+                <h3>🖼️ 이미지 비교</h3>
+                
+                <!-- TOP-1 불량 이미지 -->
+                <div class="image-card">
+                    <h4>유사 불량 사례 (TOP-1)</h4>
+                    <img id="top1Image" class="display-image" alt="TOP-1 Defect">
+                    <div class="image-info-box">
+                        <p><strong>제품:</strong> <span id="top1Product">-</span></p>
+                        <p><strong>불량:</strong> <span id="top1Defect">-</span></p>
+                        <p><strong>유사도:</strong> <span id="top1Similarity">-</span></p>
+                    </div>
+                </div>
+
+                <!-- Segmentation 이미지 -->
+                <div class="image-card">
+                    <h4>이상 영역 검출 결과</h4>
+                    <img id="segmentationImage" class="display-image" alt="Segmentation">
+                    <div class="image-info-box">
+                        <p><strong>이상 점수:</strong> <span id="anomalyScoreDisplay">-</span></p>
+                        <p><strong>판정:</strong> <span id="judgmentDisplay">-</span></p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 우측: 매뉴얼 섹션 -->
+            <section class="manual-section">
+                <!-- 모델 선택 -->
+                <div class="model-selector">
+                    <h3>🤖 AI 모델 선택</h3>
+                    <div class="model-buttons">
+                        <button class="model-btn" data-model="hyperclovax">
+                            HyperCLOVAX
+                        </button>
+                        <button class="model-btn" data-model="exaone">
+                            EXAONE 3.5
+                        </button>
+                        <button class="model-btn" data-model="llava">
+                            LLaVA (VLM)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 생성 진행 상태 -->
+                <div class="generation-progress" id="generationProgress" style="display: none;">
+                    <div class="spinner"></div>
+                    <p id="progressText">매뉴얼을 생성하고 있습니다...</p>
+                </div>
+
+                <!-- AI 생성 답변 -->
+                <div class="manual-response" id="manualResponse" style="display: none;">
+                    <div class="response-header">
+                        <h3>📝 AI 생성 대응 매뉴얼</h3>
+                        <div class="response-meta">
+                            <span class="model-badge" id="selectedModelBadge">HyperCLOVAX</span>
+                            <span class="processing-time" id="processingTime">0.0초</span>
+                        </div>
+                    </div>
+
+                    <div class="response-content" id="responseContent">
+                        <!-- 동적 생성 -->
+                    </div>
+                </div>
+
+                <!-- 작업자 입력 섹션 -->
+                <div class="worker-input-section" id="workerInputSection" style="display: none;">
+                    <h3>👤 작업자 조치 내역</h3>
+                    
+                    <div class="form-group">
+                        <label for="workerName">작업자명 *</label>
+                        <input 
+                            type="text" 
+                            id="workerName" 
+                            class="form-control"
+                            placeholder="이름을 입력하세요"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="actionTaken">조치 내역 *</label>
+                        <textarea 
+                            id="actionTaken" 
+                            class="form-control"
+                            rows="5"
+                            placeholder="실제 수행한 조치 내역을 입력하세요"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>AI 답변 만족도 *</label>
+                        <div class="rating-buttons">
+                            <button class="rating-btn" data-score="1">1점</button>
+                            <button class="rating-btn" data-score="2">2점</button>
+                            <button class="rating-btn" data-score="3">3점</button>
+                            <button class="rating-btn" data-score="4">4점</button>
+                            <button class="rating-btn" data-score="5">5점</button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary btn-block" id="submitBtn">
+                        💾 조치 내역 등록
+                    </button>
+                </div>
+
+                <!-- 등록 완료 -->
+                <div class="completion-section" id="completionSection" style="display: none;">
+                    <div class="completion-message">
+                        <div class="completion-icon">✅</div>
+                        <h3>조치 내역 등록 완료</h3>
+                        <p>불량 검출 및 대응 프로세스가 완료되었습니다.</p>
+                    </div>
+                    <div class="completion-actions">
+                        <button class="btn btn-secondary" id="newWorkflowBtn">
+                            🔄 새 검사 시작
+                        </button>
+                        <button class="btn btn-primary" id="viewHistoryBtn">
+                            📊 이력 조회
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/js/common.js"></script>
+    <script src="/static/js/manual.js"></script>
+</body>
+</html>
