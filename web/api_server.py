@@ -308,7 +308,26 @@ async def _manual_core(mode: str, req: ManualGenRequest):
             r = await client.post(f"{LLM_SERVER_URL}/analyze", json=payload)
             r.raise_for_status()
             llm_analysis = r.json().get("analysis", "")
-
+        elif mode == "llm_exaone":
+            # ✅ EXAONE 3.5
+            payload = {
+                "product": product,
+                "defect_en": defect_info.en,
+                "defect_ko": defect_info.ko,
+                "full_name_ko": defect_info.full_name_ko,
+                "anomaly_score": float(anomaly_score),
+                "is_anomaly": bool(is_anomaly),
+                "manual_context": manual_ctx,
+                "max_new_tokens": req.max_new_tokens,
+                "temperature": req.temperature,
+                "top_p": 0.9,
+                "repetition_penalty": 1.1,
+            }
+            
+            r = await client.post(f"{LLM_SERVER_URL}/analyze_exaone", json=payload)
+            r.raise_for_status()
+            llm_analysis = r.json().get("analysis", "")
+            
         elif mode == "vlm":
             payload = {
                 "image_path": req.image_path,

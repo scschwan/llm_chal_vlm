@@ -879,11 +879,18 @@ function getTop1Meta() {
 // [추가] manual 탭 버튼 핸들러 바인딩
 document.addEventListener('DOMContentLoaded', () => {
   const btnLLM = document.getElementById('btn-generate-llm');
+  const btnExaone = document.getElementById('btn-generate-exaone');  // ✅ 추가
   const btnVLM = document.getElementById('btn-generate-vlm');
 
   if (btnLLM) btnLLM.addEventListener('click', async () => {
     await generateManualBy('llm');
   });
+
+  // ✅ EXAONE 버튼 추가
+  if (btnExaone) btnExaone.addEventListener('click', async () => {
+    await generateManualBy('llm_exaone');
+  });
+
   if (btnVLM) btnVLM.addEventListener('click', async () => {
     await generateManualBy('vlm');
   });
@@ -892,7 +899,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // [추가] 생성 공통 함수
 // generateManualBy 함수의 VLM 응답 처리 부분 수정
 
-async function generateManualBy(mode /* 'llm' | 'vlm' */) {
+async function generateManualBy(mode /* 'llm' | 'llm_exaone' |  'vlm' */) {
   try {
         if (!uploadedImagePath) {
         showStatus('먼저 유사도 검색으로 이미지를 업로드하세요.', 'error');
@@ -923,6 +930,8 @@ async function generateManualBy(mode /* 'llm' | 'vlm' */) {
 
         const url = mode === 'vlm'
         ? `${API_BASE_URL}/manual/generate/vlm`
+        : mode === 'llm_exaone'
+        ? `${API_BASE_URL}/manual/generate/llm_exaone`  // ✅ EXAONE 경로
         : `${API_BASE_URL}/manual/generate/llm`;
 
         // 로딩 표시
@@ -1039,8 +1048,13 @@ async function generateManualBy(mode /* 'llm' | 'vlm' */) {
                 ? data.processing_time.toFixed(2) 
                 : data.processing_time;
         }
+
+        const modelName = mode === 'llm' ? 'HyperCLOVAX' 
+                        : mode === 'llm_exaone' ? 'EXAONE 3.5'
+                        : 'VLM';
         
-        showStatus(`(${mode.toUpperCase()}) 생성 완료`, 'success');
+        //showStatus(`(${mode.toUpperCase()}) 생성 완료`, 'success');
+        showStatus(`(${modelName}) 생성 완료`, 'success');
         
         // manual 탭으로 전환
         const manualTab = document.querySelector('.tab[data-tab="manual"]');

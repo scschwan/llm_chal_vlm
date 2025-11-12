@@ -17,17 +17,24 @@ from transformers import (
     LlavaForConditionalGeneration,
 )
 
+
 # =========================
 # FastAPI
 # =========================
-app = FastAPI(title="LLM/VLM Server", version="1.0")
+app = FastAPI(title="LLM/VLM Server", version="2.0")
 
 # =========================
-# 전역 모델 핸들 (LLM)
+# 전역 모델 핸들
 # =========================
-llm_name: Optional[str] = None
-llm_model: Optional[AutoModelForCausalLM] = None
-llm_tokenizer: Optional[AutoTokenizer] = None
+# HyperCLOVAX
+hyperclovax_name: Optional[str] = None
+hyperclovax_model: Optional[AutoModelForCausalLM] = None
+hyperclovax_tokenizer: Optional[AutoTokenizer] = None
+
+# EXAONE 3.5
+exaone_name: Optional[str] = None
+exaone_model: Optional[AutoModelForCausalLM] = None
+exaone_tokenizer: Optional[AutoTokenizer] = None
 
 # =========================
 # 전역 모델 핸들 (VLM - LLaVA)
@@ -40,6 +47,7 @@ vlm_processor: Optional[AutoProcessor] = None
 # 요청/응답 스키마
 # =========================
 class AnalysisRequest(BaseModel):
+    """HyperCLOVAX 분석 요청"""
     product: str
     defect_en: str
     defect_ko: str
@@ -50,6 +58,21 @@ class AnalysisRequest(BaseModel):
     max_new_tokens: int = 1024  # ✅ 기본값 증가
     temperature: float = 0.7
     #temperature: float = 0.2
+
+class ExaoneAnalysisRequest(BaseModel):
+    """EXAONE 3.5 분석 요청"""
+    product: str
+    defect_en: str
+    defect_ko: str
+    full_name_ko: str
+    anomaly_score: float = 0.0
+    is_anomaly: bool = False
+    manual_context: Dict[str, List[str]] = {}
+    max_new_tokens: int = 1024
+    temperature: float = 0.7
+    # EXAONE 전용 파라미터
+    top_p: float = 0.9
+    repetition_penalty: float = 1.1
 
 class VLMAnalysisRequest(BaseModel):
     image_path: str
@@ -69,7 +92,7 @@ class VLMAnalysisRequest(BaseModel):
 # =========================
 # 유틸: 프롬프트 빌더(LLM)
 # =========================
-def _build_prompt(req: AnalysisRequest) -> str:
+def _build_prompt_hyperclovax(req: AnalysisRequest) -> str:
     """LLM용 프롬프트 생성"""
     
     # 매뉴얼 정보
@@ -130,6 +153,69 @@ def _build_prompt(req: AnalysisRequest) -> str:
 """
     
     return prompt
+
+
+def _build_prompt_exaone(req: ExaoneAnalysisRequest) -> str:
+    """EXAONE 3.5용 프롬프트 (Chat Template 형식)"""
+    causes = req.manual_context.get("원인", [])
+    actions = req.manual_context.get("조치", [])
+    has_manual = bool(causes or actions)
+    
+    if req.is_anomaly:
+        status = f"불량 검출 (이상점수: {req.anomaly_score:.4f})"
+    else:
+        status = f"정상 범위 (이상점수: {req.anomaly_score:.4f})"
+    
+    system_prompt = "당신은 제조 품질 관리 전문가입니다. 주어진 정보를 바탕으로 정확하고 간결한 불량 분석 보고서를 작성합니다."
+    
+    user_content = f"""다음 검사 결과를 분석하여 보고서를 작성하세요.
+
+【검사 결과】
+제품: {req.product}
+불량 유형: {req.defect_ko} ({req.defect_en})
+정식 명칭: {req.full_name_ko}
+판정: {status}
+
+【참조 매뉴얼】
+"""
+    
+    if has_manual:
+        if causes:
+            user_content += "발생 원인:\n"
+            for i, cause in enumerate(causes, 1):
+                user_content += f"{i}. {cause}\n"
+        if actions:
+            user_content += "\n조치 방법:\n"
+            for i, action in enumerate(actions, 1):
+                user_content += f"{i}. {action}\n"
+    else:
+        user_content += "※ 매뉴얼 정보 없음\n"
+    
+    user_content += """
+【작성 지침】
+1. 매뉴얼 내용을 직접 인용 (따옴표 사용)
+2. 정확히 4개 섹션만 작성
+3. 각 섹션은 2-3문장으로 간결하게
+4. 추측이나 불필요한 설명 금지
+
+【출력 형식】
+**불량 현황**
+(판정 결과 요약)
+
+**원인 분석**
+(매뉴얼 원인 인용)
+
+**대응 방안**
+(즉시 조치사항)
+
+**예방 조치**
+(재발 방지 방안)
+
+위 4개 섹션만 작성하세요.
+"""
+    
+    return system_prompt, user_content
+
 
 # =========================
 # 유틸: 프롬프트 빌더(VLM) ✅ 추가
@@ -307,7 +393,8 @@ def _extract_four_sections(text: str) -> str:
 # =========================
 @app.on_event("startup")
 async def load_models_on_startup():
-    global llm_name, llm_model, llm_tokenizer
+    global hyperclovax_name, hyperclovax_model, hyperclovax_tokenizer
+    global exaone_name, exaone_model, exaone_tokenizer
     global vlm_name, vlm_model, vlm_processor
 
     print("\n" + "="*60)
@@ -316,23 +403,24 @@ async def load_models_on_startup():
 
     # ---- LLM ----
     try:
-        llm_name = os.getenv("LLM_MODEL", "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B")
-        print(f"\n[1/2] LLM 로드 시도: {llm_name}")
+        #llm_name = os.getenv("LLM_MODEL", "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B")
+        hyperclovax_name ="naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+        print(f"\n[1/2] LLM 로드 시도: {hyperclovax_name}")
 
         try:
-            llm_tokenizer = AutoTokenizer.from_pretrained(
-                llm_name, use_fast=True, trust_remote_code=True
+            hyperclovax_tokenizer = AutoTokenizer.from_pretrained(
+                hyperclovax_name, use_fast=True, trust_remote_code=True
             )
             print("✅ LLM 토크나이저 로드 완료 (fast)")
         except Exception as e:
             print(f"[WARN] LLM fast tokenizer 실패 → slow 재시도")
-            llm_tokenizer = AutoTokenizer.from_pretrained(
-                llm_name, use_fast=False, trust_remote_code=True
+            hyperclovax_tokenizer = AutoTokenizer.from_pretrained(
+                hyperclovax_name, use_fast=False, trust_remote_code=True
             )
             print("✅ LLM 토크나이저 로드 완료 (slow)")
 
-        llm_model = AutoModelForCausalLM.from_pretrained(
-            llm_name,
+        hyperclovax_model = AutoModelForCausalLM.from_pretrained(
+            hyperclovax_name,
             torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
             device_map="auto",
             trust_remote_code=True,
@@ -341,9 +429,39 @@ async def load_models_on_startup():
         
     except Exception as e:
         print(f"⚠️ LLM 로드 실패: {e}")
-        llm_name = None
-        llm_model = None
-        llm_tokenizer = None
+        hyperclovax_name = None
+        hyperclovax_model = None
+        hyperclovax_tokenizer = None
+
+    # ---- EXAONE 3.5 ----
+    try:
+        exaone_name = "LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct"
+        print(f"\n[2/3] EXAONE 3.5 로드 시도: {exaone_name}")
+
+        try:
+            exaone_tokenizer = AutoTokenizer.from_pretrained(
+                exaone_name, use_fast=True, trust_remote_code=True
+            )
+            print("✅ EXAONE 토크나이저 로드 완료 (fast)")
+        except:
+            exaone_tokenizer = AutoTokenizer.from_pretrained(
+                exaone_name, use_fast=False, trust_remote_code=True
+            )
+            print("✅ EXAONE 토크나이저 로드 완료 (slow)")
+
+        exaone_model = AutoModelForCausalLM.from_pretrained(
+            exaone_name,
+            torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+            device_map="auto",
+            trust_remote_code=True,
+        )
+        print("✅ EXAONE 3.5 로드 완료")
+        
+    except Exception as e:
+        print(f"⚠️ EXAONE 로드 실패: {e}")
+        exaone_name = None
+        exaone_model = None
+        exaone_tokenizer = None
 
     # ---- VLM (LLaVA) ----
     try:
@@ -396,25 +514,27 @@ def health():
 @app.post("/analyze")
 def analyze(req: AnalysisRequest):
     print("\n" + "="*60)
-    print("[LLM ANALYZE] 요청 시작")
+    print("[HyperCLOVAX ANALYZE] 요청 시작")
     print("="*60)
-    
-    if llm_model is None or llm_tokenizer is None:
-        print("[ERROR] LLM 모델이 로드되지 않음")
-        raise HTTPException(503, detail="LLM not loaded")
+
+    if hyperclovax_model is None or hyperclovax_tokenizer is None:
+        print("[ERROR] HyperCLOVAX 모델이 로드되지 않음")
+        raise HTTPException(503, detail="HyperCLOVAX not loaded")
 
     # 1. 프롬프트 생성
-    prompt = _build_prompt(req)
+    prompt = _build_prompt_hyperclovax(req)
     print(f"\n[PROMPT] 길이: {len(prompt)} 문자")
     
     # 2. 토크나이징
-    device = next(llm_model.parameters()).device
+    device = next(hyperclovax_model.parameters()).device
     print(f"[DEVICE] {device}")
-    
-    inputs = llm_tokenizer(prompt, return_tensors="pt").to(device)
+
+
+    inputs = hyperclovax_tokenizer(prompt, return_tensors="pt").to(device)
     input_length = inputs['input_ids'].shape[1]
     print(f"[INPUT] 토큰 수: {input_length}")
 
+   
     # 3. 생성 파라미터
     do_sample = (req.temperature or 0) > 0
     gen_kwargs = dict(
@@ -433,7 +553,7 @@ def analyze(req: AnalysisRequest):
     start_time = time.time()
     
     with torch.no_grad():
-        output_ids = llm_model.generate(**inputs, **gen_kwargs)
+        output_ids = hyperclovax_model.generate(**inputs, **gen_kwargs)
     
     gen_time = time.time() - start_time
     output_length = output_ids.shape[1]
@@ -441,7 +561,7 @@ def analyze(req: AnalysisRequest):
 
     # 5. 디코딩
     generated_ids = output_ids[0][input_length:]
-    text = llm_tokenizer.decode(generated_ids, skip_special_tokens=True)
+    text = hyperclovax_tokenizer.decode(generated_ids, skip_special_tokens=True)
     
     print(f"[DECODE] 원본 길이: {len(text)} 문자")
     if len(text) < 1000 : 
@@ -458,10 +578,88 @@ def analyze(req: AnalysisRequest):
     return {
         "status": "success",
         "analysis": text,
-        "model": llm_name,
+        "model": "HyperCLOVAX",
         "used_temperature": gen_kwargs["temperature"],
         "max_new_tokens": gen_kwargs["max_new_tokens"],
     }
+
+# =========================
+# EXAONE 3.5 분석
+# =========================
+@app.post("/analyze_exaone")
+def analyze_exaone(req: ExaoneAnalysisRequest):
+    print("\n" + "="*60)
+    print("[EXAONE 3.5 ANALYZE] 요청 시작")
+    print("="*60)
+    
+    if exaone_model is None or exaone_tokenizer is None:
+        print("[ERROR] EXAONE 모델이 로드되지 않음")
+        raise HTTPException(503, detail="EXAONE not loaded")
+
+    # Chat template 형식으로 프롬프트 생성
+    system_prompt, user_content = _build_prompt_exaone(req)
+    
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content}
+    ]
+    
+    # apply_chat_template 사용
+    input_ids = exaone_tokenizer.apply_chat_template(
+        messages,
+        tokenize=True,
+        add_generation_prompt=True,
+        return_tensors="pt"
+    )
+    
+    device = next(exaone_model.parameters()).device
+    input_ids = input_ids.to(device)
+    input_length = input_ids.shape[1]
+    
+    print(f"[INPUT] 토큰 수: {input_length}")
+
+    do_sample = (req.temperature or 0) > 0
+    gen_kwargs = dict(
+        max_new_tokens=min(max(req.max_new_tokens, 16), 1024),
+        temperature=float(max(min(req.temperature, 1.5), 0.0)),
+        do_sample=do_sample,
+        repetition_penalty=req.repetition_penalty,
+        eos_token_id=exaone_tokenizer.eos_token_id,
+    )
+    if do_sample:
+        gen_kwargs.update(dict(top_p=req.top_p))
+
+    print(f"[GEN_KWARGS] max_tokens={gen_kwargs['max_new_tokens']}, temp={gen_kwargs['temperature']}, rep_penalty={gen_kwargs['repetition_penalty']}")
+
+    start_time = time.time()
+    with torch.no_grad():
+        output_ids = exaone_model.generate(input_ids=input_ids, **gen_kwargs)
+    
+    gen_time = time.time() - start_time
+    
+    # 전체 출력 디코딩
+    full_text = exaone_tokenizer.decode(output_ids[0], skip_special_tokens=True)
+    
+    # ASSISTANT: 이후 텍스트만 추출
+    if "ASSISTANT:" in full_text:
+        text = full_text.split("ASSISTANT:")[-1].strip()
+        print("[CLEAN] ASSISTANT: 이후 추출")
+    else:
+        text = full_text
+    
+    text = _extract_four_sections(text)
+    
+    print(f"[EXAONE] 완료 ({gen_time:.2f}초, {len(text)} 문자)")
+    print("="*60 + "\n")
+    
+    return {
+        "status": "success",
+        "analysis": text,
+        "model": "EXAONE-3.5-2.4B",
+        "used_temperature": gen_kwargs["temperature"],
+        "max_new_tokens": gen_kwargs["max_new_tokens"],
+    }
+
 
 # =========================
 # VLM 분석 ✅ 개선 (프롬프트 정제 추가)
