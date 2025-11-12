@@ -639,17 +639,23 @@ def analyze_exaone(req: ExaoneAnalysisRequest):
     
     # 전체 출력 디코딩
     full_text = exaone_tokenizer.decode(output_ids[0], skip_special_tokens=True)
-    
+
+    print(f"[DECODE] 원본 길이: {len(full_text)} 문자")
+    if len(full_text) < 1000 : 
+        print(f"[DECODE] 원본 데아터: {full_text}")
+  
+    '''
     # ASSISTANT: 이후 텍스트만 추출
     if "ASSISTANT:" in full_text:
         text = full_text.split("ASSISTANT:")[-1].strip()
         print("[CLEAN] ASSISTANT: 이후 추출")
     else:
         text = full_text
-    
+    '''
     text = _extract_four_sections(text)
     
     print(f"[EXAONE] 완료 ({gen_time:.2f}초, {len(text)} 문자)")
+    print(f"[FINAL] 최종 라인 수: {len(text.split(chr(10)))}")
     print("="*60 + "\n")
     
     return {
