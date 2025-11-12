@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이상 영역 검출 | 불량 검출 시스템</title>
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/anomaly.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <header class="header">
+            <h1>🔬 이상 영역 검출</h1>
+            <p class="subtitle">PatchCore를 활용한 이상 영역 자동 검출</p>
+        </header>
+
+        <!-- 네비게이션 -->
+        <nav class="nav">
+            <a href="/upload.html" class="nav-btn">1. 이미지 업로드</a>
+            <a href="/search.html" class="nav-btn">2. 유사도 매칭</a>
+            <a href="/anomaly.html" class="nav-btn active">3. 이상 검출</a>
+            <a href="/manual.html" class="nav-btn disabled">4. 대응 매뉴얼</a>
+        </nav>
+
+        <!-- 메인 컨텐츠 -->
+        <main class="main-content-full">
+            <!-- 자동 검출 진행 상태 -->
+            <div class="detection-progress" id="detectionProgress">
+                <div class="spinner"></div>
+                <h3>이상 영역을 자동으로 검출하고 있습니다...</h3>
+                <p id="progressMessage">잠시만 기다려주세요</p>
+            </div>
+
+            <!-- 검출 결과 -->
+            <div class="detection-results" id="detectionResults" style="display: none;">
+                <!-- 결과 헤더 -->
+                <div class="results-header">
+                    <div class="header-left">
+                        <h3>🎯 검출 결과</h3>
+                        <div class="detection-badge" id="detectionBadge">
+                            <span class="badge-text">분석 중</span>
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <div class="score-display">
+                            <span class="score-label">이상 점수</span>
+                            <span class="score-value" id="anomalyScore">0.0000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 이미지 비교 -->
+                <div class="comparison-section">
+                    <div class="comparison-item">
+                        <h4>정상 기준 이미지</h4>
+                        <img id="normalImage" class="comparison-image" alt="Normal">
+                        <p class="image-label">유사도 매칭 TOP-1</p>
+                    </div>
+                    
+                    <div class="comparison-item">
+                        <h4>입력 이미지 (이상 영역 표시)</h4>
+                        <img id="overlayImage" class="comparison-image" alt="Overlay">
+                        <p class="image-label">빨간색 = 이상 영역</p>
+                    </div>
+                </div>
+
+                <!-- 상세 정보 -->
+                <div class="detail-section">
+                    <div class="detail-card">
+                        <h4>📊 검출 상세 정보</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <span class="label">제품명</span>
+                                <span class="value" id="productName">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">불량 유형</span>
+                                <span class="value" id="defectType">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">이상 점수</span>
+                                <span class="value" id="imageScore">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">임계값 (Threshold)</span>
+                                <span class="value" id="threshold">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">판정 결과</span>
+                                <span class="value" id="judgment">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">유사도 점수</span>
+                                <span class="value" id="similarityScore">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 추가 시각화 (옵션) -->
+                    <div class="visualization-card">
+                        <h4>🖼️ 추가 시각화</h4>
+                        <div class="visualization-grid">
+                            <div class="viz-item">
+                                <p class="viz-label">마스크 이미지</p>
+                                <img id="maskImage" class="viz-image" alt="Mask">
+                            </div>
+                            <div class="viz-item">
+                                <p class="viz-label">비교 이미지</p>
+                                <img id="comparisonImage" class="viz-image" alt="Comparison">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 액션 버튼 -->
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" id="reDetectBtn">
+                        🔄 다시 검출
+                    </button>
+                    <button class="btn btn-primary" id="nextBtn">
+                        다음: 대응 매뉴얼 생성 →
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/js/common.js"></script>
+    <script src="/static/js/anomaly.js"></script>
+</body>
+</html>

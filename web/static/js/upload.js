@@ -28,14 +28,17 @@ const rebuildIndexBtn = document.getElementById('rebuildIndexBtn');
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[UPLOAD] 페이지 로드 완료');
     
+    // ✅ 업로드 페이지 진입 시 세션 초기화
+    console.log('[UPLOAD] 이전 세션 데이터 삭제');
+    SessionData.remove('uploadedImage');
+    SessionData.remove('searchResults');
+    SessionData.remove('selectedMatch');
+    
     // 이벤트 리스너 등록
     initEventListeners();
     
     // 인덱스 상태 확인
     checkIndexStatus();
-    
-    // 세션에서 이전 업로드 정보 복원
-    restoreSessionData();
 });
 
 /**
@@ -232,30 +235,9 @@ function resetUpload() {
     fileInput.value = '';
     uploadedFileData = null;
     progressFill.style.width = '0%';
-}
-
-/**
- * 세션 데이터 복원
- */
-function restoreSessionData() {
-    const savedData = SessionData.get('uploadedImage');
-    if (savedData && savedData.preview) {
-        console.log('[UPLOAD] 세션 데이터 복원:', savedData.filename);
-        
-        // 이미지 표시
-        previewImage.src = savedData.preview;
-        preprocessedImage.src = savedData.preview;
-        fileName.textContent = savedData.filename;
-        fileSize.textContent = formatFileSize(savedData.file_size);
-        resolution.textContent = savedData.resolution;
-        
-        // UI 전환
-        uploadZone.style.display = 'none';
-        previewSection.style.display = 'block';
-        imageInfoCard.style.display = 'block';
-        
-        uploadedFileData = savedData;
-    }
+    
+    // ✅ 세션 데이터도 삭제
+    SessionData.remove('uploadedImage');
 }
 
 /**

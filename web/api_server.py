@@ -76,13 +76,6 @@ vlm_components = {
     "prompt_builder": PromptBuilder()
 }
 
-class HealthResponse(BaseModel):
-    """헬스체크 응답"""
-    status: str
-    message: str
-    index_built: bool
-    gallery_size: int
-
 # ====================
 # 라이프사이클 이벤트
 # ====================
@@ -426,15 +419,17 @@ async def register_defect(
     })
 
 
-@app.get("/health2", response_model=HealthResponse)
+@app.get("/health2")
 async def health_check():
-    """헬스체크 엔드포인트"""
-    return HealthResponse(
-        status="healthy",
-        message="API 서버가 정상 작동 중입니다",
-        index_built=matcher.index_built if matcher else False,
-        gallery_size=len(matcher.gallery_paths) if matcher and matcher.index_built else 0
-    )
+    """헬스체크 엔드포인트 (ALB 용)"""
+    return {
+        "status": "healthy",
+        "message": "API 서버가 정상 작동 중입니다",
+        "index_built": matcher.index_built if matcher else False,
+        "gallery_size": len(matcher.gallery_paths) if matcher and matcher.index_built else 0,
+        "matcher_initialized": matcher is not None,
+        "detector_initialized": detector is not None
+    }
 
 # ====================
 # 서버 실행
