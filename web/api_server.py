@@ -2,23 +2,15 @@
 메인 API 서버 - 라우터 통합
 """
 
-
-from fastapi import FastAPI, File, UploadFile, HTTPException, Query, Form
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import Dict,List, Optional
-import os
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 import sys
 import shutil
-from pathlib import Path
+from typing import Optional
 import uvicorn
-from fastapi.staticfiles import StaticFiles
-import httpx
-
-
-import time  # 기존 import에 추가
-
 
 # 프로젝트 루트 경로
 project_root = Path(__file__).parent.parent
@@ -28,18 +20,6 @@ sys.path.insert(0, str(project_root))
 from modules.similarity_matcher import TopKSimilarityMatcher, create_matcher
 from modules.anomaly_detector import AnomalyDetector, create_detector
 from modules.vlm import RAGManager, DefectMapper, PromptBuilder
-
-# 라우터 imports
-from routers.upload import router as upload_router, init_upload_router
-from routers.search import router as search_router, init_search_router
-
-
-class HealthResponse(BaseModel):
-    """헬스체크 응답"""
-    status: str
-    message: str
-    index_built: bool
-    gallery_size: int
 
 # ====================
 # FastAPI 앱 생성
@@ -96,22 +76,6 @@ vlm_components = {
 }
 
 # ====================
-# 라우터 등록
-# ====================
-
-# 업로드 라우터 초기화 및 등록
-init_upload_router(UPLOAD_DIR)
-init_search_router(matcher, INDEX_DIR, project_root)
-
-# 라우터 등록 부분에 추가
-app.include_router(upload_router)
-app.include_router(search_router)
-
-# TODO: 다른 라우터들도 추가
-# app.include_router(anomaly_router)
-# app.include_router(manual_router)
-
-# ====================
 # 라이프사이클 이벤트
 # ====================
 
@@ -123,6 +87,18 @@ async def startup_event():
     print("=" * 60)
     print("유사도 매칭 + Anomaly Detection API 서버 시작")
     print("=" * 60)
+    
+    # ✅ 업로드 디렉토리 초기화 (임시 파일 삭제)
+    print("\n[CLEANUP] 임시 업로드 파일 삭제 중...")
+    try:
+        deleted_count = 0
+        for file_path in UPLOAD_DIR.glob("*"):
+            if file_path.is_file():
+                file_path.unlink()
+                deleted_count += 1
+        print(f"✅ {deleted_count}개 임시 파일 삭제 완료")
+    except Exception as e:
+        print(f"⚠️  임시 파일 삭제 실패: {e}")
     
     # 1. 유사도 매처 생성
     matcher = create_matcher(
@@ -222,10 +198,18 @@ async def startup_event():
         print(f"⚠️  Anomaly Detector 초기화 실패: {e}")
         detector = None
     
-    # 5. VLM 컴포넌트 초기화
-    # init_vlm_components() - 기존 함수 재사용
+    # 5. VLM 컴포넌트 초기화 (기존 함수 있다면)
+    # init_vlm_components()
     print("✅ VLM Component 초기화 완료")
-    print("=" * 60)
+
+    # ✅ 6. 라우터 초기화 (매처를 전달)
+    from routers.upload import init_upload_router
+    from routers.search import init_search_router
+    
+    init_upload_router(UPLOAD_DIR)
+    init_search_router(matcher, INDEX_DIR, project_root)
+    
+    print("\n" + "=" * 60)
     print("서버 초기화 완료")
     print("=" * 60 + "\n")
 
@@ -234,6 +218,17 @@ async def startup_event():
 async def shutdown_event():
     """서버 종료 시 정리"""
     print("\n서버 종료 중...")
+
+
+# ====================
+# 라우터 등록
+# ====================
+
+from routers.upload import router as upload_router
+from routers.search import router as search_router
+
+app.include_router(upload_router)
+app.include_router(search_router)
 
 
 # ====================
@@ -302,20 +297,11 @@ async def get_index_status():
         "model_id": matcher.model_id if hasattr(matcher, 'model_id') else None
     }
 
-@app.get("/health2", response_model=HealthResponse)
-async def health_check():
-    """헬스체크 엔드포인트"""
-    return HealthResponse(
-        status="healthy",
-        message="API 서버가 정상 작동 중입니다",
-        index_built=matcher.index_built if matcher else False,
-        gallery_size=len(matcher.gallery_paths) if matcher and matcher.index_built else 0
-    )
 
 @app.post("/build_index")
 async def build_index(request: dict):
     """인덱스 재구축"""
-
+    from pydantic import BaseModel, Field
     
     class BuildIndexRequest(BaseModel):
         gallery_dir: str = Field(..., description="갤러리 디렉토리")
@@ -345,7 +331,6 @@ async def build_index(request: dict):
         raise HTTPException(500, f"인덱스 구축 실패: {str(e)}")
 
 
-
 @app.get("/api/image/{image_path:path}")
 async def serve_image(image_path: str):
     """이미지 파일 제공 엔드포인트"""
@@ -363,8 +348,6 @@ async def serve_image(image_path: str):
             # 기본적으로 project_root 기준
             file_path = project_root / image_path
         
-        print(f"[IMAGE] 이미지 서빙 시도: {file_path}")
-        
         if not file_path.exists():
             raise HTTPException(404, f"이미지를 찾을 수 없습니다: {file_path}")
         
@@ -377,7 +360,6 @@ async def serve_image(image_path: str):
         raise HTTPException(500, str(e))
 
 
-# 불량 등록 API (기존 코드 유지)
 @app.post("/register_defect")
 async def register_defect(
     file: UploadFile = File(...),
@@ -435,11 +417,13 @@ async def register_defect(
         "index_rebuilt": index_rebuilt
     })
 
+
 # ====================
 # 서버 실행
 # ====================
 
 if __name__ == "__main__":
+
     uvicorn.run(
         "api_server:app",
         host="0.0.0.0",

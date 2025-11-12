@@ -5,21 +5,37 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
-from typing import Optional
 
 router = APIRouter(prefix="/search", tags=["search"])
 
-# 전역 변수 (api_server.py에서 주입)
-matcher = None
-INDEX_DIR = None
-project_root = None
+# ✅ 전역 변수 (api_server.py에서 주입받을 참조)
+_matcher_ref = None
+_index_dir_ref = None
+_project_root_ref = None
+
 
 def init_search_router(similarity_matcher, index_dir, proj_root):
     """라우터 초기화"""
-    global matcher, INDEX_DIR, project_root
-    matcher = similarity_matcher
-    INDEX_DIR = index_dir
-    project_root = proj_root
+    global _matcher_ref, _index_dir_ref, _project_root_ref
+    _matcher_ref = similarity_matcher
+    _index_dir_ref = index_dir
+    _project_root_ref = proj_root
+    print(f"[SEARCH ROUTER] 초기화 완료: matcher={_matcher_ref is not None}")
+
+
+def get_matcher():
+    """매처 참조 반환"""
+    return _matcher_ref
+
+
+def get_index_dir():
+    """인덱스 디렉토리 반환"""
+    return _index_dir_ref
+
+
+def get_project_root():
+    """프로젝트 루트 반환"""
+    return _project_root_ref
 
 
 class SearchRequest(BaseModel):
@@ -30,6 +46,10 @@ class SearchRequest(BaseModel):
 
 async def ensure_defect_index():
     """불량 이미지 인덱스로 전환"""
+    matcher = get_matcher()
+    INDEX_DIR = get_index_dir()
+    project_root = get_project_root()
+    
     if matcher is None:
         raise HTTPException(500, "매처가 초기화되지 않았습니다")
     
@@ -76,15 +96,10 @@ async def ensure_defect_index():
 
 @router.post("/similarity")
 async def search_similar_images(request: SearchRequest):
-    """
-    유사 이미지 검색
+    """유사 이미지 검색"""
+    matcher = get_matcher()
+    project_root = get_project_root()
     
-    Args:
-        request: 검색 요청 (이미지 경로, TOP-K)
-    
-    Returns:
-        TOP-K 유사 이미지 결과
-    """
     if matcher is None:
         raise HTTPException(500, "유사도 매처가 초기화되지 않았습니다")
     
@@ -116,7 +131,6 @@ async def search_similar_images(request: SearchRequest):
         # 제품/불량 정보 추출
         results_with_info = []
         for item in result.top_k_results:
-            # 파일명에서 정보 추출 (product_defect_seq.jpg)
             filename = Path(item["image_path"]).stem
             parts = filename.split("_")
             
@@ -151,6 +165,8 @@ async def search_similar_images(request: SearchRequest):
 @router.get("/index/status")
 async def get_search_index_status():
     """검색 인덱스 상태 조회"""
+    matcher = get_matcher()
+    
     if matcher is None:
         return {
             "status": "error",
