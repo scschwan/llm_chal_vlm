@@ -644,15 +644,16 @@ def analyze_exaone(req: ExaoneAnalysisRequest):
     if len(full_text) < 1500 : 
         print(f"[DECODE] 원본 데아터: {full_text}")
   
-    '''
+    
     # ASSISTANT: 이후 텍스트만 추출
-    if "ASSISTANT:" in full_text:
-        text = full_text.split("ASSISTANT:")[-1].strip()
-        print("[CLEAN] ASSISTANT: 이후 추출")
+    if "assistant:" in full_text:
+        text = full_text.split("assistant:")[-1].strip()
+        print("[CLEAN] assistant: 이후 추출")
+        print(text)
     else:
         text = full_text
-    '''
-    text = _extract_four_sections(full_text)
+    
+    text = _extract_four_sections(text)
     
     print(f"[EXAONE] 완료 ({gen_time:.2f}초, {len(text)} 문자)")
     print(f"[FINAL] 최종 라인 수: {len(text.split(chr(10)))}")
