@@ -206,9 +206,11 @@ async def startup_event():
     # ✅ 6. 라우터 초기화 (매처를 전달)
     from routers.upload import init_upload_router
     from routers.search import init_search_router
+    from routers.anomaly import init_anomaly_router
     
     init_upload_router(UPLOAD_DIR)
     init_search_router(matcher, INDEX_DIR, project_root)
+    init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root)
     
     print("\n" + "=" * 60)
     print("서버 초기화 완료")
@@ -227,9 +229,11 @@ async def shutdown_event():
 
 from routers.upload import router as upload_router
 from routers.search import router as search_router
+from routers.anomaly import router as anomaly_router
 
 app.include_router(upload_router)
 app.include_router(search_router)
+app.include_router(anomaly_router)
 
 
 # ====================
