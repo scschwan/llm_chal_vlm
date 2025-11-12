@@ -81,14 +81,21 @@ async def generate_manual(request: ManualGenerateRequest):
         if not defect_info:
             raise HTTPException(404, f"불량 정보를 찾을 수 없습니다: {request.product}/{request.defect}")
         
-        # 2. RAG 매뉴얼 검색
+        # 2. ✅ RAG 매뉴얼 검색 (제품명 기반 필터링)
         manual_context = {"원인": [], "조치": []}
         
         if rag:
-            keywords = mapper.get_search_keywords(request.product, request.defect)
-            raw_manual_context = rag.search_defect_manual(request.product, request.defect, keywords)
+            print(f"[MANUAL] RAG 검색 시작: 제품={request.product}, 불량={request.defect}")
             
-            # 매뉴얼 정제 (해당 불량만 필터링)
+            # 제품명 기반 검색
+            raw_manual_context = rag.search_defect_manual(
+                product=request.product,
+                defect=request.defect,
+                keywords=[defect_info.ko, defect_info.full_name_ko],
+                k=3
+            )
+            
+            # 불량명 필터링 (해당 불량만)
             for cause_text in raw_manual_context.get("원인", []):
                 if request.defect.lower() in cause_text.lower():
                     lines = []

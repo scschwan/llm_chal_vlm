@@ -13,6 +13,14 @@ from typing import Optional
 import uvicorn
 from pydantic import BaseModel, Field
 
+import warnings
+import os
+
+# ✅ 불필요한 경고 숨기기
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="networkx")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain")
+os.environ["PYTHONWARNINGS"] = "ignore::DeprecationWarning"
+
 # 프로젝트 루트 경로
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -75,7 +83,7 @@ vlm_components = {
     "mapper": None,
     "prompt_builder": PromptBuilder()
 }
-
+'''
 def init_vlm_components():
     """VLM 컴포넌트 초기화 (서버 시작 시 1회)"""
     global vlm_components
@@ -136,6 +144,82 @@ def init_vlm_components():
         print(f"\n❌ VLM 초기화 오류: {e}")
         import traceback
         traceback.print_exc()
+'''
+def init_vlm_components():
+    """VLM 컴포넌트 초기화 (서버 시작 시 1회)"""
+    global vlm_components
+    
+    try:
+        print("\n" + "="*70)
+        print("VLM 컴포넌트 초기화 중...")
+        print("="*70)
+        
+        # 경로 설정
+        manual_dir = project_root / "manual_store"
+        vector_store_path = project_root / "manual_store"
+        mapping_file = project_root / "web" / "defect_mapping.json"
+        
+        # 매뉴얼 디렉토리 확인
+        if not manual_dir.exists():
+            print(f"⚠️  매뉴얼 디렉토리가 없습니다: {manual_dir}")
+            manual_dir.mkdir(parents=True, exist_ok=True)
+        
+        # PDF 파일 확인
+        pdf_files = list(manual_dir.glob("*.pdf"))
+        
+        if not pdf_files:
+            print(f"⚠️  PDF 매뉴얼 파일이 없습니다: {manual_dir}")
+            print("   RAG 기능이 비활성화됩니다.")
+            vlm_components["rag"] = None
+        else:
+            print(f"\n발견된 매뉴얼 파일: {len(pdf_files)}개")
+            for pdf in pdf_files:
+                product_name = pdf.stem.split("_")[0]
+                print(f"  - {pdf.name} (제품: {product_name})")
+        
+        # 매핑 파일이 없으면 생성
+        if not mapping_file.exists():
+            print("⚠️  매핑 파일이 없습니다. 기본 파일을 생성합니다...")
+            from modules.vlm.defect_mapper import create_default_mapping
+            create_default_mapping(mapping_file)
+        
+        # 1. DefectMapper 초기화
+        print("\n1. DefectMapper 초기화...")
+        vlm_components["mapper"] = DefectMapper(mapping_file)
+        print("   ✅ DefectMapper 초기화 완료")
+        
+        # 2. UnifiedRAGManager 초기화
+        print("\n2. UnifiedRAGManager 초기화...")
+        if pdf_files:
+            from modules.vlm.rag import create_rag_manager
+            
+            vlm_components["rag"] = create_rag_manager(
+                manual_dir=manual_dir,
+                vector_store_path=vector_store_path,
+                device="cuda",
+                force_rebuild=False,  # 기존 인덱스 사용
+                verbose=True
+            )
+            
+            # 사용 가능한 제품 출력
+            available_products = vlm_components["rag"].get_available_products()
+            print(f"\n   사용 가능한 제품: {', '.join(available_products)}")
+        else:
+            print("   → PDF 없음: RAG 비활성화")
+            vlm_components["rag"] = None
+        
+        print("\n" + "="*70)
+        print("✅ VLM 컴포넌트 초기화 완료")
+        print("="*70 + "\n")
+        
+    except Exception as e:
+        print(f"\n❌ VLM 초기화 오류: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # 오류 발생 시에도 서버는 계속 실행
+        vlm_components["mapper"] = None
+        vlm_components["rag"] = None
 
 # ====================
 # 라이프사이클 이벤트
@@ -494,6 +578,46 @@ async def register_defect(
         "seqno": new_seqno,
         "index_rebuilt": index_rebuilt
     })
+
+
+
+##추후 관리자페이지에서 사용 예정
+
+@app.post("/rag/rebuild")
+async def rebuild_rag_index():
+    """RAG 인덱스 강제 재구축"""
+    if vlm_components.get("rag") is None:
+        raise HTTPException(503, "RAG가 초기화되지 않았습니다")
+    
+    try:
+        vlm_components["rag"].rebuild_index()
+        
+        available_products = vlm_components["rag"].get_available_products()
+        
+        return {
+            "status": "success",
+            "message": "RAG 인덱스 재구축 완료",
+            "available_products": available_products
+        }
+    
+    except Exception as e:
+        raise HTTPException(500, f"인덱스 재구축 실패: {str(e)}")
+
+
+@app.get("/rag/status")
+async def get_rag_status():
+    """RAG 상태 조회"""
+    if vlm_components.get("rag") is None:
+        return {
+            "status": "disabled",
+            "available_products": []
+        }
+    
+    return {
+        "status": "active",
+        "available_products": vlm_components["rag"].get_available_products(),
+        "file_metadata": vlm_components["rag"].file_metadata
+    }
 
 
 @app.get("/health2")
