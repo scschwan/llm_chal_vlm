@@ -51,6 +51,7 @@ vlm_components = {
 }
 
 current_index_type: Optional[str] = None  # 'defect' 또는 'normal'
+normal_dir = project_root / "data" / "patchCore" / "prod1"
 
 
 def init_vlm_components():
@@ -207,7 +208,7 @@ async def switch_index(index_type: str):
     Returns:
         dict: 전환 결과
     """
-    global current_index_type
+    global current_index_type , normal_dir
     
     # 이미 로드된 인덱스면 스킵
     if current_index_type == index_type:
@@ -225,7 +226,8 @@ async def switch_index(index_type: str):
     if index_type == "defect":
         gallery_dir = project_root / "data" / "def_split"
     else:  # normal
-        gallery_dir = project_root / "data" / "ok_split"
+        #gallery_dir = project_root / "data" / "ok_split"
+        gallery_dir = normal_dir
     
     # 디렉토리 존재 확인
     if not gallery_dir.exists():
@@ -567,7 +569,8 @@ async def startup_event():
     
     # 2-2. 정상 이미지 인덱스 구축
     #normal_dir = project_root / "data" / "ok_split"
-    normal_dir = project_root / "data" / "patchCore" / "prod1"
+    #normal_dir = project_root / "data" / "patchCore" / "prod1"
+    global normal_dir
     normal_index_path = INDEX_DIR / "normal"
     normal_index_path.mkdir(parents=True, exist_ok=True)
     
