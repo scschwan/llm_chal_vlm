@@ -583,41 +583,52 @@ async def register_defect(
 
 ##추후 관리자페이지에서 사용 예정
 
-@app.post("/rag/rebuild")
-async def rebuild_rag_index():
-    """RAG 인덱스 강제 재구축"""
-    if vlm_components.get("rag") is None:
-        raise HTTPException(503, "RAG가 초기화되지 않았습니다")
-    
-    try:
-        vlm_components["rag"].rebuild_index()
-        
-        available_products = vlm_components["rag"].get_available_products()
-        
-        return {
-            "status": "success",
-            "message": "RAG 인덱스 재구축 완료",
-            "available_products": available_products
-        }
-    
-    except Exception as e:
-        raise HTTPException(500, f"인덱스 재구축 실패: {str(e)}")
-
-
-@app.get("/rag/status")
-async def get_rag_status():
-    """RAG 상태 조회"""
-    if vlm_components.get("rag") is None:
+@app.get("/mapping/status")
+async def get_mapping_status():
+    """매핑 상태 조회"""
+    if vlm_components.get("mapper") is None:
         return {
             "status": "disabled",
             "available_products": []
         }
     
+    mapper = vlm_components["mapper"]
+    
+    products_info = {}
+    for product in mapper.get_available_products():
+        defects = mapper.get_available_defects(product)
+        products_info[product] = {
+            "defect_count": len(defects),
+            "defects": defects
+        }
+    
     return {
         "status": "active",
-        "available_products": vlm_components["rag"].get_available_products(),
-        "file_metadata": vlm_components["rag"].file_metadata
+        "products": products_info
     }
+
+
+@app.post("/mapping/reload")
+async def reload_mapping():
+    """매핑 파일 재로드"""
+    try:
+        mapping_file = project_root / "web" / "defect_mapping.json"
+        
+        if not mapping_file.exists():
+            raise HTTPException(404, "매핑 파일이 없습니다")
+        
+        # 재초기화
+        from modules.vlm.defect_mapper import DefectMapper
+        vlm_components["mapper"] = DefectMapper(mapping_file)
+        
+        return {
+            "status": "success",
+            "message": "매핑 파일 재로드 완료",
+            "available_products": vlm_components["mapper"].get_available_products()
+        }
+    
+    except Exception as e:
+        raise HTTPException(500, f"재로드 실패: {str(e)}")
 
 
 @app.get("/health2")

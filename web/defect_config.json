@@ -1,16 +1,120 @@
 {
   "products": {
     "prod1": {
-      "name": "제품1",
-      "defects": ["hole", "burr", "scratch"]
+      "name_ko": "제품1",
+      "defects": {
+        "hole": {
+          "en": "hole",
+          "ko": "구멍",
+          "full_name_ko": "구멍 불량",
+          "keywords": ["구멍", "홀", "천공", "penetration"]
+        },
+        "burr": {
+          "en": "burr",
+          "ko": "버",
+          "full_name_ko": "버 불량",
+          "keywords": ["버", "burr", "돌기", "protrusion"]
+        },
+        "scratch": {
+          "en": "scratch",
+          "ko": "스크래치",
+          "full_name_ko": "스크래치 불량",
+          "keywords": ["스크래치", "긁힘", "scratch", "abrasion"]
+        }
+      }
     },
-    "prod2": {
-      "name": "제품2",
-      "defects": ["crack", "dent"]
+    "grid": {
+      "name_ko": "그리드",
+      "defects": {
+        "hole": {
+          "en": "hole",
+          "ko": "구멍",
+          "full_name_ko": "구멍 불량",
+          "keywords": ["구멍", "홀", "천공"]
+        },
+        "burr": {
+          "en": "burr",
+          "ko": "버",
+          "full_name_ko": "버 불량",
+          "keywords": ["버", "burr", "돌기"]
+        },
+        "scratch": {
+          "en": "scratch",
+          "ko": "스크래치",
+          "full_name_ko": "스크래치 불량",
+          "keywords": ["스크래치", "긁힘"]
+        }
+      }
     },
-    "prod3": {
-      "name": "제품3",
-      "defects": ["stain", "discolor"]
+    "carpet": {
+      "name_ko": "카펫",
+      "defects": {
+        "hole": {
+          "en": "hole",
+          "ko": "구멍",
+          "full_name_ko": "구멍 불량",
+          "keywords": ["구멍", "홀", "천공"]
+        },
+        "burr": {
+          "en": "burr",
+          "ko": "버",
+          "full_name_ko": "버 불량",
+          "keywords": ["버", "burr", "돌기"]
+        },
+        "scratch": {
+          "en": "scratch",
+          "ko": "스크래치",
+          "full_name_ko": "스크래치 불량",
+          "keywords": ["스크래치", "긁힘"]
+        },
+        "stain": {
+          "en": "stain",
+          "ko": "얼룩",
+          "full_name_ko": "얼룩 불량",
+          "keywords": ["얼룩", "오염", "stain", "contamination"]
+        }
+      }
+    },
+    "leather": {
+      "name_ko": "가죽",
+      "defects": {
+        "hole": {
+          "en": "hole",
+          "ko": "구멍",
+          "full_name_ko": "구멍 불량",
+          "keywords": ["구멍", "홀", "천공"]
+        },
+        "burr": {
+          "en": "burr",
+          "ko": "버",
+          "full_name_ko": "버 불량",
+          "keywords": ["버", "burr", "돌기"]
+        },
+        "scratch": {
+          "en": "scratch",
+          "ko": "스크래치",
+          "full_name_ko": "스크래치 불량",
+          "keywords": ["스크래치", "긁힘"]
+        },
+        "fold": {
+          "en": "fold",
+          "ko": "주름",
+          "full_name_ko": "주름 불량",
+          "keywords": ["주름", "접힘", "fold", "wrinkle", "crease"]
+        },
+        "stain": {
+          "en": "stain",
+          "ko": "얼룩",
+          "full_name_ko": "얼룩 불량",
+          "keywords": ["얼룩", "오염", "stain"]
+        },
+        "color": {
+          "en": "color",
+          "ko": "색상",
+          "full_name_ko": "색상 불량",
+          "keywords": ["색상", "변색", "color", "discoloration"]
+        }
+      }
     }
   }
 }
