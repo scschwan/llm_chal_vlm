@@ -30,6 +30,68 @@
 
 ---
 
+## 🎯 완성된 전체 워크플로우
+```
+1. 이미지 업로드
+   ↓
+2. 유사도 매칭 (불량 이미지 인덱스 기반)
+   ↓
+3. 이상 검출 (정상 이미지 인덱스로 자동 전환)
+   ↓
+4. 대응 매뉴얼 생성
+   - 3개 AI 모델 선택 (HyperCLOVAX, EXAONE, LLaVA)
+   - RAG 기반 매뉴얼 검색
+   - 4개 섹션 표준 출력
+   - 작업자 조치 내역 입력
+```
+
+---
+
+## 📂 주요 파일 구조
+
+### 백엔드 (Python)
+```
+llm_chal_vlm/
+├── modules/
+│   ├── similarity_matcher.py      ✅ Phase 1 최적화 완료
+│   ├── anomaly_detector.py
+│   └── vlm/
+│       ├── rag.py                 ✅ 통합 RAG 시스템
+│       └── defect_mapper.py       ✅ 불량 정보 매핑
+├── web/
+│   ├── api_server.py              ✅ 메인 API 서버
+│   ├── defect_mapping.json        ⚠️ 중요: 관리자 페이지 연동 필요
+│   ├── routers/
+│   │   ├── upload.py              ✅ 업로드 라우터
+│   │   ├── search.py              ✅ 유사도 검색 라우터
+│   │   ├── anomaly.py             ✅ 이상 검출 라우터
+│   │   └── manual.py              ✅ 매뉴얼 생성 라우터
+│   ├── pages/
+│   │   ├── upload.html            ✅ 업로드 페이지
+│   │   ├── search.html            ✅ 유사도 매칭 페이지
+│   │   ├── anomaly.html           ✅ 이상 검출 페이지
+│   │   └── manual.html            ✅ 대응 매뉴얼 페이지
+│   └── static/
+│       ├── js/
+│       │   ├── common.js          ✅ 공통 유틸리티
+│       │   ├── upload.js          ✅ 세션 관리 개선
+│       │   ├── search.js
+│       │   ├── anomaly.js
+│       │   └── manual.js
+│       └── css/
+├── llm_server/
+│   └── llm_server.py              ✅ Keepalive 타이머 추가
+├── manual_store/                  ✅ 통합 매뉴얼 디렉토리
+│   ├── prod1_menual.pdf
+│   ├── grid_manual.pdf
+│   ├── carpet_manual.pdf
+│   ├── leather_manual.pdf
+│   └── unified_index/             (자동 생성)
+└── data/
+    ├── def_split/                 (불량 이미지)
+    ├── ok_split/                  (정상 이미지)
+    └── patchCore/                 (제품별 메모리 뱅크)
+
 ## 현재 구현 완료 기능
 
 ### 1. 유사도 검색 (CLIP 기반)
