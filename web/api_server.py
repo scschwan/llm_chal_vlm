@@ -310,23 +310,22 @@ async def _manual_core(mode: str, req: ManualGenRequest):
             llm_analysis = r.json().get("analysis", "")
 
         elif mode == "vlm":
-            prompt = (
-                f"[제품] {product}\n"
-                f"[불량] {defect_info.ko} ({defect_info.en})\n"
-                f"[정식명칭] {defect_info.full_name_ko}\n"
-                f"[이상점수] {anomaly_score:.4f}\n"  # ✅ 실제 값
-                f"[판정] {'불량' if is_anomaly else '정상'}\n"
-                "아래 매뉴얼을 1차 근거로 사용하여 이미지에서 보이는 불량 현황/원인/조치/예방을 항목별로 간결히 정리하라.\n"
-                f"원인(매뉴얼): {manual_ctx.get('원인', [])}\n"
-                f"조치(매뉴얼): {manual_ctx.get('조치', [])}\n"
-                "매뉴얼 문장을 따옴표로 인용하고, 불확실한 추정은 금지한다."
-            )
-            r = await client.post(f"{LLM_SERVER_URL}/analyze_vlm", json={
+            payload = {
                 "image_path": req.image_path,
-                "prompt": prompt,
-                "max_new_tokens": min(1024, req.max_new_tokens),
-                "temperature": min(0.3, req.temperature)
-            })
+                "product": product,
+                "defect_en": defect_info.en,
+                "defect_ko": defect_info.ko,
+                "full_name_ko": defect_info.full_name_ko,
+                "anomaly_score": float(anomaly_score),
+                "is_anomaly": bool(is_anomaly),
+                "manual_context": manual_ctx,
+                "max_new_tokens": req.max_new_tokens,
+                "temperature": req.temperature,
+            }
+            
+            print(f"[VLM] 요청 payload: {payload}")
+            
+            r = await client.post(f"{LLM_SERVER_URL}/analyze_vlm", json=payload)
             r.raise_for_status()
             vlm_analysis = r.json().get("analysis", "")
 

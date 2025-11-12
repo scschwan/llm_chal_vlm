@@ -48,14 +48,23 @@ class AnalysisRequest(BaseModel):
     is_anomaly: bool = False
     manual_context: Dict[str, List[str]] = {}
     max_new_tokens: int = 1024  # ✅ 기본값 증가
-    #temperature: float = 0.7
-    temperature: float = 0.2
+    temperature: float = 0.7
+    #temperature: float = 0.2
 
 class VLMAnalysisRequest(BaseModel):
     image_path: str
-    prompt: str
-    max_new_tokens: int = 1024  # ✅ 기본값 증가
-    temperature: float = 0.2
+    # ✅ VLM 프롬프트 빌더를 위한 추가 필드
+    product: Optional[str] = None
+    defect_en: Optional[str] = None
+    defect_ko: Optional[str] = None
+    full_name_ko: Optional[str] = None
+    anomaly_score: Optional[float] = None
+    is_anomaly: Optional[bool] = None
+    manual_context: Optional[Dict[str, List[str]]] = None
+    # 기존 필드
+    prompt: Optional[str] = None  # ✅ Optional로 변경
+    max_new_tokens: int = 1024
+    temperature: float = 0.7
 
 # =========================
 # 유틸: 프롬프트 빌더(LLM)
@@ -152,7 +161,6 @@ def _build_prompt_vlm(
 【검사 결과】
 제품: {product}
 불량: {defect_ko} ({defect_en})
-정식명칭: {full_name_ko}
 판정: {status}
 
 【매뉴얼】
@@ -174,9 +182,10 @@ def _build_prompt_vlm(
     prompt += """
 【지침】
 - 이미지에서 보이는 불량을 매뉴얼과 연관지어 분석
-- 매뉴얼 문장을 따옴표로 인용
+- 위 매뉴얼 내용을 직접 인용 (따옴표 사용)
 - 정확히 4개 섹션만 작성
 - 불확실한 추정 금지
+- 각 섹션은 반드시 "**섹션명**" 형식으로 시작
 
 【출력 형식】
 **불량 현황**
@@ -435,6 +444,8 @@ def analyze(req: AnalysisRequest):
     text = llm_tokenizer.decode(generated_ids, skip_special_tokens=True)
     
     print(f"[DECODE] 원본 길이: {len(text)} 문자")
+    if len(text) < 1000 : 
+        print(f"[DECODE] 원본 데아터: {text}")
     
     # 6. 4개 섹션 추출 ✅ 개선된 슬라이싱
     text = _extract_four_sections(text)
@@ -475,11 +486,30 @@ def analyze_vlm(req: VLMAnalysisRequest):
         img = Image.open(req.image_path).convert("RGB")
         print(f"[IMAGE] 크기: {img.size}")
 
-        # 2. 프롬프트 사용 (기존 prompt 또는 정제된 prompt)
-        prompt_text = req.prompt.strip()
+        # 2. 프롬프트 생성 ✅ _build_prompt_vlm 사용
+        if req.product and req.defect_ko and req.manual_context is not None:
+            # 구조화된 프롬프트 생성
+            prompt_text = _build_prompt_vlm(
+                image_path=req.image_path,
+                product=req.product,
+                defect_en=req.defect_en or "",
+                defect_ko=req.defect_ko,
+                full_name_ko=req.full_name_ko or req.defect_ko,
+                anomaly_score=req.anomaly_score or 0.0,
+                is_anomaly=req.is_anomaly if req.is_anomaly is not None else False,
+                manual_context=req.manual_context
+            )
+            print("[PROMPT] _build_prompt_vlm 사용")
+        elif req.prompt:
+            # 기존 방식 (직접 프롬프트 제공)
+            prompt_text = req.prompt.strip()
+            print("[PROMPT] 직접 제공된 프롬프트 사용")
+        else:
+            raise HTTPException(400, "product/defect_ko/manual_context 또는 prompt 필드가 필요합니다")
+        
         print(f"[PROMPT] 길이: {len(prompt_text)} 문자")
         
-        # Chat template 적용 시도
+        # 3. Chat template 적용 시도
         try:
             messages = [
                 {
@@ -497,13 +527,13 @@ def analyze_vlm(req: VLMAnalysisRequest):
         except Exception:
             print("[TEMPLATE] Chat template 실패, 기본 텍스트 사용")
 
-        # 3. 입력 준비
+        # 4. 입력 준비
         inputs = vlm_processor(images=img, text=prompt_text, return_tensors="pt").to(vlm_model.device)
 
-        # 4. 생성 파라미터
+        # 5. 생성 파라미터
         do_sample = (req.temperature or 0) > 0
         gen_kwargs = dict(
-            max_new_tokens=min(max(req.max_new_tokens, 16), 1024),  # ✅ 최대 1024
+            max_new_tokens=min(max(req.max_new_tokens, 16), 1024),
             temperature=float(max(min(req.temperature, 1.5), 0.0)),
             do_sample=do_sample,
         )
@@ -512,7 +542,7 @@ def analyze_vlm(req: VLMAnalysisRequest):
         
         print(f"[GEN_KWARGS] max_new_tokens={gen_kwargs['max_new_tokens']}, temp={gen_kwargs['temperature']}")
 
-        # 5. 생성
+        # 6. 생성
         print(f"[GENERATE] 시작...")
         start_time = time.time()
         
@@ -522,22 +552,20 @@ def analyze_vlm(req: VLMAnalysisRequest):
         gen_time = time.time() - start_time
         print(f"[GENERATE] 완료 ({gen_time:.2f}초)")
 
-        # 6. 디코딩
+        # 7. 디코딩
         text = vlm_processor.batch_decode(out, skip_special_tokens=True)[0]
         print(f"[DECODE] 원본 길이: {len(text)} 문자")
         
-        # 7. VLM 응답 정제 ✅
-        # ASSISTANT: 이후 텍스트만 추출
+        # 8. VLM 응답 정제
         if "ASSISTANT:" in text:
             text = text.split("ASSISTANT:")[-1].strip()
             print("[CLEAN] ASSISTANT: 이후 추출")
         
-        # USER: 이전까지만
         if "USER:" in text:
             text = text.split("USER:")[0].strip()
             print("[CLEAN] USER: 이전까지 추출")
         
-        # 4개 섹션 추출
+        # 9. 4개 섹션 추출
         text = _extract_four_sections(text)
         
         print(f"[FINAL] 최종 길이: {len(text)} 문자")
