@@ -400,24 +400,30 @@ async def load_models_on_startup():
     print("\n" + "="*60)
     print("LLM/VLM 서버 시작")
     print("="*60)
+    # ✅ Keepalive 타이머 시작
+    print("\n[KEEPALIVE] 세션 유지 타이머 시작 (60초마다 로그 출력)")
+    print_keepalive()
+    
 
     # ---- LLM ----
     try:
         #llm_name = os.getenv("LLM_MODEL", "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B")
         hyperclovax_name ="naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
         print(f"\n[1/2] LLM 로드 시도: {hyperclovax_name}")
+        print(f"   타임스탬프: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
         try:
             hyperclovax_tokenizer = AutoTokenizer.from_pretrained(
                 hyperclovax_name, use_fast=True, trust_remote_code=True
             )
-            print("✅ LLM 토크나이저 로드 완료 (fast)")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]✅ LLM 토크나이저 로드 완료 (fast)")
+            
         except Exception as e:
             print(f"[WARN] LLM fast tokenizer 실패 → slow 재시도")
             hyperclovax_tokenizer = AutoTokenizer.from_pretrained(
                 hyperclovax_name, use_fast=False, trust_remote_code=True
             )
-            print("✅ LLM 토크나이저 로드 완료 (slow)")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]✅ LLM 토크나이저 로드 완료 (slow)")
 
         hyperclovax_model = AutoModelForCausalLM.from_pretrained(
             hyperclovax_name,
@@ -425,10 +431,10 @@ async def load_models_on_startup():
             device_map="auto",
             trust_remote_code=True,
         )
-        print("✅ LLM 로드 완료")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]✅ LLM 로드 완료")
         
     except Exception as e:
-        print(f"⚠️ LLM 로드 실패: {e}")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]⚠️ LLM 로드 실패: {e}")
         hyperclovax_name = None
         hyperclovax_model = None
         hyperclovax_tokenizer = None
@@ -436,18 +442,18 @@ async def load_models_on_startup():
     # ---- EXAONE 3.5 ----
     try:
         exaone_name = "LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct"
-        print(f"\n[2/3] EXAONE 3.5 로드 시도: {exaone_name}")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\n[2/3] EXAONE 3.5 로드 시도: {exaone_name}")
 
         try:
             exaone_tokenizer = AutoTokenizer.from_pretrained(
                 exaone_name, use_fast=True, trust_remote_code=True
             )
-            print("✅ EXAONE 토크나이저 로드 완료 (fast)")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]✅ EXAONE 토크나이저 로드 완료 (fast)")
         except:
             exaone_tokenizer = AutoTokenizer.from_pretrained(
                 exaone_name, use_fast=False, trust_remote_code=True
             )
-            print("✅ EXAONE 토크나이저 로드 완료 (slow)")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]✅ EXAONE 토크나이저 로드 완료 (slow)")
 
         exaone_model = AutoModelForCausalLM.from_pretrained(
             exaone_name,
@@ -455,10 +461,10 @@ async def load_models_on_startup():
             device_map="auto",
             trust_remote_code=True,
         )
-        print("✅ EXAONE 3.5 로드 완료")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]✅ EXAONE 3.5 로드 완료")
         
     except Exception as e:
-        print(f"⚠️ EXAONE 로드 실패: {e}")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]⚠️ EXAONE 로드 실패: {e}")
         exaone_name = None
         exaone_model = None
         exaone_tokenizer = None
@@ -466,7 +472,7 @@ async def load_models_on_startup():
     # ---- VLM (LLaVA) ----
     try:
         vlm_name = os.getenv("VLM_MODEL", "llava-hf/llava-1.5-7b-hf")
-        print(f"\n[3/3] VLM 로드 시도: {vlm_name}")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\n[3/3] VLM 로드 시도: {vlm_name}")
 
         vlm_model = LlavaForConditionalGeneration.from_pretrained(
             vlm_name,
@@ -474,16 +480,16 @@ async def load_models_on_startup():
             device_map="auto",
         )
         vlm_processor = AutoProcessor.from_pretrained(vlm_name)
-        print("✅ VLM 로드 완료")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]✅ VLM 로드 완료")
         
     except Exception as e:
-        print(f"⚠️ VLM 로드 실패: {e}")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]⚠️ VLM 로드 실패: {e}")
         vlm_name = None
         vlm_model = None
         vlm_processor = None
     
     print("\n" + "="*60)
-    print("서버 초기화 완료")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]서버 초기화 완료")
     print("="*60 + "\n")
 
 # =========================
@@ -500,13 +506,7 @@ def root():
         "endpoints": ["/analyze", "/analyze_vlm", "/health"],
     }
 
-@app.get("/health")
-def health():
-    return {
-        "status": "healthy",
-        "llm": {"name": llm_name, "loaded": llm_model is not None},
-        "vlm": {"name": vlm_name, "loaded": vlm_model is not None},
-    }
+
 
 # =========================
 # LLM 분석 ✅ 개선
@@ -514,16 +514,16 @@ def health():
 @app.post("/analyze")
 def analyze(req: AnalysisRequest):
     print("\n" + "="*60)
-    print("[HyperCLOVAX ANALYZE] 요청 시작")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][HyperCLOVAX ANALYZE] 요청 시작")
     print("="*60)
 
     if hyperclovax_model is None or hyperclovax_tokenizer is None:
-        print("[ERROR] HyperCLOVAX 모델이 로드되지 않음")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][ERROR] HyperCLOVAX 모델이 로드되지 않음")
         raise HTTPException(503, detail="HyperCLOVAX not loaded")
 
     # 1. 프롬프트 생성
     prompt = _build_prompt_hyperclovax(req)
-    print(f"\n[PROMPT] 길이: {len(prompt)} 문자")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\n[PROMPT] 길이: {len(prompt)} 문자")
     
     # 2. 토크나이징
     device = next(hyperclovax_model.parameters()).device
@@ -532,7 +532,7 @@ def analyze(req: AnalysisRequest):
 
     inputs = hyperclovax_tokenizer(prompt, return_tensors="pt").to(device)
     input_length = inputs['input_ids'].shape[1]
-    print(f"[INPUT] 토큰 수: {input_length}")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][INPUT] 토큰 수: {input_length}")
 
    
     # 3. 생성 파라미터
@@ -546,10 +546,10 @@ def analyze(req: AnalysisRequest):
     if do_sample:
         gen_kwargs.update(dict(top_p=0.9))
     
-    print(f"\n[GEN_KWARGS] max_new_tokens={gen_kwargs['max_new_tokens']}, temp={gen_kwargs['temperature']}")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\n[GEN_KWARGS] max_new_tokens={gen_kwargs['max_new_tokens']}, temp={gen_kwargs['temperature']}")
 
     # 4. 생성
-    print(f"[GENERATE] 시작...")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][GENERATE] 시작...")
     start_time = time.time()
     
     with torch.no_grad():
@@ -557,21 +557,21 @@ def analyze(req: AnalysisRequest):
     
     gen_time = time.time() - start_time
     output_length = output_ids.shape[1]
-    print(f"[GENERATE] 완료 ({gen_time:.2f}초, 생성 토큰: {output_length - input_length})")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][GENERATE] 완료 ({gen_time:.2f}초, 생성 토큰: {output_length - input_length})")
 
     # 5. 디코딩
     generated_ids = output_ids[0][input_length:]
     text = hyperclovax_tokenizer.decode(generated_ids, skip_special_tokens=True)
     
-    print(f"[DECODE] 원본 길이: {len(text)} 문자")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][DECODE] 원본 길이: {len(text)} 문자")
     if len(text) < 1000 : 
         print(f"[DECODE] 원본 데아터: {text}")
     
     # 6. 4개 섹션 추출 ✅ 개선된 슬라이싱
     text = _extract_four_sections(text)
     
-    print(f"[FINAL] 최종 길이: {len(text)} 문자")
-    print(f"[FINAL] 최종 라인 수: {len(text.split(chr(10)))}")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][FINAL] 최종 길이: {len(text)} 문자")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][FINAL] 최종 라인 수: {len(text.split(chr(10)))}")
     
     print("="*60 + "\n")
     
@@ -589,11 +589,11 @@ def analyze(req: AnalysisRequest):
 @app.post("/analyze_exaone")
 def analyze_exaone(req: ExaoneAnalysisRequest):
     print("\n" + "="*60)
-    print("[EXAONE 3.5 ANALYZE] 요청 시작")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][EXAONE 3.5 ANALYZE] 요청 시작")
     print("="*60)
     
     if exaone_model is None or exaone_tokenizer is None:
-        print("[ERROR] EXAONE 모델이 로드되지 않음")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][ERROR] EXAONE 모델이 로드되지 않음")
         raise HTTPException(503, detail="EXAONE not loaded")
 
     # Chat template 형식으로 프롬프트 생성
@@ -616,7 +616,7 @@ def analyze_exaone(req: ExaoneAnalysisRequest):
     input_ids = input_ids.to(device)
     input_length = input_ids.shape[1]
     
-    print(f"[INPUT] 토큰 수: {input_length}")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][INPUT] 토큰 수: {input_length}")
 
     do_sample = (req.temperature or 0) > 0
     gen_kwargs = dict(
@@ -629,7 +629,7 @@ def analyze_exaone(req: ExaoneAnalysisRequest):
     if do_sample:
         gen_kwargs.update(dict(top_p=req.top_p))
 
-    print(f"[GEN_KWARGS] max_tokens={gen_kwargs['max_new_tokens']}, temp={gen_kwargs['temperature']}, rep_penalty={gen_kwargs['repetition_penalty']}")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][GEN_KWARGS] max_tokens={gen_kwargs['max_new_tokens']}, temp={gen_kwargs['temperature']}, rep_penalty={gen_kwargs['repetition_penalty']}")
 
     start_time = time.time()
     with torch.no_grad():
@@ -640,7 +640,7 @@ def analyze_exaone(req: ExaoneAnalysisRequest):
     # 전체 출력 디코딩
     full_text = exaone_tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
-    print(f"[DECODE] 원본 길이: {len(full_text)} 문자")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][DECODE] 원본 길이: {len(full_text)} 문자")
     if len(full_text) < 1500 : 
         print(f"[DECODE] 원본 데아터: {full_text}")
   
@@ -655,8 +655,8 @@ def analyze_exaone(req: ExaoneAnalysisRequest):
     
     text = _extract_four_sections(text)
     
-    print(f"[EXAONE] 완료 ({gen_time:.2f}초, {len(text)} 문자)")
-    print(f"[FINAL] 최종 라인 수: {len(text.split(chr(10)))}")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][EXAONE] 완료 ({gen_time:.2f}초, {len(text)} 문자)")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][FINAL] 최종 라인 수: {len(text.split(chr(10)))}")
     print("="*60 + "\n")
     
     return {
@@ -674,22 +674,22 @@ def analyze_exaone(req: ExaoneAnalysisRequest):
 @app.post("/analyze_vlm")
 def analyze_vlm(req: VLMAnalysisRequest):
     print("\n" + "="*60)
-    print("[VLM ANALYZE] 요청 시작")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][VLM ANALYZE] 요청 시작")
     print("="*60)
     
     if vlm_model is None or vlm_processor is None:
-        print("[ERROR] VLM 모델이 로드되지 않음")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][ERROR] VLM 모델이 로드되지 않음")
         raise HTTPException(503, detail="VLM not loaded")
     
     if not os.path.exists(req.image_path):
-        print(f"[ERROR] 이미지 파일 없음: {req.image_path}")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][ERROR] 이미지 파일 없음: {req.image_path}")
         raise HTTPException(400, detail=f"image_path not found: {req.image_path}")
 
     try:
         # 1. 이미지 로드
-        print(f"\n[IMAGE] 로드: {req.image_path}")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\n[IMAGE] 로드: {req.image_path}")
         img = Image.open(req.image_path).convert("RGB")
-        print(f"[IMAGE] 크기: {img.size}")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][IMAGE] 크기: {img.size}")
 
         # 2. 프롬프트 생성 ✅ _build_prompt_vlm 사용
         if req.product and req.defect_ko and req.manual_context is not None:
@@ -704,15 +704,15 @@ def analyze_vlm(req: VLMAnalysisRequest):
                 is_anomaly=req.is_anomaly if req.is_anomaly is not None else False,
                 manual_context=req.manual_context
             )
-            print("[PROMPT] _build_prompt_vlm 사용")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][PROMPT] _build_prompt_vlm 사용")
         elif req.prompt:
             # 기존 방식 (직접 프롬프트 제공)
             prompt_text = req.prompt.strip()
-            print("[PROMPT] 직접 제공된 프롬프트 사용")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][PROMPT] 직접 제공된 프롬프트 사용")
         else:
             raise HTTPException(400, "product/defect_ko/manual_context 또는 prompt 필드가 필요합니다")
         
-        print(f"[PROMPT] 길이: {len(prompt_text)} 문자")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][PROMPT] 길이: {len(prompt_text)} 문자")
         
         # 3. Chat template 적용 시도
         try:
@@ -728,9 +728,9 @@ def analyze_vlm(req: VLMAnalysisRequest):
             prompt_text = vlm_processor.apply_chat_template(
                 messages, add_generation_prompt=True, tokenize=False
             )
-            print("[TEMPLATE] Chat template 적용 성공")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][TEMPLATE] Chat template 적용 성공")
         except Exception:
-            print("[TEMPLATE] Chat template 실패, 기본 텍스트 사용")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][TEMPLATE] Chat template 실패, 기본 텍스트 사용")
 
         # 4. 입력 준비
         inputs = vlm_processor(images=img, text=prompt_text, return_tensors="pt").to(vlm_model.device)
@@ -745,21 +745,21 @@ def analyze_vlm(req: VLMAnalysisRequest):
         if do_sample:
             gen_kwargs.update(dict(top_p=0.9))
         
-        print(f"[GEN_KWARGS] max_new_tokens={gen_kwargs['max_new_tokens']}, temp={gen_kwargs['temperature']}")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][GEN_KWARGS] max_new_tokens={gen_kwargs['max_new_tokens']}, temp={gen_kwargs['temperature']}")
 
         # 6. 생성
-        print(f"[GENERATE] 시작...")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][GENERATE] 시작...")
         start_time = time.time()
         
         with torch.no_grad():
             out = vlm_model.generate(**inputs, **gen_kwargs)
         
         gen_time = time.time() - start_time
-        print(f"[GENERATE] 완료 ({gen_time:.2f}초)")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][GENERATE] 완료 ({gen_time:.2f}초)")
 
         # 7. 디코딩
         text = vlm_processor.batch_decode(out, skip_special_tokens=True)[0]
-        print(f"[DECODE] 원본 길이: {len(text)} 문자")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][DECODE] 원본 길이: {len(text)} 문자")
         
         # 8. VLM 응답 정제
         if "ASSISTANT:" in text:
@@ -773,7 +773,7 @@ def analyze_vlm(req: VLMAnalysisRequest):
         # 9. 4개 섹션 추출
         text = _extract_four_sections(text)
         
-        print(f"[FINAL] 최종 길이: {len(text)} 문자")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][FINAL] 최종 길이: {len(text)} 문자")
         print("="*60 + "\n")
         
         return {
@@ -787,15 +787,44 @@ def analyze_vlm(req: VLMAnalysisRequest):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"\n[ERROR] VLM 추론 오류:")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\n[ERROR] VLM 추론 오류:")
         import traceback
         traceback.print_exc()
         raise HTTPException(500, detail=f"VLM inference error: {e}")
 
+from datetime import datetime
+import threading
+# ✅ 세션 유지용 타이머
+keepalive_timer = None
+
+
+# ✅ 주기적 로그 출력 함수 (세션 유지)
+def print_keepalive():
+    """주기적으로 현재 시간 출력 (세션 유지)"""
+    global keepalive_timer
+    
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[KEEPALIVE] {now} - LLM 서버 정상 작동 중...")
+    
+    # 다음 타이머 설정 (60초마다)
+    keepalive_timer = threading.Timer(60.0, print_keepalive)
+    keepalive_timer.daemon = True
+    keepalive_timer.start()
+
+
 # =========================
 # 서버 실행 (개발용)
 # =========================
+
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", "5001"))
-    uvicorn.run("llm_server:app", host="0.0.0.0", port=port, reload=False)
+    
+    print(f"[START] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - LLM 서버 시작")
+    
+    uvicorn.run(
+        "llm_server:app",
+        host="0.0.0.0",
+        port=5001,
+        reload=False,
+        log_level="info"
+    )
