@@ -14,15 +14,15 @@ const progressFill = document.getElementById('progressFill');
 const progressText = document.getElementById('progressText');
 const previewSection = document.getElementById('previewSection');
 const previewImage = document.getElementById('previewImage');
+const preprocessedImage = document.getElementById('preprocessedImage');
+const imageInfoCard = document.getElementById('imageInfoCard');
 const fileName = document.getElementById('fileName');
 const fileSize = document.getElementById('fileSize');
 const resolution = document.getElementById('resolution');
-const filePath = document.getElementById('filePath');
 const reuploadBtn = document.getElementById('reuploadBtn');
 const nextBtn = document.getElementById('nextBtn');
 const checkIndexBtn = document.getElementById('checkIndexBtn');
 const rebuildIndexBtn = document.getElementById('rebuildIndexBtn');
-const recentFilesList = document.getElementById('recentFilesList');
 
 // 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', () => {
@@ -33,9 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 인덱스 상태 확인
     checkIndexStatus();
-    
-    // 최근 파일 목록 로드
-    loadRecentFiles();
     
     // 세션에서 이전 업로드 정보 복원
     restoreSessionData();
@@ -127,7 +124,7 @@ async function uploadFile(file) {
     console.log('[UPLOAD] 파일 업로드 시작:', file.name);
     
     // 파일 크기 검증 (10MB 제한)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
         showNotification('파일 크기는 10MB 이하여야 합니다', 'error');
         return;
@@ -171,9 +168,6 @@ async function uploadFile(file) {
         // 프리뷰 표시
         await showPreview(file, data);
         
-        // 최근 파일 목록 새로고침
-        loadRecentFiles();
-        
         showNotification('파일 업로드 완료', 'success');
         
     } catch (error) {
@@ -197,14 +191,16 @@ async function showPreview(file, uploadData) {
     reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-            // 이미지 표시
+            // 원본 이미지 표시
             previewImage.src = e.target.result;
+            
+            // 전처리 이미지 표시 (현재는 동일)
+            preprocessedImage.src = e.target.result;
             
             // 정보 표시
             fileName.textContent = uploadData.filename;
             fileSize.textContent = formatFileSize(uploadData.file_size);
             resolution.textContent = `${img.width} × ${img.height}`;
-            filePath.textContent = uploadData.file_path;
             
             // 세션 저장
             SessionData.set('uploadedImage', {
@@ -218,6 +214,7 @@ async function showPreview(file, uploadData) {
             // UI 전환
             uploadProgress.style.display = 'none';
             previewSection.style.display = 'block';
+            imageInfoCard.style.display = 'block';
         };
         img.src = e.target.result;
     };
@@ -231,6 +228,7 @@ function resetUpload() {
     uploadZone.style.display = 'block';
     uploadProgress.style.display = 'none';
     previewSection.style.display = 'none';
+    imageInfoCard.style.display = 'none';
     fileInput.value = '';
     uploadedFileData = null;
     progressFill.style.width = '0%';
@@ -246,14 +244,15 @@ function restoreSessionData() {
         
         // 이미지 표시
         previewImage.src = savedData.preview;
+        preprocessedImage.src = savedData.preview;
         fileName.textContent = savedData.filename;
         fileSize.textContent = formatFileSize(savedData.file_size);
         resolution.textContent = savedData.resolution;
-        filePath.textContent = savedData.file_path;
         
         // UI 전환
         uploadZone.style.display = 'none';
         previewSection.style.display = 'block';
+        imageInfoCard.style.display = 'block';
         
         uploadedFileData = savedData;
     }
@@ -273,63 +272,6 @@ function goToNextPage() {
 }
 
 /**
- * 최근 파일 목록 로드
- */
-async function loadRecentFiles() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/upload/list`);
-        
-        if (!response.ok) {
-            throw new Error('파일 목록 조회 실패');
-        }
-        
-        const data = await response.json();
-        console.log('[UPLOAD] 최근 파일:', data.total_count);
-        
-        // 목록 표시
-        if (data.files && data.files.length > 0) {
-            recentFilesList.innerHTML = data.files.slice(0, 5).map(file => `
-                <li onclick="loadFile('${file.file_path}', '${file.filename}')">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 500;">${file.filename}</span>
-                        <span style="font-size: 0.8rem; color: var(--text-secondary);">
-                            ${formatFileSize(file.file_size)}
-                        </span>
-                    </div>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
-                        ${formatDateTime(file.modified_at)}
-                    </div>
-                </li>
-            `).join('');
-        } else {
-            recentFilesList.innerHTML = '<li class="no-files">업로드된 파일이 없습니다</li>';
-        }
-        
-    } catch (error) {
-        console.error('[UPLOAD] 파일 목록 로드 실패:', error);
-        recentFilesList.innerHTML = '<li class="no-files">목록 로드 실패</li>';
-    }
-}
-
-/**
- * 파일 로드
- */
-function loadFile(filePath, filename) {
-    console.log('[UPLOAD] 파일 로드:', filename);
-    
-    // 세션에 저장
-    SessionData.set('uploadedImage', {
-        filename: filename,
-        file_path: filePath
-    });
-    
-    showNotification('파일 선택됨: ' + filename, 'success');
-    
-    // 페이지 새로고침하여 프리뷰 표시
-    location.reload();
-}
-
-/**
  * 인덱스 재구축
  */
 async function rebuildIndex() {
@@ -341,7 +283,6 @@ async function rebuildIndex() {
         rebuildIndexBtn.disabled = true;
         rebuildIndexBtn.textContent = '재구축 중...';
         
-        // 불량 이미지 인덱스 재구축
         const response = await fetch(`${API_BASE_URL}/build_index`, {
             method: 'POST',
             headers: {
@@ -362,7 +303,6 @@ async function rebuildIndex() {
         
         showNotification(`인덱스 재구축 완료 (${data.num_images}개 이미지)`, 'success');
         
-        // 상태 새로고침
         await checkIndexStatus();
         
     } catch (error) {

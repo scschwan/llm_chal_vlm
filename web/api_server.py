@@ -2,14 +2,23 @@
 메인 API 서버 - 라우터 통합
 """
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+
+from fastapi import FastAPI, File, UploadFile, HTTPException, Query, Form
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
-import sys
-from typing import Optional
 from pydantic import BaseModel, Field
+from typing import Dict,List, Optional
+import os
+import sys
+import shutil
+from pathlib import Path
+import uvicorn
+from fastapi.staticfiles import StaticFiles
+import httpx
+
+
+import time  # 기존 import에 추가
+
 
 # 프로젝트 루트 경로
 project_root = Path(__file__).parent.parent
@@ -22,6 +31,7 @@ from modules.vlm import RAGManager, DefectMapper, PromptBuilder
 
 # 라우터 imports
 from routers.upload import router as upload_router, init_upload_router
+from routers.search import router as search_router, init_search_router
 
 
 class HealthResponse(BaseModel):
@@ -91,10 +101,13 @@ vlm_components = {
 
 # 업로드 라우터 초기화 및 등록
 init_upload_router(UPLOAD_DIR)
+init_search_router(matcher, INDEX_DIR, project_root)
+
+# 라우터 등록 부분에 추가
 app.include_router(upload_router)
+app.include_router(search_router)
 
 # TODO: 다른 라우터들도 추가
-# app.include_router(search_router)
 # app.include_router(anomaly_router)
 # app.include_router(manual_router)
 
@@ -212,7 +225,6 @@ async def startup_event():
     # 5. VLM 컴포넌트 초기화
     # init_vlm_components() - 기존 함수 재사용
     print("✅ VLM Component 초기화 완료")
-
     print("=" * 60)
     print("서버 초기화 완료")
     print("=" * 60 + "\n")
@@ -332,6 +344,96 @@ async def build_index(request: dict):
     except Exception as e:
         raise HTTPException(500, f"인덱스 구축 실패: {str(e)}")
 
+
+
+@app.get("/api/image/{image_path:path}")
+async def serve_image(image_path: str):
+    """이미지 파일 제공 엔드포인트"""
+    try:
+        # 상대 경로 정규화
+        if image_path.startswith("../"):
+            image_path = image_path.replace("../", "")
+        
+        # 경로 처리
+        if image_path.startswith("uploads/"):
+            file_path = UPLOAD_DIR / image_path.replace("uploads/", "")
+        elif image_path.startswith("data/"):
+            file_path = project_root / image_path
+        else:
+            # 기본적으로 project_root 기준
+            file_path = project_root / image_path
+        
+        print(f"[IMAGE] 이미지 서빙 시도: {file_path}")
+        
+        if not file_path.exists():
+            raise HTTPException(404, f"이미지를 찾을 수 없습니다: {file_path}")
+        
+        return FileResponse(str(file_path))
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[IMAGE] 이미지 서빙 오류: {e}")
+        raise HTTPException(500, str(e))
+
+
+# 불량 등록 API (기존 코드 유지)
+@app.post("/register_defect")
+async def register_defect(
+    file: UploadFile = File(...),
+    product_name: str = Form(...),
+    defect_name: str = Form(...)
+):
+    """불량 이미지 등록"""
+    defect_dir = project_root / "data" / "def_split"
+    defect_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 현재 등록된 파일 중 최대 seqno 찾기
+    existing_files = list(defect_dir.glob(f"{product_name}_{defect_name}_*"))
+    
+    max_seqno = 0
+    for existing_file in existing_files:
+        try:
+            stem = existing_file.stem
+            parts = stem.split('_')
+            if len(parts) >= 3:
+                seqno = int(parts[-1])
+                max_seqno = max(max_seqno, seqno)
+        except (ValueError, IndexError):
+            continue
+    
+    # 새로운 seqno
+    new_seqno = max_seqno + 1
+    
+    # 파일명 생성
+    ext = Path(file.filename).suffix
+    new_filename = f"{product_name}_{defect_name}_{new_seqno:03d}{ext}"
+    save_path = defect_dir / new_filename
+    
+    # 저장
+    with save_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # 인덱스 재구축
+    index_rebuilt = False
+    if matcher and matcher.index_built:
+        try:
+            defect_index_path = INDEX_DIR / "defect"
+            matcher.build_index(str(defect_dir))
+            matcher.save_index(str(defect_index_path))
+            index_rebuilt = True
+        except Exception as e:
+            print(f"[REGISTER] 인덱스 재구축 실패: {e}")
+    
+    return JSONResponse(content={
+        "status": "success",
+        "saved_path": str(save_path),
+        "filename": new_filename,
+        "product_name": product_name,
+        "defect_name": defect_name,
+        "seqno": new_seqno,
+        "index_rebuilt": index_rebuilt
+    })
 
 # ====================
 # 서버 실행

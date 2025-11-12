@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>유사도 매칭 | 불량 검출 시스템</title>
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/search.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <header class="header">
+            <h1>🔍 유사도 매칭</h1>
+            <p class="subtitle">불량 이미지와 유사한 사례를 검색합니다</p>
+        </header>
+
+        <!-- 네비게이션 -->
+        <nav class="nav">
+            <a href="/upload.html" class="nav-btn">1. 이미지 업로드</a>
+            <a href="/search.html" class="nav-btn active">2. 유사도 매칭</a>
+            <a href="/anomaly.html" class="nav-btn disabled">3. 이상 검출</a>
+            <a href="/manual.html" class="nav-btn disabled">4. 대응 매뉴얼</a>
+        </nav>
+
+        <!-- 메인 컨텐츠 -->
+        <main class="main-content">
+            <!-- 검색 영역 -->
+            <section class="search-section">
+                <!-- 쿼리 이미지 -->
+                <div class="query-image-section">
+                    <h3>📸 입력 이미지</h3>
+                    <div class="query-image-container">
+                        <img id="queryImage" class="query-image" alt="Query Image">
+                        <div class="image-info">
+                            <p id="queryImageName">이미지 없음</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 검색 컨트롤 -->
+                <div class="search-controls">
+                    <div class="control-group">
+                        <label for="topKSlider">검색 개수 (TOP-K)</label>
+                        <div class="slider-container">
+                            <input 
+                                type="range" 
+                                id="topKSlider" 
+                                min="1" 
+                                max="10" 
+                                value="5"
+                                class="slider"
+                            >
+                            <span id="topKValue" class="slider-value">5</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="searchBtn">
+                        🔍 유사 이미지 검색
+                    </button>
+                </div>
+
+                <!-- 검색 진행 상태 -->
+                <div class="search-progress" id="searchProgress" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>유사 이미지를 검색하고 있습니다...</p>
+                </div>
+
+                <!-- 검색 결과 -->
+                <div class="search-results" id="searchResults" style="display: none;">
+                    <div class="results-header">
+                        <h3>🎯 검색 결과</h3>
+                        <p class="results-info">
+                            총 <span id="totalResults">0</span>개 결과 
+                            (전체 <span id="gallerySize">0</span>개 이미지)
+                        </p>
+                    </div>
+
+                    <!-- TOP-1 메인 이미지 -->
+                    <div class="main-result">
+                        <h4>가장 유사한 이미지 (TOP-1)</h4>
+                        <div class="main-result-container">
+                            <div class="main-image-wrapper">
+                                <img id="mainResultImage" class="main-result-image" alt="Top 1">
+                                <div class="similarity-badge" id="mainSimilarity">95%</div>
+                            </div>
+                            <div class="main-result-info">
+                                <div class="info-item">
+                                    <span class="label">제품명</span>
+                                    <span class="value" id="mainProduct">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">불량 유형</span>
+                                    <span class="value" id="mainDefect">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">파일명</span>
+                                    <span class="value" id="mainFilename">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">유사도 점수</span>
+                                    <span class="value" id="mainScore">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 나머지 결과 (썸네일) -->
+                    <div class="thumbnail-results">
+                        <h4>기타 유사 이미지 (클릭하여 TOP-1과 교체)</h4>
+                        <div class="thumbnail-grid" id="thumbnailGrid">
+                            <!-- 썸네일 동적 생성 -->
+                        </div>
+                    </div>
+
+                    <!-- 액션 버튼 -->
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" id="reSearchBtn">
+                            🔄 다시 검색
+                        </button>
+                        <button class="btn btn-primary" id="nextBtn">
+                            다음: 이상 영역 검출 →
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 사이드바 -->
+            <aside class="sidebar">
+                <!-- 검색 통계 -->
+                <div class="stats-card" id="statsCard" style="display: none;">
+                    <h3>📊 검색 통계</h3>
+                    <div class="stat-item">
+                        <span class="stat-label">평균 유사도</span>
+                        <span class="stat-value" id="avgSimilarity">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">최고 유사도</span>
+                        <span class="stat-value" id="maxSimilarity">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">최저 유사도</span>
+                        <span class="stat-value" id="minSimilarity">-</span>
+                    </div>
+                </div>
+
+                <!-- 불량 등록 -->
+                <div class="register-card">
+                    <h3>💾 불량 이미지 등록</h3>
+                    <p class="register-description">
+                        현재 이미지를 새로운 불량 사례로 등록합니다
+                    </p>
+                    <button class="btn btn-primary btn-block" id="registerBtn">
+                        불량 이미지 등록
+                    </button>
+                </div>
+
+                <!-- 인덱스 정보 -->
+                <div class="index-card">
+                    <h3>🔧 인덱스 정보</h3>
+                    <div class="index-status" id="indexStatus">
+                        <p class="status-loading">확인 중...</p>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- 불량 등록 모달 -->
+    <div class="modal" id="registerModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>💾 불량 이미지 등록</h3>
+                <button class="modal-close" id="modalClose">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="productSelect">제품명 *</label>
+                    <select id="productSelect" class="form-control">
+                        <option value="">선택하세요</option>
+                        <option value="prod1">prod1</option>
+                        <option value="prod2">prod2</option>
+                        <option value="prod3">prod3</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="defectSelect">불량 유형 *</label>
+                    <select id="defectSelect" class="form-control">
+                        <option value="">선택하세요</option>
+                        <option value="hole">hole (구멍)</option>
+                        <option value="burr">burr (버)</option>
+                        <option value="scratch">scratch (스크래치)</option>
+                    </select>
+                </div>
+                <p class="register-preview">
+                    파일명 미리보기: <strong id="filenamePreview">prod1_hole_001.jpg</strong>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modalCancelBtn">취소</button>
+                <button class="btn btn-primary" id="modalConfirmBtn">등록</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/common.js"></script>
+    <script src="/static/js/search.js"></script>
+</body>
+</html>

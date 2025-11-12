@@ -52,24 +52,17 @@
                 <div class="preview-section" id="previewSection" style="display: none;">
                     <h3>업로드된 이미지</h3>
                     <div class="preview-container">
-                        <img id="previewImage" class="preview-image" alt="Preview">
-                        <div class="image-info">
-                            <div class="info-row">
-                                <span class="info-label">파일명:</span>
-                                <span class="info-value" id="fileName">-</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">파일 크기:</span>
-                                <span class="info-value" id="fileSize">-</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">해상도:</span>
-                                <span class="info-value" id="resolution">-</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">업로드 경로:</span>
-                                <span class="info-value" id="filePath">-</span>
-                            </div>
+                        <!-- 원본 이미지 -->
+                        <div class="preview-item">
+                            <h4>원본 이미지</h4>
+                            <img id="previewImage" class="preview-image" alt="Original">
+                        </div>
+                        
+                        <!-- 전처리 이미지 -->
+                        <div class="preview-item">
+                            <h4>전처리 이미지</h4>
+                            <img id="preprocessedImage" class="preview-image" alt="Preprocessed">
+                            <p class="preprocessing-note">전처리 로직이 적용되면 여기에 표시됩니다</p>
                         </div>
                     </div>
 
@@ -85,8 +78,28 @@
                 </div>
             </section>
 
-            <!-- 인덱스 관리 영역 -->
+            <!-- 사이드바 -->
             <aside class="sidebar">
+                <!-- 이미지 정보 -->
+                <div class="info-card" id="imageInfoCard" style="display: none;">
+                    <h3>📋 이미지 정보</h3>
+                    <div class="info-list">
+                        <div class="info-row">
+                            <span class="info-label">파일명</span>
+                            <span class="info-value" id="fileName">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">파일 크기</span>
+                            <span class="info-value" id="fileSize">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">해상도</span>
+                            <span class="info-value" id="resolution">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 인덱스 관리 -->
                 <div class="index-card">
                     <h3>🔧 인덱스 관리</h3>
                     
@@ -102,14 +115,6 @@
                             🔄 재구축
                         </button>
                     </div>
-                </div>
-
-                <!-- 최근 업로드 파일 -->
-                <div class="recent-files">
-                    <h3>📁 최근 업로드</h3>
-                    <ul id="recentFilesList" class="file-list">
-                        <li class="no-files">업로드된 파일이 없습니다</li>
-                    </ul>
                 </div>
             </aside>
         </main>
