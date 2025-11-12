@@ -646,9 +646,9 @@ def analyze_exaone(req: ExaoneAnalysisRequest):
   
     
     # ASSISTANT: 이후 텍스트만 추출
-    if "assistant:" in full_text:
-        text = full_text.split("assistant:")[-1].strip()
-        print("[CLEAN] assistant: 이후 추출")
+    if "[|assistant|]" in full_text:
+        text = full_text.split("[|assistant|]")[-1].strip()
+        print("[CLEAN] [|assistant|] 이후 추출")
         print(text)
     else:
         text = full_text
