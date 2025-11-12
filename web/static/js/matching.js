@@ -346,9 +346,9 @@ async function performAnomalyDetection() {
             },
             body: JSON.stringify({
                 test_image_path: uploadedImagePath,
-                //reference_image_path: null,
+                reference_image_path: null,
                 //product_name: null
-                reference_image_path: refPath,
+                //reference_image_path: refPath,
                 product_name: product
             })
         });
