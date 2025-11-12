@@ -71,8 +71,8 @@ function initializeEventListeners() {
 }
 
 // 탭 전환
-function switchTab(tabElement) {
-    /*
+function switchTab(tab) {
+    
     const targetTab = tab.dataset.tab;
     
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -82,7 +82,8 @@ function switchTab(tabElement) {
         content.classList.remove('active');
     });
     document.getElementById(`${targetTab}-tab`).classList.add('active');
-    */
+    
+   /*
     // 기존 탭 전환 로직
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -90,15 +91,18 @@ function switchTab(tabElement) {
     tabElement.classList.add('active');
     const tabName = tabElement.dataset.tab;
     document.getElementById(`${tabName}Tab`).classList.add('active');
-    
+    */
     // ✅ 인덱스 자동 전환
-    if (tabName === 'search') {
+    //if (tabName === 'search') {
+    if (targetTab === 'search') {
         // 유사도 검색 탭 → 불량 이미지 인덱스
         ensureDefectIndex().catch(err => {
             console.error('인덱스 전환 실패:', err);
             alert('불량 이미지 인덱스 로드에 실패했습니다.');
         });
-    } else if (tabName === 'anomaly') {
+    }
+    //else if (tabName === 'anomaly') {
+    else if (targetTab === 'anomaly') {
         // 이상 검출 탭 → 정상 이미지 인덱스
         ensureNormalIndex().catch(err => {
             console.error('인덱스 전환 실패:', err);
