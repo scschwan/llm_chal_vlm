@@ -466,7 +466,7 @@ async def load_models_on_startup():
     # ---- VLM (LLaVA) ----
     try:
         vlm_name = os.getenv("VLM_MODEL", "llava-hf/llava-1.5-7b-hf")
-        print(f"\n[2/2] VLM 로드 시도: {vlm_name}")
+        print(f"\n[3/3] VLM 로드 시도: {vlm_name}")
 
         vlm_model = LlavaForConditionalGeneration.from_pretrained(
             vlm_name,

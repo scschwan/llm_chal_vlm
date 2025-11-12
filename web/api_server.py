@@ -327,7 +327,7 @@ async def _manual_core(mode: str, req: ManualGenRequest):
             r = await client.post(f"{LLM_SERVER_URL}/analyze_exaone", json=payload)
             r.raise_for_status()
             llm_analysis = r.json().get("analysis", "")
-            
+
         elif mode == "vlm":
             payload = {
                 "image_path": req.image_path,
@@ -1307,6 +1307,19 @@ async def manual_generate_llm(req: ManualGenRequest):
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(500, f"LLM 생성 오류: {str(e)}")
+
+# ✅ EXAONE 전용 엔드포인트 추가
+@app.post("/manual/generate/llm_exaone")
+async def manual_generate_llm_exaone(req: ManualGenRequest):
+    """EXAONE 3.5 기반 대응 매뉴얼 생성"""
+    try:
+        return await _manual_core("llm_exaone", req)
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"EXAONE 생성 오류: {str(e)}")
 
 # ====== 라우트: VLM 전용 ======
 @app.post("/manual/generate/vlm")
