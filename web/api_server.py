@@ -50,7 +50,8 @@ vlm_components = {
     "prompt_builder": PromptBuilder()
 }
 
-vlm_load_complete = True
+current_index_type: Optional[str] = None  # 'defect' 또는 'normal'
+
 
 def init_vlm_components():
     """VLM 컴포넌트 초기화 (서버 시작 시 1회)"""
@@ -194,6 +195,74 @@ class ManualGenRequest(BaseModel):
     #temperature: float = 0.7
     temperature: float = 0.3
     verbose: bool = False  # ✅ 추가: 디버그 로그 출력
+
+
+async def switch_index(index_type: str):
+    """
+    인덱스 타입 전환
+    
+    Args:
+        index_type: 'defect' (불량 이미지용) 또는 'normal' (정상 이미지용)
+    
+    Returns:
+        dict: 전환 결과
+    """
+    global current_index_type
+    
+    # 이미 로드된 인덱스면 스킵
+    if current_index_type == index_type:
+        return {
+            "status": "already_loaded",
+            "index_type": index_type,
+            "gallery_count": len(matcher.gallery_paths) if matcher and matcher.gallery_paths else 0
+        }
+    
+    # 인덱스 타입 검증
+    if index_type not in ["defect", "normal"]:
+        raise ValueError(f"잘못된 index_type: {index_type} (defect 또는 normal만 가능)")
+    
+    # 갤러리 디렉토리 설정
+    if index_type == "defect":
+        gallery_dir = project_root / "data" / "def_split"
+    else:  # normal
+        gallery_dir = project_root / "data" / "ok_split"
+    
+    # 디렉토리 존재 확인
+    if not gallery_dir.exists():
+        raise FileNotFoundError(f"갤러리 디렉토리가 없습니다: {gallery_dir}")
+    
+    print(f"\n{'='*60}")
+    print(f"인덱스 전환: {current_index_type or 'None'} → {index_type}")
+    print(f"갤러리: {gallery_dir}")
+    print(f"{'='*60}")
+    
+    try:
+        # 인덱스 구축
+        info = matcher.build_index(str(gallery_dir))
+        
+        # 인덱스 저장
+        index_path = INDEX_DIR / index_type
+        index_path.mkdir(parents=True, exist_ok=True)
+        matcher.save_index(str(index_path))
+        
+        # 현재 인덱스 타입 업데이트
+        current_index_type = index_type
+        
+        print(f"✅ 인덱스 전환 완료: {info['num_images']}개 이미지")
+        
+        return {
+            "status": "success",
+            "index_type": index_type,
+            "gallery_dir": str(gallery_dir),
+            "gallery_count": info["num_images"],
+            "message": f"{index_type} 인덱스로 전환 완료"
+        }
+    
+    except Exception as e:
+        print(f"❌ 인덱스 전환 실패: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"인덱스 전환 실패: {str(e)}")
 
 # ====== 공용 코어 ======
 # ====== 매뉴얼 생성 공용 코어 ======
@@ -444,6 +513,7 @@ async def startup_event():
         verbose=True
     )
     
+    '''
     # 기존 인덱스 로드 시도
     if (INDEX_DIR / "index_data.pt").exists():
         try:
@@ -468,7 +538,15 @@ async def startup_event():
                 print(f"❌ 자동 인덱스 구축 실패: {e}")
         else:
             print(f"⚠️  기본 갤러리 디렉토리 없음: {default_gallery}")
-    
+    '''
+     # 2. 기본 인덱스 자동 로드 (불량 이미지)
+    try:
+        print("\n🔄 기본 인덱스 로드 중 (불량 이미지)...")
+        await switch_index("defect")
+    except Exception as e:
+        print(f"⚠️  기본 인덱스 로드 실패: {e}")
+
+
     # 2. Anomaly Detector 생성
     try:
         detector = create_detector(
@@ -626,6 +704,47 @@ async def get_index_info():
         "faiss_enabled": matcher.faiss_index is not None,
         "sample_paths": matcher.gallery_paths[:5]
     })
+
+
+
+
+@app.post("/index/switch")
+async def switch_index_endpoint(index_type: str):
+    """
+    인덱스 타입 전환 API
+    
+    Query Parameters:
+        index_type: 'defect' 또는 'normal'
+    """
+    try:
+        result = await switch_index(index_type)
+        return result
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/index/status")
+async def get_index_status():
+    """현재 인덱스 상태 조회"""
+    if matcher is None:
+        return {
+            "status": "error",
+            "message": "매처가 초기화되지 않았습니다",
+            "current_index_type": None,
+            "gallery_count": 0
+        }
+    
+    return {
+        "status": "success",
+        "current_index_type": current_index_type,
+        "gallery_count": len(matcher.gallery_paths) if matcher.gallery_paths else 0,
+        "index_built": matcher.index_built,
+        "model_id": matcher.model_id if hasattr(matcher, 'model_id') else None
+    }
 
 
 # ====================

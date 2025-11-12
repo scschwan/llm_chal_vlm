@@ -72,6 +72,7 @@ function initializeEventListeners() {
 
 // 탭 전환
 function switchTab(tab) {
+    /*
     const targetTab = tab.dataset.tab;
     
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -81,6 +82,29 @@ function switchTab(tab) {
         content.classList.remove('active');
     });
     document.getElementById(`${targetTab}-tab`).classList.add('active');
+    */
+    // 기존 탭 전환 로직
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+    tabElement.classList.add('active');
+    const tabName = tabElement.dataset.tab;
+    document.getElementById(`${tabName}Tab`).classList.add('active');
+    
+    // ✅ 인덱스 자동 전환
+    if (tabName === 'search') {
+        // 유사도 검색 탭 → 불량 이미지 인덱스
+        ensureDefectIndex().catch(err => {
+            console.error('인덱스 전환 실패:', err);
+            alert('불량 이미지 인덱스 로드에 실패했습니다.');
+        });
+    } else if (tabName === 'anomaly') {
+        // 이상 검출 탭 → 정상 이미지 인덱스
+        ensureNormalIndex().catch(err => {
+            console.error('인덱스 전환 실패:', err);
+            alert('정상 이미지 인덱스 로드에 실패했습니다.');
+        });
+    }
 }
 
 // 설정 파일 로드
@@ -715,8 +739,102 @@ async function submitDefectRegistration() {
         }
     }
 }
+
+// ====================
+// 인덱스 자동 전환 기능
+// ====================
+
+/**
+ * 불량 이미지 인덱스로 전환 (유사도 검색용)
+ */
+async function ensureDefectIndex() {
+    try {
+        console.log('[INDEX] 불량 이미지 인덱스로 전환 중...');
+        
+        const response = await fetch(`${API_BASE_URL}/index/switch?index_type=defect`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('[INDEX] 불량 이미지 인덱스 로드:', data);
+        
+        // UI 상태 표시
+        updateIndexStatus('defect', data.gallery_count, data.status);
+        
+        return data;
+    } catch (err) {
+        console.error('[INDEX] 전환 실패:', err);
+        updateIndexStatus('defect', 0, 'error');
+        throw err;
+    }
+}
+
+/**
+ * 정상 이미지 인덱스로 전환 (이상 검출용)
+ */
+async function ensureNormalIndex() {
+    try {
+        console.log('[INDEX] 정상 이미지 인덱스로 전환 중...');
+        
+        const response = await fetch(`${API_BASE_URL}/index/switch?index_type=normal`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('[INDEX] 정상 이미지 인덱스 로드:', data);
+        
+        // UI 상태 표시
+        updateIndexStatus('normal', data.gallery_count, data.status);
+        
+        return data;
+    } catch (err) {
+        console.error('[INDEX] 전환 실패:', err);
+        updateIndexStatus('normal', 0, 'error');
+        throw err;
+    }
+}
+
+/**
+ * 인덱스 상태 UI 업데이트
+ */
+function updateIndexStatus(type, count, status) {
+    const statusEl = document.getElementById('indexStatus');
+    if (!statusEl) return;
+    
+    const typeText = type === 'defect' ? '불량 이미지' : '정상 이미지';
+    
+    let html = '';
+    if (status === 'error') {
+        html = `
+            <span style="color: #ef4444;">❌ ${typeText} 인덱스 로드 실패</span>
+        `;
+    } else if (status === 'already_loaded') {
+        html = `
+            <span style="color: #10b981;">✅ ${typeText} 인덱스 활성</span>
+            <span style="color: #6b7280;"> (${count}개 이미지, 캐시됨)</span>
+        `;
+    } else {
+        html = `
+            <span style="color: #10b981;">✅ ${typeText} 인덱스 활성</span>
+            <span style="color: #6b7280;"> (${count}개 이미지)</span>
+        `;
+    }
+    
+    statusEl.innerHTML = html;
+    statusEl.style.display = 'block';
+}
+
 // 인덱스 관리
 async function checkIndexStatus() {
+    /*
     checkIndexBtn.disabled = true;
     checkIndexBtn.textContent = '확인 중...';
     
@@ -749,6 +867,26 @@ async function checkIndexStatus() {
     } finally {
         checkIndexBtn.disabled = false;
         checkIndexBtn.textContent = '📊 상태 확인';
+    }
+        */
+    try {
+        const response = await fetch(`${API_BASE_URL}/index/status`);
+        const data = await response.json();
+        
+        console.log('[INDEX] 현재 상태:', data);
+        
+        if (data.current_index_type) {
+            updateIndexStatus(
+                data.current_index_type,
+                data.gallery_count,
+                'success'
+            );
+        }
+        
+        return data;
+    } catch (err) {
+        console.error('[INDEX] 상태 조회 실패:', err);
+        return null;
     }
 }
 
@@ -894,6 +1032,31 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnVLM) btnVLM.addEventListener('click', async () => {
     await generateManualBy('vlm');
   });
+
+  console.log('[INIT] 페이지 로드 완료');
+    
+  // 현재 활성 탭 확인
+  const activeTab = document.querySelector('.tab.active');
+    
+  if (activeTab) {
+        const tabName = activeTab.dataset.tab;
+        console.log(`[INIT] 현재 탭: ${tabName}`);
+        
+        // 탭에 따라 적절한 인덱스 로드
+        if (tabName === 'search') {
+            ensureDefectIndex();
+        } else if (tabName === 'anomaly') {
+            ensureNormalIndex();
+        }
+  }
+    
+  // 인덱스 상태 확인 버튼
+  const checkIndexBtn = document.getElementById('checkIndexBtn');
+  if (checkIndexBtn) {
+        checkIndexBtn.addEventListener('click', async () => {
+            await checkIndexStatus();
+        });
+  }
 });
 
 // [추가] 생성 공통 함수
