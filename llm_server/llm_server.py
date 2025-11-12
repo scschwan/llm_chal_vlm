@@ -641,7 +641,7 @@ def analyze_exaone(req: ExaoneAnalysisRequest):
     full_text = exaone_tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
     print(f"[DECODE] 원본 길이: {len(full_text)} 문자")
-    if len(full_text) < 1000 : 
+    if len(full_text) < 1500 : 
         print(f"[DECODE] 원본 데아터: {full_text}")
   
     '''
