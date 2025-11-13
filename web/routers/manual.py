@@ -81,55 +81,28 @@ async def generate_manual(request: ManualGenerateRequest):
         if not defect_info:
             raise HTTPException(404, f"불량 정보를 찾을 수 없습니다: {request.product}/{request.defect}")
         
-        # 2. ✅ RAG 매뉴얼 검색 (제품명 기반 필터링)
+        # 2. RAG 매뉴얼 검색 (개선된 rag.py 사용)
         manual_context = {"원인": [], "조치": []}
         
         if rag:
             print(f"[MANUAL] RAG 검색 시작: 제품={request.product}, 불량={request.defect}")
             
-            # 제품명 기반 검색
-            raw_manual_context = rag.search_defect_manual(
+            # RAG에서 직접 구조화된 결과 반환 (추가 필터링 불필요)
+            manual_context = rag.search_defect_manual(
                 product=request.product,
                 defect=request.defect,
-                keywords=[defect_info.ko, defect_info.full_name_ko],
+                #keywords=[defect_info.ko, defect_info.full_name_ko],
+                keywords=[defect_info.ko],  # ko만 사용 (자동 확장됨)
                 k=3
             )
             
-            # 불량명 필터링 (해당 불량만)
-            for cause_text in raw_manual_context.get("원인", []):
-                if request.defect.lower() in cause_text.lower():
-                    lines = []
-                    in_section = False
-                    for line in cause_text.split('\n'):
-                        line = line.strip()
-                        if request.defect.lower() in line.lower():
-                            in_section = True
-                        elif line.startswith(('burr', 'hole', 'scratch')) and request.defect.lower() not in line.lower():
-                            break
-                        elif in_section and line and line.startswith('•'):
-                            lines.append(line)
-                    
-                    if lines:
-                        manual_context["원인"].append('\n'.join(lines[:3]))
-            
-            # 조치도 동일하게 처리
-            for action_text in raw_manual_context.get("조치", []):
-                if request.defect.lower() in action_text.lower():
-                    lines = []
-                    in_section = False
-                    for line in action_text.split('\n'):
-                        line = line.strip()
-                        if request.defect.lower() in line.lower():
-                            in_section = True
-                        elif line.startswith(('burr', 'hole', 'scratch')) and request.defect.lower() not in line.lower():
-                            break
-                        elif in_section and line and line.startswith('•'):
-                            lines.append(line)
-                    
-                    if lines:
-                        manual_context["조치"].append('\n'.join(lines[:3]))
-            
             print(f"[MANUAL] RAG 검색 완료: 원인 {len(manual_context['원인'])}개, 조치 {len(manual_context['조치'])}개")
+            
+            # 디버깅: 검색된 내용 출력
+            if manual_context["원인"]:
+                print(f"[DEBUG] 원인 샘플: {manual_context['원인'][0][:100]}...")
+            if manual_context["조치"]:
+                print(f"[DEBUG] 조치 샘플: {manual_context['조치'][0][:100]}...")
         else:
             print("[MANUAL] RAG 비활성화")
         

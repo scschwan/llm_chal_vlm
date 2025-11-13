@@ -12,6 +12,7 @@ import shutil
 from typing import Optional
 import uvicorn
 from pydantic import BaseModel, Field
+import torch
 
 import warnings
 import os
@@ -192,7 +193,21 @@ def init_vlm_components():
         print("\n2. UnifiedRAGManager 초기화...")
         if pdf_files:
             from modules.vlm.rag import create_rag_manager
-            
+
+            # RAG 매니저 초기화
+            manual_dir = project_root / "manual_store"
+            vector_store_path = manual_dir
+            defect_mapping_path = project_root / "web" / "defect_mapping.json"  # 추가
+
+            rag_manager = create_rag_manager(
+                manual_dir=manual_dir,
+                vector_store_path=vector_store_path,
+                defect_mapping_path=defect_mapping_path,  # 추가
+                device="cuda" if torch.cuda.is_available() else "cpu",
+                force_rebuild=False,
+                verbose=True
+            )
+            '''
             vlm_components["rag"] = create_rag_manager(
                 manual_dir=manual_dir,
                 vector_store_path=vector_store_path,
@@ -200,9 +215,12 @@ def init_vlm_components():
                 force_rebuild=False,  # 기존 인덱스 사용
                 verbose=True
             )
-            
+            '''
+            vlm_components["rag"] = rag_manager
+
             # 사용 가능한 제품 출력
-            available_products = vlm_components["rag"].get_available_products()
+            #available_products = vlm_components["rag"].get_available_products()
+            available_products = rag_manager.get_available_products()
             print(f"\n   사용 가능한 제품: {', '.join(available_products)}")
         else:
             print("   → PDF 없음: RAG 비활성화")

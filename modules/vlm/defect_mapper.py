@@ -12,8 +12,25 @@ class DefectInfo:
     """불량 정보"""
     en: str
     ko: str
-    full_name_ko: str
-    keywords: List[str]
+
+    @property
+    def full_name_ko(self) -> str:
+        """자동 생성"""
+        return f"{self.ko} 불량"
+    
+    @property
+    def keywords(self) -> List[str]:
+        """자동 확장"""
+        keywords = [self.ko, self.en]
+        
+        # 구분자로 분리 (·, /, ,)
+        for sep in ['·', '/', ',']:
+            if sep in self.ko:
+                parts = [p.strip() for p in self.ko.split(sep) if p.strip()]
+                keywords.extend(parts)
+                break
+        
+        return list(set(keywords))
 
 
 class DefectMapper:
@@ -67,9 +84,9 @@ class DefectMapper:
         
         return DefectInfo(
             en=defect_data.get('en', defect),
-            ko=defect_data.get('ko', defect),
-            full_name_ko=defect_data.get('full_name_ko', f"{defect} 불량"),
-            keywords=defect_data.get('keywords', [defect])
+            ko=defect_data.get('ko', defect)
+            #full_name_ko=defect_data.get('full_name_ko', f"{defect} 불량"),
+            #keywords=defect_data.get('keywords', [defect])
         )
     
     def get_search_keywords(self, product: str, defect: str) -> List[str]:
