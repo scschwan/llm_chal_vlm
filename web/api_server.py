@@ -449,7 +449,8 @@ async def serve_login():
 
 @app.get("/admin.html")
 async def serve_admin_dashboard():
-    return FileResponse(PAGES_DIR / "admin.html")
+    #return FileResponse(PAGES_DIR / "admin.html")
+    return FileResponse(PAGES_DIR / "dashboard.html")
 
 
 @app.get("/upload.html")
