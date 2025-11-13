@@ -567,6 +567,14 @@ def analyze(req: AnalysisRequest):
     if len(text) < 3000 : 
         print(f"[DECODE] 원본 데아터: {text}")
     
+    # ASSISTANT: 이후 텍스트만 추출
+    if "assistant" in text:
+        text = text.split("assistant")[-1].strip()
+        print("[CLEAN] assistant 이후 추출")
+        print(text)
+    else:
+        text = text
+
     # 6. 4개 섹션 추출 ✅ 개선된 슬라이싱
     text = _extract_four_sections(text)
     
