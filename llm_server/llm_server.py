@@ -564,7 +564,7 @@ def analyze(req: AnalysisRequest):
     text = hyperclovax_tokenizer.decode(generated_ids, skip_special_tokens=True)
     
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][DECODE] 원본 길이: {len(text)} 문자")
-    if len(text) < 2000 : 
+    if len(text) < 3000 : 
         print(f"[DECODE] 원본 데아터: {text}")
     
     # 6. 4개 섹션 추출 ✅ 개선된 슬라이싱

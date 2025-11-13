@@ -1,6 +1,6 @@
 # 유사이미지 검색 솔루션 프로젝트 현황 및 향후 계획
 
-**최종 업데이트:** 2025-01-13  
+**최종 업데이트:** 2025-11-13  
 **프로젝트:** 제조 불량 검출 AI 시스템  
 **환경:** Naver Cloud Platform, Rocky Linux 8.10, Python 3.9, Tesla T4 GPU
 
@@ -12,9 +12,10 @@
 2. [현재 구현 완료 기능](#현재-구현-완료-기능)
 3. [시스템 아키텍처](#시스템-아키텍처)
 4. [주요 기술 스택](#주요-기술-스택)
-5. [향후 개발 계획](#향후-개발-계획)
-6. [시급 기능 개선 목록](#시급-기능-개선-목록)
-7. [장기 개발 로드맵](#장기-개발-로드맵)
+5. [불량 관리 시스템](#불량-관리-시스템)
+6. [향후 개발 계획](#향후-개발-계획)
+7. [시급 기능 개선 목록](#시급-기능-개선-목록)
+8. [장기 개발 로드맵](#장기-개발-로드맵)
 
 ---
 
@@ -58,6 +59,9 @@ llm_chal_vlm/
 │   └── vlm/
 │       ├── rag.py                 ✅ 통합 RAG 시스템
 │       └── defect_mapper.py       ✅ 불량 정보 매핑
+├── admin/                          ⭐ NEW: 관리자 모듈
+│   ├── defect_mapping_manager.py  ✅ 제품/불량 CRUD 관리
+│   └── DEFECT_MAPPING_QUICKSTART.md
 ├── web/
 │   ├── api_server.py              ✅ 메인 API 서버
 │   ├── defect_mapping.json        ⚠️ 중요: 관리자 페이지 연동 필요
@@ -91,6 +95,7 @@ llm_chal_vlm/
     ├── def_split/                 (불량 이미지)
     ├── ok_split/                  (정상 이미지)
     └── patchCore/                 (제품별 메모리 뱅크)
+```
 
 ## 현재 구현 완료 기능
 
@@ -148,10 +153,17 @@ llm_chal_vlm/
   - ALB: 80 → Backend 5000 (API 서버)
   - NLB: 2022 → SSH
   - LLM 서버: 5001 (내부 통신)
+- ✅ **접속 정보**:
+  - SSH: `ssh -p 2022 root@dm-nlb-112319415-f8e0a97d0b99.kr.lb.naverncp.com`
+  - Web: `http://dm-alb-112319279-991b4e0889c4.kr.lb.naverncp.com:80`
+- ✅ **보안 설정**:
+  - 허용 IP: 61.36.232.75/32 (디밀리언), 211.44.192.110/32 (ACME)
+  - 보안그룹: dm-gpu-acg
 
 ---
 
 ## 시스템 아키텍처
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        사용자 (웹 브라우저)                    │
@@ -217,6 +229,74 @@ llm_chal_vlm/
 
 ---
 
+## ⭐ 불량 관리 시스템 (NEW)
+
+### DefectMappingManager 모듈
+**위치:** `admin/defect_mapping_manager.py`
+
+#### 주요 기능
+1. **제품 단위 관리**: 제품명(product_id) 기준으로 전체 불량 목록 관리
+2. **DOCX 자동 추출**: 매뉴얼 DOCX 파일에서 불량 유형 자동 파싱
+3. **최소 정보 저장**: en(영문명), ko(한글명)만 저장 (keywords는 코드에서 자동 확장)
+
+#### 핵심 메서드
+```python
+# 제품 생성
+manager.create_product(
+    product_id="prod5",
+    product_name_ko="새제품",
+    manual_docx_path=Path("manual_store/prod5_manual.docx")
+)
+
+# 제품 업데이트
+manager.update_product(
+    product_id="prod1",
+    manual_docx_path=Path("manual_store/prod1_manual_v2.docx"),
+    merge_defects=True  # 기존 불량 유지 + 새 불량 추가
+)
+
+# 배치 생성
+manager.batch_create_from_directory(
+    manual_dir=Path("manual_store"),
+    product_name_mapping={
+        "prod1_menual.docx": "주조제품",
+        "grid_manual.docx": "그리드"
+    }
+)
+
+# 불량 개별 관리
+manager.add_defect(product_id="prod1", defect_en="crack", defect_ko="균열")
+manager.update_defect(product_id="prod1", defect_en="crack", defect_ko="크랙")
+manager.delete_defect(product_id="prod1", defect_en="crack")
+```
+
+#### DOCX 매뉴얼 형식 요구사항
+```
+1️⃣ hole (기공)
+발생 원인
+...
+
+2️⃣ burr (날개 버)
+발생 원인
+...
+
+3️⃣ Bent Defect (휨·압흔 불량)
+발생 원인
+...
+```
+
+**지원 패턴:**
+- `1️⃣ 영문명 (한글명)`
+- `1️⃣ 영문명 Defect (한글명 불량)`
+
+**현재 상태:**
+- ✅ Python 모듈 구현 완료
+- ❌ 웹 UI 미구현 (향후 관리자 페이지에서 사용 예정)
+
+**사용 가이드:** `admin/DEFECT_MAPPING_QUICKSTART.md` 참고
+
+---
+
 ## 향후 개발 계획
 
 ### Phase 1: UI/UX 개선 (우선순위: 높음)
@@ -260,9 +340,55 @@ llm_chal_vlm/
      - 피드백 점수 (1~5점 라디오 버튼)
 - [ ] **조치내역 등록 버튼**: DB 저장 트리거
 
-### Phase 2: 데이터베이스 구축 (우선순위: 높음)
+### Phase 2: 관리자 기능 구축 (우선순위: 높음)
 
-#### 2.1 조치내역 저장 스키마 설계
+#### 2.1 제품/불량 관리 웹 UI ⭐ NEW
+- [ ] **관리자 페이지 생성**: `admin.html` 또는 별도 관리자 포털
+- [ ] **제품 관리 기능**:
+  - [ ] 제품 목록 조회 (테이블 형식)
+  - [ ] 제품 추가 (제품명 + DOCX 업로드)
+  - [ ] 제품 수정 (제품명 변경, 매뉴얼 재등록)
+  - [ ] 제품 삭제 (확인 모달)
+- [ ] **불량 관리 기능**:
+  - [ ] 제품별 불량 목록 조회
+  - [ ] 불량 추가 (영문명, 한글명 입력)
+  - [ ] 불량 수정 (한글명 변경)
+  - [ ] 불량 삭제
+- [ ] **매뉴얼 업로드 기능**:
+  - [ ] DOCX 파일 업로드 UI
+  - [ ] 자동 불량 추출 미리보기
+  - [ ] 추출 결과 확인 후 저장
+- [ ] **RAG 인덱스 관리**:
+  - [ ] 인덱스 상태 조회
+  - [ ] 인덱스 재구축 버튼
+  - [ ] 새 매뉴얼 추가 시 자동 재구축
+
+#### 2.2 API 엔드포인트 추가
+```python
+# web/routers/admin.py (신규)
+@router.get("/admin/products")              # 제품 목록
+@router.post("/admin/products")             # 제품 추가
+@router.put("/admin/products/{product_id}") # 제품 수정
+@router.delete("/admin/products/{product_id}") # 제품 삭제
+
+@router.get("/admin/products/{product_id}/defects")    # 불량 목록
+@router.post("/admin/products/{product_id}/defects")   # 불량 추가
+@router.put("/admin/defects/{defect_en}")              # 불량 수정
+@router.delete("/admin/defects/{defect_en}")           # 불량 삭제
+
+@router.post("/admin/manual/upload")        # 매뉴얼 업로드
+@router.post("/admin/rag/rebuild")          # RAG 인덱스 재구축
+```
+
+#### 2.3 DefectMappingManager 연동
+- [ ] API 서버에서 `DefectMappingManager` import
+- [ ] 서버 시작 시 매니저 초기화
+- [ ] 모든 제품/불량 변경 시 `defect_mapping.json` 자동 저장
+- [ ] RAG 시스템과 동기화 (매뉴얼 변경 시 인덱스 재구축)
+
+### Phase 3: 데이터베이스 구축 (우선순위: 중)
+
+#### 3.1 조치내역 저장 스키마 설계
 ```sql
 CREATE TABLE defect_analysis_history (
     id SERIAL PRIMARY KEY,
@@ -284,13 +410,13 @@ CREATE TABLE defect_analysis_history (
 );
 ```
 
-#### 2.2 API 구현
+#### 3.2 API 구현
 - [ ] **POST /history/save**: 조치내역 저장
 - [ ] **GET /history/list**: 이력 목록 조회 (페이징)
 - [ ] **GET /history/{id}**: 특정 이력 상세 조회
 - [ ] **GET /history/stats**: 통계 데이터 (모델별, 불량별)
 
-#### 2.3 대시보드 연동
+#### 3.3 대시보드 연동
 - [ ] **이력 테이블**: 저장된 데이터 표 형태로 출력
 - [ ] **필터링**: 제품명, 불량명, 날짜, 모델, 피드백 점수
 - [ ] **통계 차트**: 
@@ -350,24 +476,6 @@ async def switch_to_normal_index():
 
 ## 장기 개발 로드맵
 
-### Phase 3: 관리자 기능 (우선순위: 중)
-
-#### 3.1 이미지 전처리 설정
-- [ ] **관리자 페이지**: 제품별 전처리 옵션 설정
-  - 밝기/대비 조정
-  - 노이즈 제거
-  - 크기 정규화
-- [ ] **자동 적용**: 설정 시 모든 이미지에 전처리 자동 적용
-  - 임베딩 이미지 (갤러리)
-  - 입력 이미지 (쿼리)
-- [ ] **전처리 이력 관리**: 적용된 전처리 파라미터 DB 저장
-
-#### 3.2 입력 이미지 이력 관리
-- [ ] **자동 저장**: 업로드된 모든 입력 이미지 서버 저장
-- [ ] **메타데이터**: 업로드 시간, 파일명, 크기, 해상도
-- [ ] **이력 조회**: 과거 입력 이미지 검색 및 재분석
-- [ ] **저장 경로**: `uploads/{날짜}/{파일명}`
-
 ### Phase 4: 성능 최적화 (우선순위: 중)
 
 #### 4.1 모델 최적화
@@ -379,6 +487,22 @@ async def switch_to_normal_index():
 - [ ] **증분 업데이트**: 전체 재구축 대신 추가 이미지만 임베딩
 - [ ] **압축**: FAISS PQ (Product Quantization)
 - [ ] **샤딩**: 제품별 인덱스 분리
+
+#### 4.3 이미지 전처리 설정
+- [ ] **관리자 페이지**: 제품별 전처리 옵션 설정
+  - 밝기/대비 조정
+  - 노이즈 제거
+  - 크기 정규화
+- [ ] **자동 적용**: 설정 시 모든 이미지에 전처리 자동 적용
+  - 임베딩 이미지 (갤러리)
+  - 입력 이미지 (쿼리)
+- [ ] **전처리 이력 관리**: 적용된 전처리 파라미터 DB 저장
+
+#### 4.4 입력 이미지 이력 관리
+- [ ] **자동 저장**: 업로드된 모든 입력 이미지 서버 저장
+- [ ] **메타데이터**: 업로드 시간, 파일명, 크기, 해상도
+- [ ] **이력 조회**: 과거 입력 이미지 검색 및 재분석
+- [ ] **저장 경로**: `uploads/{날짜}/{파일명}`
 
 ### Phase 5: 확장 기능 (우선순위: 낮음)
 
@@ -395,40 +519,6 @@ async def switch_to_normal_index():
 - [ ] Active Learning
 - [ ] 피드백 기반 모델 재학습
 - [ ] A/B 테스트
-
----
-
-## 파일 구조
-```
-llm_chal_vlm/
-├── llm_server/
-│   └── llm_server.py           # LLM/VLM 서버 (3개 모델 사전 로드)
-├── web/
-│   ├── api_server.py           # FastAPI 메인 서버
-│   ├── matching.html           # 웹 UI
-│   ├── static/
-│   │   ├── css/matching.css
-│   │   └── js/matching.js
-│   └── defect_mapping.json     # 불량 정보 매핑
-├── modules/
-│   ├── similarity_matcher.py   # CLIP 유사도 검색
-│   ├── anomaly_detector.py     # PatchCore 이상 검출
-│   └── vlm/
-│       ├── rag.py              # RAG 매뉴얼 검색
-│       └── defect_mapper.py    # 불량 정보 매핑
-├── data/
-│   ├── def_split/              # 불량 이미지 (유사도 검색용)
-│   ├── ok_split/               # 정상 이미지 (이상 검출용)
-│   └── patchCore/              # PatchCore 메모리 뱅크
-│       ├── prod1/
-│       ├── prod2/
-│       └── prod3/
-├── manual_store/
-│   ├── prod1_menual.pdf        # PDF 매뉴얼
-│   └── faiss_index/            # 매뉴얼 벡터 DB
-└── markdown/
-    └── project_status.md       # 이 파일
-```
 
 ---
 
@@ -468,15 +558,43 @@ curl -X POST http://localhost:5000/build_index \
   -d '{"gallery_dir": "../data/ok_split", "save_index": true}'
 ```
 
+### DefectMappingManager 사용 예시
+```python
+from pathlib import Path
+from admin.defect_mapping_manager import DefectMappingManager
+
+# 매니저 초기화
+manager = DefectMappingManager(
+    mapping_file_path=Path("web/defect_mapping.json"),
+    verbose=True
+)
+
+# 배치 생성 (manual_store 디렉토리의 모든 DOCX 처리)
+created_count = manager.batch_create_from_directory(
+    manual_dir=Path("manual_store"),
+    product_name_mapping={
+        "prod1_menual.docx": "주조제품",
+        "grid_manual.docx": "그리드",
+        "carpet_manual.docx": "카펫",
+        "leather_manual.docx": "가죽"
+    }
+)
+
+# 전체 요약 출력
+manager.print_summary()
+```
+
 ---
 
 ## 문의 및 지원
 
 **개발자**: dhkim@dmillions.co.kr  
 **프로젝트 저장소**: https://github.com/scschwan/llm_chal_vlm  
+
 ---
 
 **버전 이력:**
+- v2.1 (2025-11-13): DefectMappingManager 모듈 추가, admin/ 폴더 구조 정리
 - v2.0 (2025-01-13): HyperCLOVAX, EXAONE 3.5, LLaVA 3개 모델 통합, 4개 섹션 표준 출력
 - v1.5 (2025-01-10): VLM 프롬프트 정제, 응답 슬라이싱 개선
 - v1.0 (2025-01-05): 기본 기능 구현 완료
