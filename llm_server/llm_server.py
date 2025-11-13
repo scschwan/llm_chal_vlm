@@ -569,27 +569,39 @@ def analyze(req: AnalysisRequest):
     if len(text) < 3000 : 
         print(f"[DECODE] 원본 데아터: {text}")
     
-    # ASSISTANT: 이후 텍스트만 추출
+     # ✅ 6. ASSISTANT 기준 분리 (개선)
     if "assistant" in text:
-        after_text = text.split("assistant")[-1].strip()
+        parts = text.split("assistant")
         
-        print("[CLEAN] assistant 이후 추출")
-
-        before_text = text.split("assistant")[0].strip()
-
-        if len(before_text) <  100 and len(after_text) > 100 :
-            print("[CLEAN] assistant 이후 추출")
-            text = after_text
-            print(text)
-        elif len(after_text) <  100 and len(before_text) > 100 :
-            print("[CLEAN] assistant 이전 추출")
-            text = before_text
-            print(text)
-        else :
-             print("현재 텍스트 유지")
+        print(f"\n[SPLIT] 총 {len(parts)}개 조각 발견")
         
+        # 4개 섹션이 있는 조각 우선 선택
+        required_sections = ["불량 현황", "원인 분석", "대응 방안", "예방 조치"]
+        
+        valid_parts = []
+        for i, part in enumerate(parts):
+            part_stripped = part.strip()
+            section_count = sum(1 for section in required_sections if section in part_stripped)
+            
+            print(f"  [{i}] 길이: {len(part_stripped)} 문자, 섹션: {section_count}/4")
+            
+            if section_count >= 3:  # 최소 3개 이상 섹션 포함
+                valid_parts.append(part_stripped)
+        
+        # 유효한 조각 중 가장 긴 것 선택
+        if valid_parts:
+            text = max(valid_parts, key=len)
+            print(f"[CLEAN] 유효한 조각 중 가장 긴 것 선택: {len(text)} 문자")
+        else:
+            # 유효한 조각이 없으면 전체 중 가장 긴 것 선택
+            text = max(parts, key=lambda x: len(x.strip())).strip()
+            print(f"[CLEAN] 섹션 체크 실패 - 가장 긴 조각 선택: {len(text)} 문자")
+        
+        # 미리보기
+        preview_len = min(200, len(text))
+        print(f"[PREVIEW] {text[:preview_len]}{'...' if len(text) > 200 else ''}")
     else:
-        text = text
+        print("[SPLIT] 'assistant' 키워드 없음 - 원본 유지")
 
     # 6. 4개 섹션 추출 ✅ 개선된 슬라이싱
     text = _extract_four_sections(text)
