@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>매뉴얼 관리 - 관리자</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #9C27B0;
+        }
+        
+        .form-section {
+            background: #f9f9f9;
+            padding: 25px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        
+        .form-section h2 {
+            color: #555;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        .form-group select,
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 6px;
+            padding: 30px;
+            text-align: center;
+            background: #fafafa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover {
+            border-color: #9C27B0;
+            background: #f5f5f5;
+        }
+        
+        .upload-area.dragover {
+            border-color: #9C27B0;
+            background: #f0e6f5;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #f0f0f0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #9C27B0, #BA68C8);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 500;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        
+        .btn-primary {
+            background: #9C27B0;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #7B1FA2;
+        }
+        
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #da190b;
+        }
+        
+        .btn-secondary {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #0b7dda;
+        }
+        
+        .table-section {
+            margin-top: 30px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        table th,
+        table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        table th {
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        table tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .status-indexed {
+            color: #4CAF50;
+            font-weight: 500;
+        }
+        
+        .status-not-indexed {
+            color: #FF9800;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .action-buttons button {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #2196F3;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .note {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        
+        .file-size {
+            color: #999;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/admin.html" class="back-link">← 관리자 대시보드로 돌아가기</a>
+        
+        <h1>매뉴얼 관리</h1>
+        
+        <div id="message" class="message"></div>
+        
+        <!-- 매뉴얼 업로드 폼 -->
+        <div class="form-section">
+            <h2>매뉴얼 파일 업로드</h2>
+            <form id="manualForm">
+                <div class="form-group">
+                    <label for="productId">제품 선택 *</label>
+                    <select id="productId" name="product_id" required>
+                        <option value="">-- 제품을 선택하세요 --</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>파일 선택 (PDF만 가능)</label>
+                    <div class="upload-area" id="uploadArea">
+                        <p>📄 클릭하여 파일 선택 또는 드래그 앤 드롭</p>
+                        <input type="file" id="fileInput" name="file" accept=".pdf" style="display:none;">
+                        <p id="fileName" style="margin-top:10px; color:#666;"></p>
+                    </div>
+                </div>
+                
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill">0%</div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="margin-top:15px;">업로드</button>
+            </form>
+            
+            <div class="note">
+                ※ 매뉴얼 파일은 Object Storage에 저장됩니다.<br>
+                ※ 인덱싱은 서버 배포 메뉴에서 수행합니다.
+            </div>
+        </div>
+        
+        <!-- 매뉴얼 목록 -->
+        <div class="table-section">
+            <h2>등록된 매뉴얼 목록</h2>
+            <table id="manualTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>제품</th>
+                        <th>파일명</th>
+                        <th>크기</th>
+                        <th>인덱싱</th>
+                        <th>등록일</th>
+                        <th>작업</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 동적으로 채워짐 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '/api/admin/manual';
+        const PRODUCT_API = '/api/admin/product';
+        
+        let selectedFile = null;
+        
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProducts();
+            loadManuals();
+            setupDragAndDrop();
+        });
+        
+        // 제품 목록 불러오기
+        async function loadProducts() {
+            try {
+                const response = await fetch(PRODUCT_API);
+                const products = await response.json();
+                
+                const productSelect = document.getElementById('productId');
+                productSelect.innerHTML = '<option value="">-- 제품을 선택하세요 --</option>';
+                
+                products.forEach(product => {
+                    const option = document.createElement('option');
+                    option.value = product.product_id;
+                    option.textContent = `${product.product_name} (${product.product_code})`;
+                    productSelect.appendChild(option);
+                });
+            } catch (error) {
+                showMessage('제품 목록을 불러오는데 실패했습니다: ' + error.message, 'error');
+            }
+        }
+        
+        // 드래그 앤 드롭 설정
+        function setupDragAndDrop() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            
+            uploadArea.addEventListener('click', () => fileInput.click());
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileSelect(files[0]);
+                }
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            });
+        }
+        
+        // 파일 선택 처리
+        function handleFileSelect(file) {
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                showMessage('PDF 파일만 업로드 가능합니다', 'error');
+                return;
+            }
+            
+            selectedFile = file;
+            document.getElementById('fileName').textContent = `선택된 파일: ${file.name} (${formatFileSize(file.size)})`;
+        }
+        
+        // 파일 크기 포맷
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+        
+        // 매뉴얼 업로드 폼 제출
+        document.getElementById('manualForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const productId = document.getElementById('productId').value;
+            
+            if (!productId) {
+                showMessage('제품을 선택해주세요', 'error');
+                return;
+            }
+            
+            if (!selectedFile) {
+                showMessage('파일을 선택해주세요', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('product_id', productId);
+            formData.append('file', selectedFile);
+            
+            try {
+                const progressBar = document.getElementById('progressBar');
+                const progressFill = document.getElementById('progressFill');
+                progressBar.style.display = 'block';
+                
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progressFill.style.width = percentComplete + '%';
+                        progressFill.textContent = Math.round(percentComplete) + '%';
+                    }
+                });
+                
+                xhr.addEventListener('load', () => {
+                    if (xhr.status === 200) {
+                        showMessage('매뉴얼이 성공적으로 업로드되었습니다', 'success');
+                        resetForm();
+                        loadManuals();
+                        progressBar.style.display = 'none';
+                    } else {
+                        const data = JSON.parse(xhr.responseText);
+                        showMessage(data.detail || '매뉴얼 업로드에 실패했습니다', 'error');
+                        progressBar.style.display = 'none';
+                    }
+                });
+                
+                xhr.addEventListener('error', () => {
+                    showMessage('서버 오류가 발생했습니다', 'error');
+                    progressBar.style.display = 'none';
+                });
+                
+                xhr.open('POST', API_BASE);
+                xhr.send(formData);
+                
+            } catch (error) {
+                showMessage('서버 오류가 발생했습니다: ' + error.message, 'error');
+            }
+        });
+        
+        // 매뉴얼 목록 불러오기
+        async function loadManuals() {
+            try {
+                const response = await fetch(API_BASE);
+                const manuals = await response.json();
+                
+                const tbody = document.querySelector('#manualTable tbody');
+                tbody.innerHTML = '';
+                
+                manuals.forEach(manual => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${manual.manual_id}</td>
+                        <td>${manual.product_name} (${manual.product_code})</td>
+                        <td>${manual.file_name}</td>
+                        <td class="file-size">${formatFileSize(manual.file_size || 0)}</td>
+                        <td class="${manual.vector_indexed ? 'status-indexed' : 'status-not-indexed'}">
+                            ${manual.vector_indexed ? '완료' : '미완료'}
+                        </td>
+                        <td>${new Date(manual.created_at).toLocaleDateString()}</td>
+                        <td class="action-buttons">
+                            <button class="btn btn-secondary" onclick="downloadManual(${manual.manual_id})">다운로드</button>
+                            <button class="btn btn-danger" onclick="deleteManual(${manual.manual_id})">삭제</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                showMessage('매뉴얼 목록을 불러오는데 실패했습니다: ' + error.message, 'error');
+            }
+        }
+        
+        // 매뉴얼 다운로드
+        async function downloadManual(manualId) {
+            try {
+                window.location.href = `${API_BASE}/${manualId}/download`;
+            } catch (error) {
+                showMessage('매뉴얼 다운로드에 실패했습니다: ' + error.message, 'error');
+            }
+        }
+        
+        // 매뉴얼 삭제
+        async function deleteManual(manualId) {
+            if (!confirm('정말로 이 매뉴얼을 삭제하시겠습니까?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/${manualId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showMessage('매뉴얼이 삭제되었습니다', 'success');
+                    loadManuals();
+                } else {
+                    const data = await response.json();
+                    showMessage(data.detail || '매뉴얼 삭제에 실패했습니다', 'error');
+                }
+            } catch (error) {
+                showMessage('서버 오류가 발생했습니다: ' + error.message, 'error');
+            }
+        }
+        
+        // 폼 초기화
+        function resetForm() {
+            document.getElementById('manualForm').reset();
+            document.getElementById('fileName').textContent = '';
+            selectedFile = null;
+        }
+        
+        // 메시지 표시
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

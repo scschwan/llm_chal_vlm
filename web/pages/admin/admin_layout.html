@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 페이지</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .admin-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* 좌측 네비게이션 */
+        .sidebar {
+            width: 260px;
+            background: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            background: #1a252f;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sidebar-header h1 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .sidebar-header p {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        
+        .sidebar-menu {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+        
+        .menu-section {
+            margin-bottom: 5px;
+        }
+        
+        .menu-section-title {
+            padding: 15px 20px 8px 20px;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #95a5a6;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .menu-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #ecf0f1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            border-left: 3px solid transparent;
+        }
+        
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            border-left-color: #3498db;
+        }
+        
+        .menu-item.active {
+            background: rgba(52, 152, 219, 0.2);
+            border-left-color: #3498db;
+            color: white;
+        }
+        
+        .menu-icon {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+        
+        .menu-text {
+            font-size: 14px;
+        }
+        
+        .sidebar-footer {
+            padding: 15px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            background: #1a252f;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            background: #3498db;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .user-details {
+            flex: 1;
+        }
+        
+        .user-name {
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .user-role {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+        
+        .btn-logout {
+            width: 100%;
+            padding: 8px;
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+            color: #e74c3c;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        
+        .btn-logout:hover {
+            background: rgba(231, 76, 60, 0.3);
+        }
+        
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .top-header {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            font-size: 24px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-worker {
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-worker:hover {
+            background: #2980b9;
+        }
+        
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+        
+        /* 스크롤바 스타일 */
+        .sidebar-menu::-webkit-scrollbar,
+        .content-area::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .sidebar-menu::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .sidebar-menu::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 3px;
+        }
+        
+        .content-area::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        .content-area::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- 좌측 네비게이션 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>🔍 불량 검출 시스템</h1>
+                <p>관리자 페이지</p>
+            </div>
+            
+            <nav class="sidebar-menu">
+                <div class="menu-section">
+                    <div class="menu-section-title">대시보드</div>
+                    <a href="/admin/dashboard.html" class="menu-item" data-page="dashboard">
+                        <span class="menu-icon">📊</span>
+                        <span class="menu-text">통합 대시보드</span>
+                    </a>
+                </div>
+                
+                <div class="menu-section">
+                    <div class="menu-section-title">데이터 관리</div>
+                    <a href="/admin/product.html" class="menu-item" data-page="product">
+                        <span class="menu-icon">📦</span>
+                        <span class="menu-text">제품 관리</span>
+                    </a>
+                    <a href="/admin/manual.html" class="menu-item" data-page="manual">
+                        <span class="menu-icon">📄</span>
+                        <span class="menu-text">매뉴얼 관리</span>
+                    </a>
+                    <a href="/admin/defect-type.html" class="menu-item" data-page="defect-type">
+                        <span class="menu-icon">⚠️</span>
+                        <span class="menu-text">불량 유형 관리</span>
+                    </a>
+                </div>
+                
+                <div class="menu-section">
+                    <div class="menu-section-title">이미지 관리</div>
+                    <a href="/admin/image-normal.html" class="menu-item" data-page="image-normal">
+                        <span class="menu-icon">✅</span>
+                        <span class="menu-text">정상 이미지 등록</span>
+                    </a>
+                    <a href="/admin/image-defect.html" class="menu-item" data-page="image-defect">
+                        <span class="menu-icon">❌</span>
+                        <span class="menu-text">불량 이미지 등록</span>
+                    </a>
+                </div>
+                
+                <div class="menu-section">
+                    <div class="menu-section-title">시스템 설정</div>
+                    <a href="/admin/preprocessing.html" class="menu-item" data-page="preprocessing">
+                        <span class="menu-icon">🎨</span>
+                        <span class="menu-text">이미지 전처리</span>
+                    </a>
+                    <a href="/admin/model.html" class="menu-item" data-page="model">
+                        <span class="menu-icon">🤖</span>
+                        <span class="menu-text">모델 선택</span>
+                    </a>
+                </div>
+                
+                <div class="menu-section">
+                    <div class="menu-section-title">서버 배포</div>
+                    <a href="/admin/deploy-clip.html" class="menu-item" data-page="deploy-clip">
+                        <span class="menu-icon">🔄</span>
+                        <span class="menu-text">CLIP 재구축</span>
+                    </a>
+                    <a href="/admin/deploy-patchcore.html" class="menu-item" data-page="deploy-patchcore">
+                        <span class="menu-icon">🧠</span>
+                        <span class="menu-text">PatchCore 생성</span>
+                    </a>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">👨‍💼</div>
+                    <div class="user-details">
+                        <div class="user-name" id="userName">관리자</div>
+                        <div class="user-role">Administrator</div>
+                    </div>
+                </div>
+                <button class="btn-logout" onclick="logout()">로그아웃</button>
+            </div>
+        </aside>
+        
+        <!-- 메인 컨텐츠 -->
+        <main class="main-content">
+            <header class="top-header">
+                <h2 class="page-title" id="pageTitle">대시보드</h2>
+                <div class="header-actions">
+                    <a href="/upload.html" class="btn-worker">👷 작업자 화면</a>
+                </div>
+            </header>
+            
+            <div class="content-area" id="contentArea">
+                <!-- 동적 컨텐츠 로드 영역 -->
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        // 페이지 로드 시 인증 확인
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/api/auth/session');
+                
+                if (!response.ok) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+                
+                const session = await response.json();
+                
+                if (session.user_type !== 'admin') {
+                    window.location.href = '/upload.html';
+                    return;
+                }
+                
+                document.getElementById('userName').textContent = session.full_name;
+                
+                // 현재 페이지 활성화
+                setActivePage();
+                
+            } catch (error) {
+                console.error('세션 확인 실패:', error);
+                window.location.href = '/login.html';
+            }
+        });
+        
+        // 현재 페이지 메뉴 활성화
+        function setActivePage() {
+            const currentPath = window.location.pathname;
+            const menuItems = document.querySelectorAll('.menu-item');
+            
+            menuItems.forEach(item => {
+                if (item.getAttribute('href') === currentPath) {
+                    item.classList.add('active');
+                }
+            });
+        }
+        
+        // 로그아웃
+        async function logout() {
+            if (!confirm('로그아웃 하시겠습니까?')) return;
+            
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/login.html';
+            } catch (error) {
+                console.error('로그아웃 실패:', error);
+                alert('로그아웃에 실패했습니다');
+            }
+        }
+    </script>
+</body>
+</html>
