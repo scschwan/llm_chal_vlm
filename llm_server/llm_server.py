@@ -571,9 +571,23 @@ def analyze(req: AnalysisRequest):
     
     # ASSISTANT: 이후 텍스트만 추출
     if "assistant" in text:
-        text = text.split("assistant")[-1].strip()
+        after_text = text.split("assistant")[-1].strip()
+        
         print("[CLEAN] assistant 이후 추출")
-        print(text)
+
+        before_text = text.split("assistant")[0].strip()
+
+        if len(before_text) <  100 and len(after_text) > 100 :
+            print("[CLEAN] assistant 이후 추출")
+            text = after_text
+            print(text)
+        elif len(after_text) <  100 and len(before_text) > 100 :
+            print("[CLEAN] assistant 이전 추출")
+            text = before_text
+            print(text)
+        else :
+             print("현재 텍스트 유지")
+        
     else:
         text = text
 
