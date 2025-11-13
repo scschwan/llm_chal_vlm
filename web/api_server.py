@@ -407,12 +407,12 @@ from routers.search import router as search_router
 from routers.anomaly import router as anomaly_router
 from routers.manual import router as manual_router
  # 기존 import 부분에 추가
-from routers.admin import product_router, manual_router, defect_type_router, image_router
 from routers.admin.product import router as product_router
-from routers.admin.manual import router as manual_router
+from routers.admin.manual import router as admin_manual_router  # ✅ 이름 변경
 from routers.admin.defect_type import router as defect_type_router
 from routers.admin.image import router as image_router
 from routers.auth import router as auth_router
+
 
 
 app.include_router(auth_router)
@@ -426,7 +426,7 @@ app.include_router(manual_router)
 
 # 기존 라우터 등록 부분 뒤에 추가
 app.include_router(product_router)
-app.include_router(manual_router)
+app.include_router(admin_manual_router)
 app.include_router(defect_type_router)
 app.include_router(image_router)
 

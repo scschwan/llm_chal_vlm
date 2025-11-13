@@ -205,7 +205,9 @@ async function generateManual() {
         progressText.textContent = `${getModelDisplayName(selectedModel)} 모델로 분석 중...`;
         
         // 매뉴얼 생성 요청
-        const response = await fetch(`${API_BASE_URL}/manual/generate`, {
+        //const response = await fetch(`${API_BASE_URL}/manual/generate`, {
+        // ✅ 상대 경로로 수정
+        const response = await fetch('/manual/generate', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
