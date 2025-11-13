@@ -11,12 +11,12 @@ from datetime import datetime, timedelta
 # 간단한 사용자 정보 (실제로는 config 파일이나 DB에서 관리)
 USERS = {
     "admin": {
-        "password_hash": "1234",  # admin
+        "password_hash": "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",  # admin
         "user_type": "admin",
         "full_name": "시스템 관리자"
     },
     "worker": {
-        "password_hash": "1234",  # worker
+        "password_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",  # worker
         "user_type": "worker",
         "full_name": "작업자"
     }
