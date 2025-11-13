@@ -38,6 +38,21 @@ const productSelect = document.getElementById('productSelect');
 const defectSelect = document.getElementById('defectSelect');
 const filenamePreview = document.getElementById('filenamePreview');
 
+// 페이지 로드 시 인증 확인
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const response = await fetch('/api/auth/check');
+        const data = await response.json();
+        
+        if (!data.authenticated) {
+            window.location.href = '/login.html';
+        }
+    } catch (error) {
+        console.error('인증 확인 실패:', error);
+        window.location.href = '/login.html';
+    }
+});
+
 // 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[SEARCH] 페이지 로드 완료');

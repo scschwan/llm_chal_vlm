@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>정상 이미지 등록 - 관리자</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #2196F3;
+        }
+        
+        .form-section {
+            background: #f9f9f9;
+            padding: 25px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        
+        .form-section h2 {
+            color: #555;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 6px;
+            padding: 40px;
+            text-align: center;
+            background: #fafafa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover {
+            border-color: #2196F3;
+            background: #f5f5f5;
+        }
+        
+        .upload-area.dragover {
+            border-color: #2196F3;
+            background: #e3f2fd;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .file-list {
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .file-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-item button {
+            padding: 3px 8px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .progress-container {
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #f0f0f0;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2196F3, #64B5F6);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 500;
+        }
+        
+        .progress-info {
+            margin-top: 10px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        
+        .btn-primary {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1976D2;
+        }
+        
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn-danger {
+            background: #f44336;
+            color: white;
+            font-size: 12px;
+            padding: 5px 10px;
+        }
+        
+        .btn-danger:hover {
+            background: #da190b;
+        }
+        
+        .gallery-section {
+            margin-top: 30px;
+        }
+        
+        .filter-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .filter-section label {
+            font-weight: 500;
+        }
+        
+        .filter-section select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .image-card {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            overflow: hidden;
+            background: white;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .image-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .image-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #f5f5f5;
+        }
+        
+        .image-info {
+            padding: 10px;
+        }
+        
+        .image-name {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+        
+        .image-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #2196F3;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .note {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        
+        .stats-bar {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+        
+        .stat-item {
+            flex: 1;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2196F3;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/admin.html" class="back-link">← 관리자 대시보드로 돌아가기</a>
+        
+        <h1>정상 이미지 등록</h1>
+        
+        <div id="message" class="message"></div>
+        
+        <!-- 이미지 업로드 폼 -->
+        <div class="form-section">
+            <h2>이미지 업로드</h2>
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label for="productId">제품 선택 *</label>
+                    <select id="productId" name="product_id" required>
+                        <option value="">-- 제품을 선택하세요 --</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>파일 선택 (jpg, png, zip)</label>
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon">📁</div>
+                        <p><strong>클릭하여 파일 선택</strong> 또는 드래그 앤 드롭</p>
+                        <p style="font-size:0.9em; color:#999; margin-top:5px;">
+                            다중 선택 가능 / ZIP 파일 지원
+                        </p>
+                        <input type="file" id="fileInput" multiple accept=".jpg,.jpeg,.png,.zip" style="display:none;">
+                    </div>
+                    
+                    <div id="fileList" class="file-list" style="display:none;"></div>
+                </div>
+                
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill">0%</div>
+                    </div>
+                    <div class="progress-info" id="progressInfo"></div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" id="uploadBtn" style="margin-top:15px;">업로드</button>
+            </form>
+            
+            <div class="note">
+                ※ 이미지는 Object Storage에 업로드됩니다.<br>
+                ※ 업로드 완료 후 서버 배포를 수행해야 인덱싱됩니다.
+            </div>
+        </div>
+        
+        <!-- 등록된 이미지 갤러리 -->
+        <div class="gallery-section">
+            <h2>등록된 정상 이미지</h2>
+            
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalCount">0</div>
+                    <div class="stat-label">총 이미지 수</div>
+                </div>
+            </div>
+            
+            <div class="filter-section">
+                <label for="filterProduct">제품 필터:</label>
+                <select id="filterProduct" onchange="filterImages()">
+                    <option value="">전체 제품</option>
+                </select>
+            </div>
+            
+            <div id="imageGrid" class="image-grid">
+                <!-- 동적으로 채워짐 -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '/api/admin/image';
+        const PRODUCT_API = '/api/admin/product';
+        
+        let selectedFiles = [];
+        let allImages = [];
+        
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProducts();
+            loadImages();
+            setupDragAndDrop();
+        });
+        
+        // 제품 목록 불러오기
+        async function loadProducts() {
+            try {
+                const response = await fetch(PRODUCT_API);
+                const products = await response.json();
+                
+                const productSelect = document.getElementById('productId');
+                productSelect.innerHTML = '<option value="">-- 제품을 선택하세요 --</option>';
+                
+                const filterSelect = document.getElementById('filterProduct');
+                filterSelect.innerHTML = '<option value="">전체 제품</option>';
+                
+                products.forEach(product => {
+                    const option1 = document.createElement('option');
+                    option1.value = product.product_id;
+                    option1.textContent = `${product.product_name} (${product.product_code})`;
+                    productSelect.appendChild(option1);
+                    
+                    const option2 = option1.cloneNode(true);
+                    filterSelect.appendChild(option2);
+                });
+            } catch (error) {
+                showMessage('제품 목록을 불러오는데 실패했습니다: ' + error.message, 'error');
+            }
+        }
+        
+        // 드래그 앤 드롭 설정
+        function setupDragAndDrop() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            
+            uploadArea.addEventListener('click', () => fileInput.click());
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = Array.from(e.dataTransfer.files);
+                addFiles(files);
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                const files = Array.from(e.target.files);
+                addFiles(files);
+            });
+        }
+        
+        // 파일 추가
+        function addFiles(files) {
+            files.forEach(file => {
+                const validExtensions = ['.jpg', '.jpeg', '.png', '.zip'];
+                const isValid = validExtensions.some(ext => 
+                    file.name.toLowerCase().endsWith(ext)
+                );
+                
+                if (isValid) {
+                    selectedFiles.push(file);
+                }
+            });
+            
+            updateFileList();
+        }
+        
+        // 파일 목록 업데이트
+        function updateFileList() {
+            const fileList = document.getElementById('fileList');
+            
+            if (selectedFiles.length === 0) {
+                fileList.style.display = 'none';
+                return;
+            }
+            
+            fileList.style.display = 'block';
+            fileList.innerHTML = '';
+            
+            selectedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span>${file.name} (${formatFileSize(file.size)})</span>
+                    <button type="button" onclick="removeFile(${index})">삭제</button>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
+        
+        // 파일 제거
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileList();
+        }
+        
+        // 파일 크기 포맷
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+        
+        // 업로드 폼 제출
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const productId = document.getElementById('productId').value;
+            
+            if (!productId) {
+                showMessage('제품을 선택해주세요', 'error');
+                return;
+            }
+            
+            if (selectedFiles.length === 0) {
+                showMessage('파일을 선택해주세요', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('product_id', productId);
+            
+            selectedFiles.forEach(file => {
+                formData.append('files', file);
+            });
+            
+            try {
+                const uploadBtn = document.getElementById('uploadBtn');
+                const progressContainer = document.getElementById('progressContainer');
+                const progressFill = document.getElementById('progressFill');
+                const progressInfo = document.getElementById('progressInfo');
+                
+                uploadBtn.disabled = true;
+                progressContainer.style.display = 'block';
+                
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progressFill.style.width = percentComplete + '%';
+                        progressFill.textContent = Math.round(percentComplete) + '%';
+                        progressInfo.textContent = `${selectedFiles.length}개 파일 업로드 중...`;
+                    }
+                });
+                
+                xhr.addEventListener('load', () => {
+                    uploadBtn.disabled = false;
+                    
+                    if (xhr.status === 200) {
+                        const result = JSON.parse(xhr.responseText);
+                        showMessage(
+                            `업로드 완료: ${result.uploaded_count}개 성공, ${result.failed_count}개 실패`,
+                            result.uploaded_count > 0 ? 'success' : 'error'
+                        );
+                        resetForm();
+                        loadImages();
+                        
+                        setTimeout(() => {
+                            progressContainer.style.display = 'none';
+                        }, 2000);
+                    } else {
+                        const data = JSON.parse(xhr.responseText);
+                        showMessage(data.detail || '이미지 업로드에 실패했습니다', 'error');
+                        progressContainer.style.display = 'none';
+                    }
+                });
+                
+                xhr.addEventListener('error', () => {
+                    uploadBtn.disabled = false;
+                    showMessage('서버 오류가 발생했습니다', 'error');
+                    progressContainer.style.display = 'none';
+                });
+                
+                xhr.open('POST', `${API_BASE}/normal`);
+                xhr.send(formData);
+                
+            } catch (error) {
+                showMessage('서버 오류가 발생했습니다: ' + error.message, 'error');
+                document.getElementById('uploadBtn').disabled = false;
+            }
+        });
+        
+        // 이미지 목록 불러오기
+        async function loadImages() {
+            try {
+                const response = await fetch(`${API_BASE}/normal?limit=1000`);
+                allImages = await response.json();
+                
+                document.getElementById('totalCount').textContent = allImages.length;
+                
+                renderImages(allImages);
+            } catch (error) {
+                showMessage('이미지 목록을 불러오는데 실패했습니다: ' + error.message, 'error');
+            }
+        }
+        
+        // 이미지 렌더링
+        function renderImages(images) {
+            const imageGrid = document.getElementById('imageGrid');
+            imageGrid.innerHTML = '';
+            
+            if (images.length === 0) {
+                imageGrid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:#999;">등록된 이미지가 없습니다</p>';
+                return;
+            }
+            
+            images.forEach(image => {
+                const card = document.createElement('div');
+                card.className = 'image-card';
+                card.innerHTML = `
+                    <img src="${image.display_url}" alt="${image.file_name}" 
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+                    <div class="image-info">
+                        <div class="image-name">${image.file_name}</div>
+                        <div class="image-actions">
+                            <button class="btn btn-danger" onclick="deleteImage(${image.image_id})">삭제</button>
+                        </div>
+                    </div>
+                `;
+                imageGrid.appendChild(card);
+            });
+        }
+        
+        // 이미지 필터링
+        function filterImages() {
+            const productId = document.getElementById('filterProduct').value;
+            
+            if (!productId) {
+                renderImages(allImages);
+            } else {
+                const filtered = allImages.filter(img => img.product_id === parseInt(productId));
+                renderImages(filtered);
+            }
+        }
+        
+        // 이미지 삭제
+        async function deleteImage(imageId) {
+            if (!confirm('정말로 이 이미지를 삭제하시겠습니까?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/${imageId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showMessage('이미지가 삭제되었습니다', 'success');
+                    loadImages();
+                } else {
+                    const data = await response.json();
+                    showMessage(data.detail || '이미지 삭제에 실패했습니다', 'error');
+                }
+            } catch (error) {
+                showMessage('서버 오류가 발생했습니다: ' + error.message, 'error');
+            }
+        }
+        
+        // 폼 초기화
+        function resetForm() {
+            document.getElementById('uploadForm').reset();
+            selectedFiles = [];
+            updateFileList();
+        }
+        
+        // 메시지 표시
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

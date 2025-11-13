@@ -34,6 +34,21 @@ const completionSection = document.getElementById('completionSection');
 const newWorkflowBtn = document.getElementById('newWorkflowBtn');
 const viewHistoryBtn = document.getElementById('viewHistoryBtn');
 
+// 페이지 로드 시 인증 확인
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const response = await fetch('/api/auth/check');
+        const data = await response.json();
+        
+        if (!data.authenticated) {
+            window.location.href = '/login.html';
+        }
+    } catch (error) {
+        console.error('인증 확인 실패:', error);
+        window.location.href = '/login.html';
+    }
+});
+
 // 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[MANUAL] 페이지 로드 완료');

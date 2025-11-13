@@ -24,6 +24,21 @@ const nextBtn = document.getElementById('nextBtn');
 const checkIndexBtn = document.getElementById('checkIndexBtn');
 const rebuildIndexBtn = document.getElementById('rebuildIndexBtn');
 
+// 페이지 로드 시 인증 확인
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const response = await fetch('/api/auth/check');
+        const data = await response.json();
+        
+        if (!data.authenticated) {
+            window.location.href = '/login.html';
+        }
+    } catch (error) {
+        console.error('인증 확인 실패:', error);
+        window.location.href = '/login.html';
+    }
+});
+
 // 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[UPLOAD] 페이지 로드 완료');

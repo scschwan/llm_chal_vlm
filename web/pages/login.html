@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 - 불량 검출 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .login-header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .logo {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        
+        .btn-login:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .message.error {
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+        }
+        
+        .message.success {
+            background: #efe;
+            color: #3c3;
+            border: 1px solid #cfc;
+        }
+        
+        .user-type-tabs {
+            display: flex;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .user-type-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            color: #999;
+            font-weight: 500;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+        
+        .user-type-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .user-type-tab:hover {
+            color: #667eea;
+            background: #f9f9f9;
+        }
+        
+        .info-box {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .info-box strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .credentials {
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo">🔍</div>
+            <h1>불량 검출 시스템</h1>
+            <p>Manufacturing Defect Detection System</p>
+        </div>
+        
+        <div id="message" class="message"></div>
+        
+        <div class="user-type-tabs">
+            <div class="user-type-tab active" data-type="worker">
+                👷 작업자
+            </div>
+            <div class="user-type-tab" data-type="admin">
+                👨‍💼 관리자
+            </div>
+        </div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">아이디</label>
+                <input type="text" id="username" name="username" required autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">비밀번호</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+            </div>
+            
+            <button type="submit" class="btn-login" id="loginBtn">로그인</button>
+        </form>
+        
+        <div class="info-box">
+            <strong>테스트 계정</strong>
+            <div id="testCredentials">
+                <div class="credentials">
+                    ID: worker / PW: worker
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let selectedUserType = 'worker';
+        
+        // 페이지 로드 시 이미 로그인되어 있는지 확인
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/api/auth/check');
+                const data = await response.json();
+                
+                if (data.authenticated) {
+                    // 이미 로그인되어 있으면 해당 페이지로 리다이렉트
+                    if (data.user_type === 'admin') {
+                        window.location.href = '/admin.html';
+                    } else {
+                        window.location.href = '/upload.html';
+                    }
+                }
+            } catch (error) {
+                console.log('인증 확인 실패:', error);
+            }
+        });
+        
+        // 사용자 타입 탭 전환
+        document.querySelectorAll('.user-type-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // 탭 활성화
+                document.querySelectorAll('.user-type-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                selectedUserType = tab.dataset.type;
+                
+                // 테스트 계정 정보 업데이트
+                const testCredentials = document.getElementById('testCredentials');
+                if (selectedUserType === 'admin') {
+                    testCredentials.innerHTML = '<div class="credentials">ID: admin / PW: admin</div>';
+                } else {
+                    testCredentials.innerHTML = '<div class="credentials">ID: worker / PW: worker</div>';
+                }
+            });
+        });
+        
+        // 로그인 폼 제출
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            
+            // 버튼 비활성화
+            loginBtn.disabled = true;
+            loginBtn.textContent = '로그인 중...';
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('로그인 성공! 이동 중...', 'success');
+                    
+                    // 0.5초 후 페이지 이동
+                    setTimeout(() => {
+                        if (data.user_type === 'admin') {
+                            window.location.href = '/admin.html';
+                        } else {
+                            window.location.href = '/upload.html';
+                        }
+                    }, 500);
+                } else {
+                    showMessage(data.detail || '로그인에 실패했습니다', 'error');
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = '로그인';
+                }
+            } catch (error) {
+                showMessage('서버 오류가 발생했습니다: ' + error.message, 'error');
+                loginBtn.disabled = false;
+                loginBtn.textContent = '로그인';
+            }
+        });
+        
+        // 메시지 표시
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+            
+            if (type === 'error') {
+                setTimeout(() => {
+                    messageDiv.style.display = 'none';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>

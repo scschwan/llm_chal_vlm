@@ -373,6 +373,8 @@ async def startup_event():
     from routers.search import init_search_router
     from routers.anomaly import init_anomaly_router
     from routers.manual import init_manual_router
+
+   
     
     init_upload_router(UPLOAD_DIR)
     init_search_router(matcher, INDEX_DIR, project_root)
@@ -404,11 +406,30 @@ from routers.upload import router as upload_router
 from routers.search import router as search_router
 from routers.anomaly import router as anomaly_router
 from routers.manual import router as manual_router
+ # 기존 import 부분에 추가
+from routers.admin import product_router, manual_router, defect_type_router, image_router
+from routers.admin.product import router as product_router
+from routers.admin.manual import router as manual_router
+from routers.admin.defect_type import router as defect_type_router
+from routers.admin.image import router as image_router
+from routers.auth import router as auth_router
 
+
+app.include_router(auth_router)
+
+# 라우터 등록
 app.include_router(upload_router)
 app.include_router(search_router)
 app.include_router(anomaly_router)
 app.include_router(manual_router)
+
+
+# 기존 라우터 등록 부분 뒤에 추가
+app.include_router(product_router)
+app.include_router(manual_router)
+app.include_router(defect_type_router)
+app.include_router(image_router)
+
 
 
 # ====================
@@ -418,7 +439,17 @@ app.include_router(manual_router)
 @app.get("/")
 async def root():
     """루트 접근 시 업로드 페이지로"""
-    return FileResponse(PAGES_DIR / "upload.html")
+    #return FileResponse(PAGES_DIR / "upload.html")
+    return FileResponse(PAGES_DIR / "login.html")
+
+# 페이지 서빙
+@app.get("/login.html")
+async def serve_login():
+    return FileResponse(PAGES_DIR / "login.html")
+
+@app.get("/admin.html")
+async def serve_admin_dashboard():
+    return FileResponse(PAGES_DIR / "admin.html")
 
 
 @app.get("/upload.html")
@@ -453,6 +484,28 @@ async def serve_manual():
         raise HTTPException(404, "매뉴얼 페이지가 아직 구현되지 않았습니다")
     return FileResponse(html_path)
 
+
+
+# 4. 관리자 페이지 서빙 엔드포인트 추가
+@app.get("/admin/product.html")
+async def serve_admin_product():
+    return FileResponse(PAGES_DIR / "admin" / "admin_product.html")
+
+@app.get("/admin/manual.html")
+async def serve_admin_manual():
+    return FileResponse(PAGES_DIR / "admin" / "admin_manual.html")
+
+@app.get("/admin/defect-type.html")
+async def serve_admin_defect_type():
+    return FileResponse(PAGES_DIR / "admin" / "admin_defect_type.html")
+
+@app.get("/admin/image-normal.html")
+async def serve_admin_image_normal():
+    return FileResponse(PAGES_DIR / "admin" / "admin_image_normal.html")
+
+@app.get("/admin/image-defect.html")
+async def serve_admin_image_defect():
+    return FileResponse(PAGES_DIR / "admin" / "admin_image_defect.html")
 
 # ====================
 # 기존 API 엔드포인트 유지 (하위 호환성)

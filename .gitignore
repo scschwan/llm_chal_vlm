@@ -3,7 +3,6 @@ datasets/
 result/
 venv/
 runs/
-utils/
 results/
 regacy/
 similar_image_search_web/
