@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대시보드 - 관리자</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-left h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header-left p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .stat-icon {
+            font-size: 48px;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+        }
+        
+        .stat-icon.blue { background: #e3f2fd; }
+        .stat-icon.green { background: #e8f5e9; }
+        .stat-icon.orange { background: #fff3e0; }
+        .stat-icon.red { background: #ffebee; }
+        
+        .stat-info {
+            flex: 1;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .stat-change {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .stat-change.positive { color: #4caf50; }
+        .stat-change.negative { color: #f44336; }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .chart-filter {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .filter-btn {
+            padding: 5px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            color: #666;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .chart-placeholder {
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f9f9f9;
+            border-radius: 8px;
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .table-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .table-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .search-box {
+            position: relative;
+        }
+        
+        .search-box input {
+            padding: 8px 35px 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 250px;
+        }
+        
+        .search-box::after {
+            content: '🔍';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead {
+            background: #f5f7fa;
+        }
+        
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        tbody tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .badge-success {
+            background: #e8f5e9;
+            color: #4caf50;
+        }
+        
+        .badge-danger {
+            background: #ffebee;
+            color: #f44336;
+        }
+        
+        .badge-warning {
+            background: #fff3e0;
+            color: #ff9800;
+        }
+        
+        .action-btn {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            background: white;
+            color: #666;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-right: 5px;
+            transition: all 0.3s;
+        }
+        
+        .action-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .empty-state-text {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin: 30px 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h1>📊 대시보드</h1>
+            <p>시스템 현황 및 통계</p>
+        </div>
+        <div class="header-right">
+            <a href="/admin.html" class="btn btn-primary">⚙️ 관리 메뉴</a>
+            <a href="/upload.html" class="btn btn-primary">🔍 검사 시스템</a>
+            <button class="btn btn-primary" onclick="logout()">로그아웃</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- 주요 통계 -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-icon blue">📦</div>
+                <div class="stat-info">
+                    <div class="stat-label">등록 제품</div>
+                    <div class="stat-value" id="totalProducts">-</div>
+                    <div class="stat-change positive">+0 (이번 주)</div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon green">✅</div>
+                <div class="stat-info">
+                    <div class="stat-label">정상 이미지</div>
+                    <div class="stat-value" id="totalNormalImages">-</div>
+                    <div class="stat-change positive">+0 (이번 주)</div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon orange">⚠️</div>
+                <div class="stat-info">
+                    <div class="stat-label">불량 이미지</div>
+                    <div class="stat-value" id="totalDefectImages">-</div>
+                    <div class="stat-change positive">+0 (이번 주)</div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon red">🔍</div>
+                <div class="stat-info">
+                    <div class="stat-label">검사 횟수 (오늘)</div>
+                    <div class="stat-value" id="todayInspections">-</div>
+                    <div class="stat-change positive">+0% (전일 대비)</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 차트 -->
+        <h2 class="section-title">📈 검사 추이</h2>
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">일별 검사 건수</div>
+                    <div class="chart-filter">
+                        <button class="filter-btn active" data-period="7d">7일</button>
+                        <button class="filter-btn" data-period="30d">30일</button>
+                        <button class="filter-btn" data-period="90d">90일</button>
+                    </div>
+                </div>
+                <div class="chart-placeholder" id="inspectionChart">
+                    차트 데이터를 불러오는 중...
+                </div>
+            </div>
+            
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">제품별 불량 검출 비율</div>
+                    <div class="chart-filter">
+                        <button class="filter-btn active" data-period="today">오늘</button>
+                        <button class="filter-btn" data-period="week">이번 주</button>
+                        <button class="filter-btn" data-period="month">이번 달</button>
+                    </div>
+                </div>
+                <div class="chart-placeholder" id="defectRateChart">
+                    차트 데이터를 불러오는 중...
+                </div>
+            </div>
+        </div>
+        
+        <!-- 최근 검사 내역 -->
+        <h2 class="section-title">🕒 최근 검사 내역</h2>
+        <div class="table-card">
+            <div class="table-header">
+                <div class="table-title">최근 20건</div>
+                <div class="search-box">
+                    <input type="text" placeholder="제품명, 작업자 검색" id="searchInput">
+                </div>
+            </div>
+            
+            <div id="recentInspections">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    데이터를 불러오는 중...
+                </div>
+            </div>
+        </div>
+        
+        <!-- 제품별 통계 -->
+        <h2 class="section-title">📦 제품별 통계</h2>
+        <div class="table-card">
+            <div class="table-header">
+                <div class="table-title">제품 목록</div>
+            </div>
+            
+            <div id="productStats">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    데이터를 불러오는 중...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            await loadDashboardData();
+            initEventListeners();
+        });
+        
+        // 인증 확인
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/session');
+                
+                if (!response.ok) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+                
+                const session = await response.json();
+                
+                if (session.user_type !== 'admin') {
+                    window.location.href = '/upload.html';
+                }
+            } catch (error) {
+                console.error('인증 확인 실패:', error);
+                window.location.href = '/login.html';
+            }
+        }
+        
+        // 대시보드 데이터 로드
+        async function loadDashboardData() {
+            try {
+                // 통계 데이터 로드
+                await loadStats();
+                
+                // 최근 검사 내역 로드
+                await loadRecentInspections();
+                
+                // 제품별 통계 로드
+                await loadProductStats();
+                
+            } catch (error) {
+                console.error('대시보드 데이터 로드 실패:', error);
+            }
+        }
+        
+        // 통계 데이터 로드
+        async function loadStats() {
+            try {
+                // TODO: 실제 API 연동
+                // const response = await fetch('/api/admin/stats');
+                // const data = await response.json();
+                
+                // 임시 데이터
+                const stats = {
+                    totalProducts: 4,
+                    totalNormalImages: 1247,
+                    totalDefectImages: 2083,
+                    todayInspections: 42
+                };
+                
+                document.getElementById('totalProducts').textContent = stats.totalProducts;
+                document.getElementById('totalNormalImages').textContent = stats.totalNormalImages.toLocaleString();
+                document.getElementById('totalDefectImages').textContent = stats.totalDefectImages.toLocaleString();
+                document.getElementById('todayInspections').textContent = stats.todayInspections;
+                
+            } catch (error) {
+                console.error('통계 로드 실패:', error);
+            }
+        }
+        
+        // 최근 검사 내역 로드
+        async function loadRecentInspections() {
+            const container = document.getElementById('recentInspections');
+            
+            try {
+                // TODO: 실제 API 연동
+                // const response = await fetch('/api/admin/inspections/recent?limit=20');
+                // const data = await response.json();
+                
+                // 임시 데이터
+                const inspections = [
+                    {
+                        id: 1,
+                        timestamp: '2025-01-15 14:23:45',
+                        product: 'prod1',
+                        defect: 'hole',
+                        result: 'anomaly',
+                        worker: '작업자1',
+                        score: 0.8542
+                    },
+                    {
+                        id: 2,
+                        timestamp: '2025-01-15 14:18:32',
+                        product: 'leather',
+                        defect: 'scratch',
+                        result: 'normal',
+                        worker: '작업자2',
+                        score: 0.1234
+                    }
+                ];
+                
+                if (inspections.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <div class="empty-state-text">검사 내역이 없습니다</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>시간</th>
+                                <th>제품</th>
+                                <th>불량 유형</th>
+                                <th>결과</th>
+                                <th>이상 점수</th>
+                                <th>작업자</th>
+                                <th>작업</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${inspections.map(item => `
+                                <tr>
+                                    <td>${item.timestamp}</td>
+                                    <td>${item.product}</td>
+                                    <td>${item.defect}</td>
+                                    <td>
+                                        <span class="badge ${item.result === 'anomaly' ? 'badge-danger' : 'badge-success'}">
+                                            ${item.result === 'anomaly' ? '⚠️ 이상' : '✅ 정상'}
+                                        </span>
+                                    </td>
+                                    <td>${item.score.toFixed(4)}</td>
+                                    <td>${item.worker}</td>
+                                    <td>
+                                        <button class="action-btn" onclick="viewDetail(${item.id})">상세</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+            } catch (error) {
+                console.error('검사 내역 로드 실패:', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">❌</div>
+                        <div class="empty-state-text">데이터 로드에 실패했습니다</div>
+                    </div>
+                `;
+            }
+        }
+        
+        // 제품별 통계 로드
+        async function loadProductStats() {
+            const container = document.getElementById('productStats');
+            
+            try {
+                // TODO: 실제 API 연동
+                // const response = await fetch('/api/admin/products/stats');
+                // const data = await response.json();
+                
+                // 임시 데이터
+                const products = [
+                    { name: 'prod1', normalImages: 242, defectImages: 630, totalInspections: 156, defectRate: 0.23 },
+                    { name: 'grid', normalImages: 264, defectImages: 630, totalInspections: 98, defectRate: 0.18 },
+                    { name: 'carpet', normalImages: 280, defectImages: 280, totalInspections: 134, defectRate: 0.31 },
+                    { name: 'leather', normalImages: 245, defectImages: 543, totalInspections: 87, defectRate: 0.15 }
+                ];
+                
+                container.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>제품명</th>
+                                <th>정상 이미지</th>
+                                <th>불량 이미지</th>
+                                <th>총 검사</th>
+                                <th>불량 검출율</th>
+                                <th>작업</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${products.map(item => `
+                                <tr>
+                                    <td><strong>${item.name}</strong></td>
+                                    <td>${item.normalImages.toLocaleString()}</td>
+                                    <td>${item.defectImages.toLocaleString()}</td>
+                                    <td>${item.totalInspections.toLocaleString()}</td>
+                                    <td>
+                                        <span class="badge ${item.defectRate > 0.2 ? 'badge-warning' : 'badge-success'}">
+                                            ${(item.defectRate * 100).toFixed(1)}%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="action-btn" onclick="manageProduct('${item.name}')">관리</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+            } catch (error) {
+                console.error('제품 통계 로드 실패:', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">❌</div>
+                        <div class="empty-state-text">데이터 로드에 실패했습니다</div>
+                    </div>
+                `;
+            }
+        }
+        
+        // 이벤트 리스너 초기화
+        function initEventListeners() {
+            // 필터 버튼
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.parentElement.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    // TODO: 차트 데이터 갱신
+                });
+            });
+            
+            // 검색
+            document.getElementById('searchInput').addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                // TODO: 검색 필터링
+            });
+        }
+        
+        // 상세 보기
+        function viewDetail(id) {
+            // TODO: 상세 페이지 구현
+            alert(`검사 ID ${id}의 상세 정보를 표시합니다 (추후 구현)`);
+        }
+        
+        // 제품 관리
+        function manageProduct(productName) {
+            window.location.href = `/admin/product.html?product=${productName}`;
+        }
+        
+        // 로그아웃
+        async function logout() {
+            if (!confirm('로그아웃 하시겠습니까?')) return;
+            
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/login.html';
+            } catch (error) {
+                console.error('로그아웃 실패:', error);
+                alert('로그아웃에 실패했습니다');
+            }
+        }
+    </script>
+</body>
+</html>
