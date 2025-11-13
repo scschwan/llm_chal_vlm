@@ -11,8 +11,16 @@
     <div class="container">
         <!-- 헤더 -->
         <header class="header">
-            <h1>📸 이미지 업로드</h1>
-            <p class="subtitle">불량 의심 이미지를 업로드하세요</p>
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>📸 이미지 업로드</h1>
+                    <p class="subtitle">불량 의심 이미지를 업로드하세요</p>
+                </div>
+                <div class="header-right">
+                    <span class="user-name" id="userName">작업자</span>
+                    <button class="btn-logout" onclick="logout()">로그아웃</button>
+                </div>
+            </div>
         </header>
 
         <!-- 네비게이션 -->
@@ -122,5 +130,32 @@
 
     <script src="/static/js/common.js"></script>
     <script src="/static/js/upload.js"></script>
+    <script>
+        // 로그아웃 함수
+        async function logout() {
+            if (!confirm('로그아웃 하시겠습니까?')) return;
+            
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/login.html';
+            } catch (error) {
+                console.error('로그아웃 실패:', error);
+                alert('로그아웃에 실패했습니다');
+            }
+        }
+        
+        // 페이지 로드 시 사용자 이름 표시
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/api/auth/session');
+                if (response.ok) {
+                    const session = await response.json();
+                    document.getElementById('userName').textContent = session.full_name || '작업자';
+                }
+            } catch (error) {
+                console.error('세션 확인 실패:', error);
+            }
+        });
+    </script>
 </body>
 </html>

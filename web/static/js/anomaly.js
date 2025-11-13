@@ -26,6 +26,31 @@ const similarityScore = document.getElementById('similarityScore');
 const reDetectBtn = document.getElementById('reDetectBtn');
 const nextBtn = document.getElementById('nextBtn');
 
+ // 로그아웃 함수
+    async function logout() {
+        if (!confirm('로그아웃 하시겠습니까?')) return;
+        
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/login.html';
+        } catch (error) {
+            console.error('로그아웃 실패:', error);
+            alert('로그아웃에 실패했습니다');
+        }
+    }
+    
+    // 페이지 로드 시 사용자 이름 표시
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const response = await fetch('/api/auth/session');
+            if (response.ok) {
+                const session = await response.json();
+                document.getElementById('userName').textContent = session.full_name || '작업자';
+            }
+        } catch (error) {
+            console.error('세션 확인 실패:', error);
+        }
+    });
 
 // 페이지 로드 시 인증 확인
 document.addEventListener('DOMContentLoaded', async () => {

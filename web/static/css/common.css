@@ -34,7 +34,6 @@ body {
 
 /* 헤더 */
 .header {
-    text-align: center;
     margin-bottom: 30px;
     padding: 20px;
     background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
@@ -42,14 +41,48 @@ body {
     border-radius: 12px;
 }
 
-.header h1 {
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-left h1 {
     font-size: 2rem;
     margin-bottom: 8px;
 }
 
-.header .subtitle {
+.header-left .subtitle {
     font-size: 1rem;
     opacity: 0.9;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-name {
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0.95;
+}
+
+.btn-logout {
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.btn-logout:hover {
+    background: rgba(255, 255, 255, 0.3);
 }
 
 /* 네비게이션 */
@@ -146,5 +179,11 @@ body {
 @media (max-width: 1024px) {
     .main-content {
         grid-template-columns: 1fr;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
     }
 }
