@@ -406,13 +406,13 @@ from routers.upload import router as upload_router
 from routers.search import router as search_router
 from routers.anomaly import router as anomaly_router
 from routers.manual import router as manual_router
- # 기존 import 부분에 추가
+from routers.auth import router as auth_router
+
 from routers.admin.product import router as product_router
 from routers.admin.manual import router as admin_manual_router  # ✅ 이름 변경
 from routers.admin.defect_type import router as defect_type_router
 from routers.admin.image import router as image_router
-from routers.auth import router as auth_router
-
+from routers.admin.dashboard import router as dashboard_router
 
 
 app.include_router(auth_router)
@@ -429,6 +429,8 @@ app.include_router(product_router)
 app.include_router(admin_manual_router)
 app.include_router(defect_type_router)
 app.include_router(image_router)
+app.include_router(dashboard_router)
+
 
 
 
@@ -446,11 +448,6 @@ async def root():
 @app.get("/login.html")
 async def serve_login():
     return FileResponse(PAGES_DIR / "login.html")
-
-@app.get("/admin.html")
-async def serve_admin_dashboard():
-    #return FileResponse(PAGES_DIR / "admin.html")
-    return FileResponse(PAGES_DIR / "dashboard.html")
 
 
 @app.get("/upload.html")
@@ -486,8 +483,18 @@ async def serve_manual():
     return FileResponse(html_path)
 
 
-
 # 4. 관리자 페이지 서빙 엔드포인트 추가
+
+@app.get("/admin.html")
+async def serve_admin_dashboard():
+    return FileResponse(PAGES_DIR / "admin.html")
+    #return FileResponse(PAGES_DIR / "dashboard.html")
+
+@app.get("/admin/dashboard.html")
+async def serve_admin_dashboard():
+    return FileResponse(PAGES_DIR / "admin" / "dashboard.html")
+
+
 @app.get("/admin/product.html")
 async def serve_admin_product():
     return FileResponse(PAGES_DIR / "admin" / "admin_product.html")

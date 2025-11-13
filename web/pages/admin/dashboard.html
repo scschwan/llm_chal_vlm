@@ -728,6 +728,147 @@
                 alert('로그아웃에 실패했습니다');
             }
         }
+
+
+        // 통계 데이터 로드
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/admin/dashboard/stats');
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    const data = result.data;
+                    document.getElementById('totalProducts').textContent = data.totalProducts;
+                    document.getElementById('totalNormalImages').textContent = data.totalNormalImages.toLocaleString();
+                    document.getElementById('totalDefectImages').textContent = data.totalDefectImages.toLocaleString();
+                    document.getElementById('todayInspections').textContent = data.todayInspections;
+                }
+            } catch (error) {
+                console.error('통계 로드 실패:', error);
+            }
+        }
+
+        // 최근 검사 내역 로드
+        async function loadRecentInspections() {
+            const container = document.getElementById('recentInspections');
+            
+            try {
+                const response = await fetch('/api/admin/dashboard/inspections/recent?limit=20');
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    const inspections = result.data;
+                    
+                    if (inspections.length === 0) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📭</div>
+                                <div class="empty-state-text">검사 내역이 없습니다</div>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    container.innerHTML = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>시간</th>
+                                    <th>제품</th>
+                                    <th>불량 유형</th>
+                                    <th>결과</th>
+                                    <th>이상 점수</th>
+                                    <th>작업자</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${inspections.map(item => `
+                                    <tr>
+                                        <td>${item.timestamp}</td>
+                                        <td>${item.product}</td>
+                                        <td>${item.defect}</td>
+                                        <td>
+                                            <span class="badge ${item.result === 'anomaly' ? 'badge-danger' : 'badge-success'}">
+                                                ${item.result === 'anomaly' ? '⚠️ 이상' : '✅ 정상'}
+                                            </span>
+                                        </td>
+                                        <td>${item.score.toFixed(4)}</td>
+                                        <td>${item.worker}</td>
+                                        <td>
+                                            <button class="action-btn" onclick="viewDetail(${item.id})">상세</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+            } catch (error) {
+                console.error('검사 내역 로드 실패:', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">❌</div>
+                        <div class="empty-state-text">데이터 로드에 실패했습니다</div>
+                    </div>
+                `;
+            }
+        }
+
+        // 제품별 통계 로드
+        async function loadProductStats() {
+            const container = document.getElementById('productStats');
+            
+            try {
+                const response = await fetch('/api/admin/dashboard/products/stats');
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    const products = result.data;
+                    
+                    container.innerHTML = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>제품명</th>
+                                    <th>정상 이미지</th>
+                                    <th>불량 이미지</th>
+                                    <th>총 검사</th>
+                                    <th>불량 검출율</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${products.map(item => `
+                                    <tr>
+                                        <td><strong>${item.name_ko || item.name}</strong></td>
+                                        <td>${item.normalImages.toLocaleString()}</td>
+                                        <td>${item.defectImages.toLocaleString()}</td>
+                                        <td>${item.totalInspections.toLocaleString()}</td>
+                                        <td>
+                                            <span class="badge ${item.defectRate > 0.2 ? 'badge-warning' : 'badge-success'}">
+                                                ${(item.defectRate * 100).toFixed(1)}%
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="action-btn" onclick="manageProduct('${item.name}')">관리</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+            } catch (error) {
+                console.error('제품 통계 로드 실패:', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">❌</div>
+                        <div class="empty-state-text">데이터 로드에 실패했습니다</div>
+                    </div>
+                `;
+            }
+        }
     </script>
 </body>
 </html>
