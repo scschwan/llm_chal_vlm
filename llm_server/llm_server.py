@@ -564,7 +564,7 @@ def analyze(req: AnalysisRequest):
     text = hyperclovax_tokenizer.decode(generated_ids, skip_special_tokens=True)
     
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][DECODE] 원본 길이: {len(text)} 문자")
-    if len(text) < 1000 : 
+    if len(text) < 2000 : 
         print(f"[DECODE] 원본 데아터: {text}")
     
     # 6. 4개 섹션 추출 ✅ 개선된 슬라이싱
@@ -641,7 +641,7 @@ def analyze_exaone(req: ExaoneAnalysisRequest):
     full_text = exaone_tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][DECODE] 원본 길이: {len(full_text)} 문자")
-    if len(full_text) < 1500 : 
+    if len(full_text) < 2000 : 
         print(f"[DECODE] 원본 데아터: {full_text}")
   
     
@@ -713,6 +713,7 @@ def analyze_vlm(req: VLMAnalysisRequest):
             raise HTTPException(400, "product/defect_ko/manual_context 또는 prompt 필드가 필요합니다")
         
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][PROMPT] 길이: {len(prompt_text)} 문자")
+
         
         # 3. Chat template 적용 시도
         try:
@@ -760,7 +761,9 @@ def analyze_vlm(req: VLMAnalysisRequest):
         # 7. 디코딩
         text = vlm_processor.batch_decode(out, skip_special_tokens=True)[0]
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][DECODE] 원본 길이: {len(text)} 문자")
-        
+        if len(text) < 2000 : 
+            print(f"[DECODE] 원본 데아터: {text}")
+
         # 8. VLM 응답 정제
         if "ASSISTANT:" in text:
             text = text.split("ASSISTANT:")[-1].strip()
