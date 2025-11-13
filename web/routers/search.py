@@ -94,8 +94,41 @@ async def ensure_defect_index():
         raise HTTPException(500, f"인덱스 로드 실패: {str(e)}")
 
 
+# 전역 변수
+_current_index_type = None
+
+async def switch_to_defect_index():
+    """불량 이미지 인덱스로 전환"""
+    global _current_index_type
+    
+    matcher = get_matcher()
+    INDEX_DIR = get_index_dir()
+    
+    # ✅ 이미 불량 인덱스가 로드되어 있으면 스킵
+    if _current_index_type == "defect":
+        print(f"[SEARCH] 이미 불량 인덱스가 로드되어 있음 (스킵)")
+        return {
+            "status": "success",
+            "index_type": "defect",
+            "cached": True
+        }
+    
+    defect_index_path = INDEX_DIR / "defect"
+    
+    if (defect_index_path / "index_data.pt").exists():
+        matcher.load_index(str(defect_index_path))
+        _current_index_type = "defect"
+        print(f"[SEARCH] 불량 인덱스 로드 완료")
+        return {"status": "success", "index_type": "defect"}
+    else:
+        raise HTTPException(404, "불량 인덱스를 찾을 수 없습니다")
+
 @router.post("/similarity")
 async def search_similar_images(request: SearchRequest):
+
+     # 불량 인덱스로 전환
+    await switch_to_defect_index()
+    
     """유사 이미지 검색"""
     matcher = get_matcher()
     project_root = get_project_root()

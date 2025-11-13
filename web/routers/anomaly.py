@@ -55,15 +55,31 @@ class AnomalyDetectRequest(BaseModel):
     # ✅ TOP-1 불량 이미지는 표시용으로만 사용
     top1_defect_image: Optional[str] = Field(None, description="TOP-1 불량 이미지 (표시용)")
 
+# ===== 개선된 anomaly.py =====
+
+# 전역 변수에 현재 인덱스 타입 추가
+_current_index_type = None  # "defect" or "normal"
 
 async def switch_to_normal_index():
-    """정상 이미지 인덱스로 전환"""
+    """정상 이미지 인덱스로 전환 (캐싱 개선)"""
+    global _current_index_type
+    
     matcher = get_matcher()
     INDEX_DIR = get_index_dir()
     project_root = get_project_root()
     
     if matcher is None:
         raise HTTPException(500, "매처가 초기화되지 않았습니다")
+    
+    # ✅ 이미 정상 인덱스가 로드되어 있으면 스킵
+    if _current_index_type == "normal":
+        print(f"[ANOMALY] 이미 정상 인덱스가 로드되어 있음 (스킵)")
+        return {
+            "status": "success",
+            "index_type": "normal",
+            "gallery_count": len(matcher.gallery_paths) if matcher.gallery_paths else 0,
+            "cached": True  # 캐시 사용 플래그
+        }
     
     normal_index_path = INDEX_DIR / "normal"
     
@@ -72,6 +88,7 @@ async def switch_to_normal_index():
         if (normal_index_path / "index_data.pt").exists():
             print(f"[ANOMALY] 정상 이미지 인덱스 로드: {normal_index_path}")
             matcher.load_index(str(normal_index_path))
+            _current_index_type = "normal"  # ✅ 상태 업데이트
             print(f"[ANOMALY] 정상 인덱스 로드 완료: {len(matcher.gallery_paths)}개 이미지")
             return {
                 "status": "success",
@@ -79,7 +96,7 @@ async def switch_to_normal_index():
                 "gallery_count": len(matcher.gallery_paths) if matcher.gallery_paths else 0
             }
         else:
-            # 인덱스가 없으면 새로 구축
+            # 인덱스가 없으면 새로 구축 (최초 1회만)
             normal_base_dir = project_root / "data" / "patchCore"
             
             if not normal_base_dir.exists():
@@ -91,6 +108,7 @@ async def switch_to_normal_index():
             # 인덱스 저장
             normal_index_path.mkdir(parents=True, exist_ok=True)
             matcher.save_index(str(normal_index_path))
+            _current_index_type = "normal"  # ✅ 상태 업데이트
             
             print(f"[ANOMALY] 정상 인덱스 구축 완료: {info['num_images']}개 이미지")
             return {
