@@ -121,7 +121,7 @@ async def generate_manual(request: ManualGenerateRequest):
                     "is_anomaly": bool(request.is_anomaly),
                     "manual_context": manual_context,
                     #"max_new_tokens": 1024,
-                    "max_new_tokens": 512,
+                    "max_new_tokens": 768,
                     "temperature": 0.3
                 }
                 
