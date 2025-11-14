@@ -1,0 +1,124 @@
+.
+├── [  29K]  admin
+│   ├── [  16K]  defect_mapping_manager.py
+│   └── [  13K]  DEFECT_MAPPING_QUICKSTART.md
+├── [  300]  build_patchcore.sh
+├── [  85K]  data
+│   ├── [  84K]  def_split
+│   │   └── [   67]  change_name.sh
+│   └── [  554]  patchCore
+│       ├── [   78]  carpet
+│       ├── [   78]  grid
+│       ├── [   78]  leather
+│       ├── [   78]  prod1
+│       ├── [   78]  prod2
+│       └── [   78]  prod3
+├── [  33K]  docs
+│   ├── [  14K]  API_명세서.md
+│   └── [  18K]  API_명세서.xlsx
+├── [  35K]  llm_server
+│   ├── [ 2.7K]  =4.54.0
+│   ├── [  692]  check_hyperclova.sh
+│   ├── [  30K]  llm_server.py
+│   └── [ 1.4K]  requirements_backup.txt
+├── [  15M]  manual_store
+│   ├── [  19K]  carpet_manual.docx
+│   ├── [ 3.8M]  carpet_manual.pdf
+│   ├── [  612]  file_metadata.json
+│   ├── [  19K]  grid_manual.docx
+│   ├── [ 3.8M]  grid_manual.pdf
+│   ├── [ 9.0K]  index.faiss
+│   ├── [ 2.2K]  index.pkl
+│   ├── [  19K]  leather_manual.docx
+│   ├── [ 3.8M]  leather_manual.pdf
+│   ├── [  18K]  prod1_menual.docx
+│   ├── [ 3.8M]  prod1_menual.pdf
+│   └── [  79K]  unified_index
+│       ├── [  63K]  index.faiss
+│       └── [  16K]  index.pkl
+├── [ 217K]  Markdown
+│   ├── [  72K]  admin_development_scope_v3.md
+│   ├── [  25K]  database_schema.md
+│   ├── [ 1.4K]  defect_management_TODO.md
+│   ├── [  30K]  유사이미지_검색_솔루션_설계서.md
+│   ├── [  22K]  project_status.md
+│   ├── [ 7.9K]  readme_patchcore.md
+│   ├── [  11K]  session_handover.md
+│   ├── [  36K]  system_architecture.md
+│   ├── [ 4.5K]  TOP-K TEST_GUIDE.md
+│   ├── [    0]  TREE.txt
+│   └── [ 7.0K]  USAGE_GUIDE.md
+├── [ 139K]  modules
+│   ├── [  16K]  anomaly_detector.py
+│   ├── [ 3.9K]  augment_images.py
+│   ├── [    0]  __init__.py
+│   ├── [  43K]  patchCore
+│   │   ├── [  15K]  build_bank.py
+│   │   ├── [ 2.3K]  compare_diff.py
+│   │   ├── [  11K]  infer.py
+│   │   └── [  15K]  patchcore_demo.py
+│   ├── [  12K]  similarity_matcher.py
+│   └── [  65K]  vlm
+│       ├── [  10K]  defect_mapper.py
+│       ├── [  488]  __init__.py
+│       ├── [  11K]  llm_inference.py
+│       ├── [ 5.1K]  prompt_builder.py
+│       ├── [ 6.4K]  rag_manager.py
+│       ├── [  20K]  rag.py
+│       └── [  11K]  vlm_inference.py
+├── [ 7.1K]  object_storage
+│   ├── [  477]  file_delete_sample.py
+│   ├── [  517]  file_download_sample.py
+│   ├── [ 2.2K]  file_search_sample.py
+│   ├── [  646]  file_upload_sample.py
+│   ├── [ 1.5K]  multi-part_file_upload_sample.py
+│   ├── [ 1.6K]  ncp_obj_public_get_test.py
+│   └── [   82]  readme.txt
+├── [  628]  requirements_llm.txt
+├── [  354]  requirements_patchcore.txt
+├── [  200]  requirements_vlm_add.txt
+├── [  249]  save_tree.sh
+├── [    6]  uploads
+└── [ 689K]  web
+    ├── [    6]  anomaly_outputs
+    ├── [  24K]  api_server.py
+    ├── [  18K]  database
+    │   ├── [ 1.7K]  connection.py
+    │   ├── [ 8.3K]  crud.py
+    │   └── [ 7.7K]  models.py
+    ├── [ 1.9K]  defect_mapping.json
+    ├── [ 528K]  index_cache
+    │   ├── [   50]  defect
+    │   ├── [ 260K]  faiss_index.bin
+    │   ├── [ 268K]  index_data.pt
+    │   └── [   50]  normal
+    ├── [  14K]  matching.html
+    ├── [  50K]  pages
+    │   ├── [  196]  admin
+    │   ├── [ 9.7K]  admin.html
+    │   ├── [ 6.3K]  anomaly.html
+    │   ├── [  10K]  login.html
+    │   ├── [ 7.3K]  manual.html
+    │   ├── [ 9.7K]  search.html
+    │   └── [ 6.8K]  upload.html
+    ├── [  11K]  README.md
+    ├── [   67]  requirements.txt
+    ├── [  31K]  routers
+    │   ├── [  137]  admin
+    │   ├── [ 7.7K]  anomaly.py
+    │   ├── [ 3.4K]  auth.py
+    │   ├── [  291]  __init__.py
+    │   ├── [ 7.9K]  manual.py
+    │   ├── [ 6.9K]  search.py
+    │   └── [ 4.2K]  upload.py
+    ├── [  295]  static
+    │   ├── [   27]  admin
+    │   ├── [  117]  css
+    │   └── [  111]  js
+    ├── [    6]  uploads
+    └── [  11K]  utils
+        ├── [ 1.6K]  auth.py
+        ├── [    0]  __init__.py
+        └── [ 9.7K]  object_storage.py
+
+   17M used in 36 directories, 85 files
