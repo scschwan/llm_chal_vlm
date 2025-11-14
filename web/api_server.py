@@ -454,6 +454,7 @@ from routers.admin.manual import router as admin_manual_router  # ✅ 이름 변
 from routers.admin.defect_type import router as defect_type_router
 from routers.admin.image import router as image_router
 from routers.admin.dashboard import router as dashboard_router
+from routers.admin.deployment import router as deployment_router
 
 
 app.include_router(auth_router)
@@ -471,6 +472,7 @@ app.include_router(admin_manual_router)
 app.include_router(defect_type_router)
 app.include_router(image_router)
 app.include_router(dashboard_router)
+app.include_router(deployment_router)
 
 
 

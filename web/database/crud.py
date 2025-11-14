@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-
+import json
 from .models import (
     Product, Manual, DefectType, Image, ImagePreprocessing,
     SearchHistory, ResponseHistory, ModelParams, DeploymentLog, SystemConfig
@@ -269,3 +269,131 @@ def update_preprocessing(db: Session, product_id: int, **options) -> Optional[Im
         db.commit()
         db.refresh(preprocessing)
     return preprocessing
+
+# ========================================
+# PatchCore CRUD
+# ========================================
+
+
+def create_deployment_log(
+    deployment_type: str,
+    target: str,
+    status: str = 'running'
+) -> int:
+    """배포 로그 생성"""
+    from web.database.connection import get_db_connection
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        query = """
+            INSERT INTO deployment_logs 
+            (deployment_type, target, status, start_time, created_at)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        now = datetime.now()
+        cursor.execute(query, (deployment_type, target, status, now, now))
+        conn.commit()
+        
+        log_id = cursor.lastrowid
+        return log_id
+        
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def update_deployment_status(
+    log_id: int,
+    status: str,
+    result_data: dict = None,
+    error_message: str = None
+):
+    """배포 상태 업데이트"""
+    from web.database.connection import get_db_connection
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        query = """
+            UPDATE deployment_logs
+            SET status = %s,
+                end_time = %s,
+                result_data = %s,
+                error_message = %s,
+                updated_at = %s
+            WHERE id = %s
+        """
+        now = datetime.now()
+        result_json = json.dumps(result_data) if result_data else None
+        
+        cursor.execute(query, (
+            status,
+            now,
+            result_json,
+            error_message,
+            now,
+            log_id
+        ))
+        conn.commit()
+        
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_deployment_logs(
+    limit: int = 20,
+    deployment_type: str = None
+) -> list:
+    """배포 이력 조회"""
+    from web.database.connection import get_db_connection
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        if deployment_type:
+            query = """
+                SELECT *
+                FROM deployment_logs
+                WHERE deployment_type = %s
+                ORDER BY created_at DESC
+                LIMIT %s
+            """
+            cursor.execute(query, (deployment_type, limit))
+        else:
+            query = """
+                SELECT *
+                FROM deployment_logs
+                ORDER BY created_at DESC
+                LIMIT %s
+            """
+            cursor.execute(query, (limit,))
+        
+        logs = cursor.fetchall()
+        
+        # 날짜 형식 변환
+        for log in logs:
+            if log.get('start_time'):
+                log['start_time'] = log['start_time'].isoformat()
+            if log.get('end_time'):
+                log['end_time'] = log['end_time'].isoformat()
+            if log.get('created_at'):
+                log['created_at'] = log['created_at'].isoformat()
+        
+        return logs
+        
+    except Exception as e:
+        raise e
+    finally:
+        cursor.close()
+        conn.close()

@@ -2,10 +2,11 @@
 SQLAlchemy 모델 정의
 """
 
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, JSON, Float, BigInteger, DateTime
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, JSON, Float, BigInteger, DateTime, JSON
 from sqlalchemy.sql import func
 from .connection import Base
 
+from datetime import datetime
 
 class Product(Base):
     """제품 마스터"""
@@ -143,6 +144,21 @@ class DeploymentLog(Base):
     result_data = Column(JSON, comment="결과 상세")
     deployed_by = Column(String(50), comment="배포 실행자")
 
+
+class DeploymentLog(Base):
+    """배포 이력 테이블"""
+    __tablename__ = 'deployment_logs'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    deployment_type = Column(String(50), nullable=False)  # 'clip' or 'patchcore'
+    target = Column(String(50), nullable=False)  # 'normal', 'defect', 'all', product_id
+    status = Column(String(20), nullable=False)  # 'running', 'success', 'failed'
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=True)
+    result_data = Column(JSON, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 class SystemConfig(Base):
     """시스템 전역 설정"""

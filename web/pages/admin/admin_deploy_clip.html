@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLIP 임베딩 재구축 - 관리자</title>
+    <link rel="stylesheet" href="/static/admin/css/admin_deploy_clip.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔄 CLIP 임베딩 재구축</h1>
+            <p>정상/불량 이미지의 CLIP 임베딩을 재생성하고 FAISS 인덱스를 구축합니다.</p>
+        </div>
+
+        <div class="card">
+            <h2>인덱스 재구축</h2>
+            <div class="deploy-section">
+                <!-- 정상 이미지 인덱스 -->
+                <div class="deploy-card">
+                    <h3>✅ 정상 이미지 인덱스</h3>
+                    <p>
+                        정상 제품 이미지의 임베딩을 생성합니다.<br>
+                        유사도 검색에 사용됩니다.
+                    </p>
+                    <button id="btnNormal" class="btn btn-primary" onclick="startRebuild('normal')">
+                        재구축 시작
+                    </button>
+                    
+                    <!-- 진행 상태 -->
+                    <div id="progressNormal" class="progress-section">
+                        <div class="progress-bar-container">
+                            <div id="progressBarNormal" class="progress-bar" style="width: 0%">0%</div>
+                        </div>
+                        <div id="messageNormal" class="progress-message">준비 중...</div>
+                    </div>
+                </div>
+
+                <!-- 불량 이미지 인덱스 -->
+                <div class="deploy-card">
+                    <h3>❌ 불량 이미지 인덱스</h3>
+                    <p>
+                        불량 제품 이미지의 임베딩을 생성합니다.<br>
+                        유사도 검색에 사용됩니다.
+                    </p>
+                    <button id="btnDefect" class="btn btn-primary" onclick="startRebuild('defect')">
+                        재구축 시작
+                    </button>
+                    
+                    <!-- 진행 상태 -->
+                    <div id="progressDefect" class="progress-section">
+                        <div class="progress-bar-container">
+                            <div id="progressBarDefect" class="progress-bar" style="width: 0%">0%</div>
+                        </div>
+                        <div id="messageDefect" class="progress-message">준비 중...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="alertContainer"></div>
+        </div>
+
+        <div class="card">
+            <h2>재구축 이력</h2>
+            <table class="log-table" id="logTable">
+                <thead>
+                    <tr>
+                        <th>시작 시간</th>
+                        <th>유형</th>
+                        <th>대상</th>
+                        <th>상태</th>
+                        <th>소요 시간</th>
+                        <th>결과</th>
+                    </tr>
+                </thead>
+                <tbody id="logTableBody">
+                    <tr>
+                        <td colspan="6" class="empty-message">이력이 없습니다.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/static/admin/js/admin_deploy_clip.js"></script>
+</body>
+</html>
