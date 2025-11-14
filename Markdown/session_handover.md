@@ -1,196 +1,219 @@
-# Phase 2 개발 일정표
-# 서버 배포 기능 구현
+# Phase 3 개발 일정표
+# 설정 및 모니터링 기능 구현
 
-**기간**: 1주 (5 작업일)  
-**목표**: 비동기 배치 서비스 구현 및 모델 재구축 기능 완성
+**기간**: 3-4일 (작업일)  
+**목표**: 이미지 전처리 설정, 모델 선택, 대시보드 구현
+
+---
+
+## 이전 세션 완료 내역
+
+### Phase 2: 서버 배포 기능 ✅ 완료
+
+**완성된 파일:**
+1. `web/routers/admin/__init__.py` - 라우터 패키지 초기화
+2. `web/routers/admin/deployment.py` - CLIP/PatchCore 배포 API
+3. `web/pages/admin/admin_deploy_clip.html` - CLIP 재구축 화면
+4. `web/pages/admin/admin_deploy_patchcore.html` - PatchCore 생성 화면
+5. `web/static/admin/css/admin_deploy_clip.css` - CLIP 화면 스타일
+6. `web/static/admin/css/admin_deploy_patchcore.css` - PatchCore 화면 스타일
+7. `web/static/admin/js/admin_deploy_clip.js` - CLIP 화면 로직
+8. `web/static/admin/js/admin_deploy_patchcore.js` - PatchCore 화면 로직
+
+**수정된 파일:**
+- `web/database/crud.py` - 배포 로그 관련 함수 추가
+- `web/database/models.py` - DeploymentLog 테이블 모델 추가
+- `web/api_server.py` - deployment 라우터 등록 및 페이지 서빙 추가
+
+**DB 작업:**
+- `deployment_logs` 테이블 생성 완료
+
+**구현된 기능:**
+- CLIP 정상/불량 이미지 인덱스 재구축
+- PatchCore 전체 메모리뱅크 생성
+- 실시간 진행 상태 추적 (폴링 방식)
+- 제품별 생성 상태 시각화
+- 실시간 로그 출력
+- 배포 이력 조회
+
+**알려진 이슈:**
+- TopKSimilarityMatcher import 오류 수정 완료
+- 페이지 서빙 라우트 수동 추가 필요 (완료)
 
 ---
 
 ## 개발 항목
 
-### 1. CLIP 임베딩 재구축 (3.9) - 2일
+### 1. 이미지 전처리 설정 (3.7) - 1.5일
 
-#### 1.1 백엔드 개발 (1.5일)
-- [ ] 라우터 생성: `web/routers/admin/deployment.py`
+#### 1.1 백엔드 개발 (1일)
+- [ ] 라우터 생성: `web/routers/admin/preprocessing.py`
 - [ ] API 엔드포인트:
-  - `POST /api/admin/deployment/clip/normal` - 정상 이미지 인덱스
-  - `POST /api/admin/deployment/clip/defect` - 불량 이미지 인덱스
-  - `GET /api/admin/deployment/status/{task_id}` - 진행 상태 조회
-  - `GET /api/admin/deployment/logs` - 배포 이력
-- [ ] Object Storage 다운로드 → 로컬 배포 로직
-- [ ] 비동기 배치 서비스:
-  - asyncio 기반 병렬 다운로드 (최대 10개 동시)
-  - CLIP 임베딩 생성
-  - FAISS 인덱스 저장
-- [ ] 진행 상태 추적 (Redis or DB)
-- [ ] WebSocket 실시간 진행률 전달
+  - `GET /api/admin/preprocessing` - 현재 설정 조회
+  - `POST /api/admin/preprocessing` - 설정 저장
+  - `PUT /api/admin/preprocessing/{id}` - 설정 수정
+  - `DELETE /api/admin/preprocessing/{id}` - 설정 삭제
+- [ ] 전처리 옵션:
+  - 이미지 리사이즈 (해상도 설정)
+  - 정규화 방법
+  - 증강 기법 (회전, 반전, 밝기 조정)
+  - 노이즈 제거
+- [ ] DB 테이블: `preprocessing_configs`
+- [ ] 설정 적용 검증 로직
 
 #### 1.2 프론트엔드 개발 (0.5일)
-- [ ] 화면 생성: `web/pages/admin/admin_deploy_clip.html`
-- [ ] JavaScript: `web/static/js/admin/deployment_clip.js`
+- [ ] 화면 생성: `web/pages/admin/admin_preprocessing.html`
+- [ ] CSS: `web/static/admin/css/admin_preprocessing.css`
+- [ ] JavaScript: `web/static/admin/js/admin_preprocessing.js`
 - [ ] 기능:
-  - 인덱스 유형 선택 (정상/불량)
-  - 재구축 시작 버튼
-  - 실시간 진행률 표시
-  - 배포 이력 테이블
+  - 전처리 파라미터 설정 폼
+  - 미리보기 기능
+  - 설정 저장/불러오기
+  - 설정 프리셋 관리
 
-### 2. PatchCore 메모리뱅크 생성 (3.10) - 1.5일
+### 2. 모델 선택 (3.8) - 1.5일
 
 #### 2.1 백엔드 개발 (1일)
-- [ ] API 엔드포인트 추가:
-  - `POST /api/admin/deployment/patchcore` - 전체 메모리뱅크 생성
-- [ ] 스크립트 실행 로직:
-```python
-  방법1: bash /home/dmillion/llm_chal_vlm/build_patchcore.sh
-  방법2: python modules/patchCore/build_bank.py
-```
-- [ ] 비동기 프로세스 실행 (asyncio.create_subprocess_exec)
-- [ ] 실시간 로그 파싱 및 진행 상태 업데이트
-- [ ] DB 배포 이력 저장
+- [ ] 라우터 생성: `web/routers/admin/model.py`
+- [ ] API 엔드포인트:
+  - `GET /api/admin/models` - 사용 가능한 모델 목록
+  - `GET /api/admin/models/current` - 현재 선택된 모델
+  - `POST /api/admin/models/select` - 모델 선택
+  - `GET /api/admin/models/{model_id}/info` - 모델 상세 정보
+- [ ] 지원 모델:
+  - CLIP: ViT-B-32, ViT-B-16, ViT-L-14
+  - PatchCore: WideResNet50, ResNet18
+- [ ] DB 테이블: `model_configs`
+- [ ] 모델 전환 로직
 
 #### 2.2 프론트엔드 개발 (0.5일)
-- [ ] 화면 생성: `web/pages/admin/admin_deploy_patchcore.html`
-- [ ] JavaScript: `web/static/js/admin/deployment_patchcore.js`
+- [ ] 화면 생성: `web/pages/admin/admin_model.html`
+- [ ] CSS: `web/static/admin/css/admin_model.css`
+- [ ] JavaScript: `web/static/admin/js/admin_model.js`
 - [ ] 기능:
-  - 전체 재생성 시작 버튼
-  - 제품별 진행 상태 표시
-  - 실시간 로그 출력
-  - 배포 이력 테이블
+  - 모델 선택 UI
+  - 모델 성능 비교 표
+  - 현재 사용 중인 모델 표시
+  - 모델 정보 표시 (파라미터 수, 정확도 등)
 
-### 3. 공통 유틸리티 (1.5일)
+### 3. 통합 대시보드 (3.1) - 1일
 
-#### 3.1 Object Storage 매니저 (0.5일)
-- [ ] 모듈 생성: `web/utils/object_storage.py`
-- [ ] ObjectStorageManager 클래스:
-  - create_folder()
-  - upload_file()
-  - download_file()
-  - delete_file()
-  - list_objects()
-  - get_url()
+#### 3.1 백엔드 개발 (0.5일)
+- [ ] 라우터 생성: `web/routers/admin/dashboard.py`
+- [ ] API 엔드포인트:
+  - `GET /api/admin/dashboard/stats` - 전체 통계
+  - `GET /api/admin/dashboard/products` - 제품별 현황
+  - `GET /api/admin/dashboard/defects` - 불량 유형별 통계
+  - `GET /api/admin/dashboard/recent` - 최근 활동 내역
+- [ ] 집계 데이터:
+  - 제품별 정상/불량 이미지 수
+  - 전체 검사 건수
+  - 불량 감지 건수
+  - 조치 완료/미조치 건수
 
-#### 3.2 비동기 배치 서비스 (0.5일)
-- [ ] 모듈 생성: `web/utils/async_batch.py`
+#### 3.2 프론트엔드 개발 (0.5일)
+- [ ] 화면 생성: `web/pages/admin/admin_dashboard.html`
+- [ ] CSS: `web/static/admin/css/admin_dashboard.css`
+- [ ] JavaScript: `web/static/admin/js/admin_dashboard.js`
 - [ ] 기능:
-  - 병렬 다운로드 (ThreadPoolExecutor)
-  - 진행 상태 관리
-  - 에러 핸들링
-  - 재시도 로직
-
-#### 3.3 WebSocket 통신 (0.5일)
-- [ ] WebSocket 엔드포인트 구현
-- [ ] 실시간 진행률 브로드캐스팅
-- [ ] 프론트엔드 WebSocket 연결
+  - 주요 지표 카드 (총 제품 수, 검사 수, 불량 감지 수)
+  - 제품별 데이터셋 현황 테이블
+  - 불량 유형별 검출 현황 차트 (Chart.js)
+  - 최근 조치 내역 리스트
 
 ---
 
 ## 세부 작업 내역
 
-### Day 1: CLIP 재구축 백엔드 (전반)
+### Day 1: 이미지 전처리 설정 백엔드
 
 **작업 항목:**
-1. `web/utils/object_storage.py` 생성
-   - boto3 기반 S3 클라이언트
-   - 기본 CRUD 함수 구현
+1. `web/routers/admin/preprocessing.py` 생성
+   - 전처리 설정 CRUD API
+   - 설정 검증 로직
 
-2. `web/routers/admin/deployment.py` 생성
-   - CLIP 정상/불량 인덱스 API
-   - 진행 상태 조회 API
+2. DB 테이블 생성
+   - `preprocessing_configs` 테이블
+   - 스키마: id, name, resize_width, resize_height, normalize, augmentation, created_at
 
-3. Object Storage → 로컬 다운로드 로직
-   - 병렬 다운로드 구현
-   - 지정 경로 배치
+3. 전처리 로직 통합
+   - 기존 모듈과 연동
+   - 설정 적용 테스트
 
 **예상 산출물:**
-- `web/utils/object_storage.py`
-- `web/routers/admin/deployment.py` (일부)
+- `web/routers/admin/preprocessing.py`
+- DB 마이그레이션 스크립트
 
 ---
 
-### Day 2: CLIP 재구축 백엔드 (후반) + 프론트엔드
+### Day 2: 이미지 전처리 설정 프론트엔드 + 모델 선택 백엔드
 
 **작업 항목:**
-1. CLIP 임베딩 생성 로직
-   - 배치 단위 임베딩
-   - FAISS 인덱스 저장
+1. 전처리 설정 프론트엔드
+   - `admin_preprocessing.html` 생성
+   - 설정 폼 UI
+   - 미리보기 기능
 
-2. 비동기 작업 관리
-   - asyncio 기반 배치 서비스
-   - 진행 상태 DB 저장
-
-3. 프론트엔드 개발
-   - `admin_deploy_clip.html` 생성
-   - 실시간 진행률 UI
-   - 배포 이력 테이블
+2. 모델 선택 백엔드
+   - `web/routers/admin/model.py` 생성
+   - 모델 목록/선택 API
+   - DB 테이블 생성
 
 **예상 산출물:**
-- `web/routers/admin/deployment.py` (완성)
-- `web/pages/admin/admin_deploy_clip.html`
-- `web/static/js/admin/deployment_clip.js`
+- `web/pages/admin/admin_preprocessing.html`
+- `web/static/admin/css/admin_preprocessing.css`
+- `web/static/admin/js/admin_preprocessing.js`
+- `web/routers/admin/model.py`
 
 ---
 
-### Day 3: PatchCore 메모리뱅크 백엔드
+### Day 3: 모델 선택 프론트엔드 + 대시보드
 
 **작업 항목:**
-1. PatchCore 배포 API
-   - 스크립트 실행 엔드포인트
-   - 비동기 프로세스 실행
+1. 모델 선택 프론트엔드
+   - `admin_model.html` 생성
+   - 모델 선택 UI
+   - 모델 정보 표시
 
-2. 실시간 로그 파싱
-   - 표준 출력 스트리밍
-   - 진행 상태 파싱
-   - DB 업데이트
+2. 대시보드 백엔드
+   - `web/routers/admin/dashboard.py` 생성
+   - 통계 데이터 API
+   - 집계 쿼리 최적화
 
-3. 에러 핸들링
-   - 스크립트 실패 처리
-   - 롤백 로직
+3. 대시보드 프론트엔드 (기본)
+   - `admin_dashboard.html` 생성
+   - 주요 지표 카드
+   - 테이블 레이아웃
 
 **예상 산출물:**
-- `web/routers/admin/deployment.py` (PatchCore 추가)
+- `web/pages/admin/admin_model.html`
+- `web/static/admin/css/admin_model.css`
+- `web/static/admin/js/admin_model.js`
+- `web/routers/admin/dashboard.py`
+- `web/pages/admin/admin_dashboard.html` (부분)
 
 ---
 
-### Day 4: PatchCore 프론트엔드 + WebSocket
+### Day 4: 대시보드 완성 및 통합 테스트
 
 **작업 항목:**
-1. 프론트엔드 개발
-   - `admin_deploy_patchcore.html` 생성
-   - 실시간 진행 상태 UI
-   - 로그 출력 영역
+1. 대시보드 차트 구현
+   - Chart.js 통합
+   - 불량 유형별 차트
+   - 시계열 그래프
 
-2. WebSocket 통신
-   - 서버 WebSocket 엔드포인트
-   - 클라이언트 연결 및 이벤트 핸들링
-   - 실시간 진행률 업데이트
-
-**예상 산출물:**
-- `web/pages/admin/admin_deploy_patchcore.html`
-- `web/static/js/admin/deployment_patchcore.js`
-- WebSocket 통신 구현
-
----
-
-### Day 5: 통합 테스트 및 디버깅
-
-**작업 항목:**
-1. 전체 플로우 테스트
-   - 이미지 업로드 → CLIP 재구축
-   - 정상 이미지 업로드 → PatchCore 생성
-   - 진행 상태 추적 검증
-
-2. 에러 케이스 테스트
-   - 네트워크 오류
-   - 스크립트 실패
-   - 중복 실행 방지
+2. 전체 통합 테스트
+   - 모든 화면 연동 테스트
+   - 네비게이션 메뉴 통합
+   - 에러 처리 점검
 
 3. 성능 최적화
-   - 병렬 다운로드 성능 측정
-   - 메모리 사용량 체크
-   - 타임아웃 설정
+   - API 응답 시간 측정
+   - 쿼리 최적화
 
-**산출물:**
-- 테스트 보고서
+**예상 산출물:**
+- 완성된 대시보드 화면
+- 통합 테스트 결과
 - 버그 수정 패치
 
 ---
@@ -198,23 +221,18 @@
 ## 기술 스택
 
 ### 백엔드
-- **FastAPI**: 비동기 웹 프레임워크
-- **boto3**: AWS S3 호환 Object Storage 클라이언트
-- **asyncio**: 비동기 프로세스 실행
-- **subprocess**: 쉘 스크립트 실행
-- **WebSocket**: 실시간 통신
+- **FastAPI**: RESTful API
+- **MariaDB**: 데이터 저장
+- **SQLAlchemy**: ORM
 
 ### 프론트엔드
 - **HTML/CSS/JavaScript**: 기본 웹 기술
-- **WebSocket API**: 실시간 진행률 수신
+- **Chart.js**: 데이터 시각화
 - **Fetch API**: RESTful API 호출
 
-### 인프라
-- **Naver Cloud Platform Object Storage**
-  - Endpoint: https://kr.object.ncloudstorage.com
-  - Bucket: dm-obs (환경변수)
-- **Rocky Linux 8.10**
-- **Python 3.9**
+### 데이터베이스
+- **preprocessing_configs**: 전처리 설정 저장
+- **model_configs**: 모델 선택 설정 저장
 
 ---
 
@@ -224,98 +242,116 @@
 ```
 web/
 ├── routers/admin/
-│   └── deployment.py                  # 배포 API 라우터
+│   ├── preprocessing.py           # 전처리 설정 API
+│   ├── model.py                   # 모델 선택 API
+│   └── dashboard.py               # 대시보드 API
 ├── pages/admin/
-│   ├── admin_deploy_clip.html         # CLIP 재구축 화면
-│   └── admin_deploy_patchcore.html    # PatchCore 생성 화면
-├── static/js/admin/
-│   ├── deployment_clip.js             # CLIP 재구축 JS
-│   └── deployment_patchcore.js        # PatchCore 생성 JS
-└── utils/
-    ├── object_storage.py              # Object Storage 유틸
-    └── async_batch.py                 # 비동기 배치 서비스
+│   ├── admin_preprocessing.html   # 전처리 설정 화면
+│   ├── admin_model.html           # 모델 선택 화면
+│   └── admin_dashboard.html       # 대시보드 화면
+├── static/admin/css/
+│   ├── admin_preprocessing.css
+│   ├── admin_model.css
+│   └── admin_dashboard.css
+└── static/admin/js/
+    ├── admin_preprocessing.js
+    ├── admin_model.js
+    └── admin_dashboard.js
 ```
 
 ### 수정 파일
 ```
 web/
-├── api_server.py                      # 라우터 등록 추가
-├── routers/admin/__init__.py          # deployment 라우터 임포트
-└── pages/admin/admin_layout.html      # 네비게이션 메뉴 추가
+├── api_server.py                  # 라우터 등록 및 페이지 서빙 추가
+└── database/
+    ├── models.py                  # 테이블 모델 추가
+    └── crud.py                    # CRUD 함수 추가
+```
+
+---
+
+## DB 테이블 스키마
+
+### preprocessing_configs
+```sql
+CREATE TABLE IF NOT EXISTS preprocessing_configs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL COMMENT '설정 이름',
+    resize_width INT DEFAULT 224 COMMENT '리사이즈 너비',
+    resize_height INT DEFAULT 224 COMMENT '리사이즈 높이',
+    normalize BOOLEAN DEFAULT TRUE COMMENT '정규화 여부',
+    augmentation JSON NULL COMMENT '증강 설정',
+    is_active BOOLEAN DEFAULT FALSE COMMENT '활성화 여부',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='전처리 설정';
+```
+
+### model_configs
+```sql
+CREATE TABLE IF NOT EXISTS model_configs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    model_type VARCHAR(50) NOT NULL COMMENT 'CLIP or PatchCore',
+    model_name VARCHAR(100) NOT NULL COMMENT '모델 이름',
+    model_path VARCHAR(255) NULL COMMENT '모델 경로',
+    is_active BOOLEAN DEFAULT FALSE COMMENT '활성화 여부',
+    parameters JSON NULL COMMENT '모델 파라미터',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_type_active (model_type, is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='모델 설정';
 ```
 
 ---
 
 ## 환경 변수
 ```bash
-# Object Storage 인증
-NCP_ACCESS_KEY=your_access_key
-NCP_SECRET_KEY=your_secret_key
-NCP_BUCKET=dm-obs
-
 # Database
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=dmillion
 DB_PASSWORD=your_password
 DB_NAME=defect_db
+
+# Chart.js CDN (프론트엔드에서 사용)
+# <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 ```
 
 ---
 
 ## 배포 전 체크리스트
 
-- [ ] Object Storage 인증 정보 설정
-- [ ] DB 테이블 생성 (deployment_logs)
-- [ ] /data/patchCore/ 디렉토리 구조 확인
-- [ ] build_patchcore.sh 실행 권한 확인
-- [ ] CLIP 모델 로드 테스트
-- [ ] PatchCore 모듈 임포트 테스트
-- [ ] 네트워크 정책 (Object Storage 접근 허용)
-
----
-
-## 리스크 관리
-
-### 예상 리스크
-1. **Object Storage 다운로드 속도**
-   - 완화: 병렬 다운로드 (최대 10개 동시)
-   - 완화: 로컬 캐싱
-
-2. **PatchCore 메모리뱅크 생성 시간**
-   - 완화: 진행 상태 실시간 표시
-   - 완화: 백그라운드 작업 큐
-
-3. **동시 재구축 요청**
-   - 완화: 작업 큐 구현
-   - 완화: 진행 중 중복 실행 방지
-
-4. **스크립트 실행 실패**
-   - 완화: 에러 로그 상세 기록
-   - 완화: 자동 재시도 (최대 3회)
+- [ ] DB 테이블 생성 (preprocessing_configs, model_configs)
+- [ ] 라우터 등록 확인 (api_server.py)
+- [ ] 페이지 서빙 라우트 추가
+- [ ] Chart.js CDN 연결 확인
+- [ ] 기존 모듈과의 통합 테스트
 
 ---
 
 ## 성공 기준
 
 ### 기능 요구사항
-- [✅] CLIP 정상/불량 인덱스 재구축 성공
-- [✅] PatchCore 전체 메모리뱅크 생성 성공
-- [✅] 실시간 진행률 표시 (WebSocket)
-- [✅] 배포 이력 조회 및 로그 확인
+- [ ] 전처리 설정 저장/불러오기 성공
+- [ ] 모델 선택 및 전환 성공
+- [ ] 대시보드 통계 데이터 정확성
+- [ ] 차트 정상 표시
 
 ### 성능 요구사항
-- [ ] CLIP 재구축 시간: 650장 기준 5분 이내
-- [ ] PatchCore 생성 시간: 전체 제품 기준 10분 이내
-- [ ] Object Storage 다운로드: 100MB 기준 1분 이내
+- [ ] 대시보드 로딩 시간: 2초 이내
+- [ ] API 응답 시간: 500ms 이내
+- [ ] 차트 렌더링: 1초 이내
 
 ### 안정성 요구사항
-- [ ] 에러 발생 시 자동 복구 또는 명확한 에러 메시지
-- [ ] 네트워크 오류 시 재시도 로직
-- [ ] 스크립트 실패 시 롤백 처리
+- [ ] 설정 변경 시 기존 데이터 유지
+- [ ] 모델 전환 시 서비스 중단 없음
+- [ ] 에러 발생 시 명확한 메시지
 
 ---
 
 **작성일**: 2025-11-14  
 **작성자**: Claude  
-**버전**: 1.0
+**버전**: 2.0  
+**이전 완료**: Phase 2 (서버 배포 기능)  
+**다음 작업**: Phase 3 (설정 및 모니터링 기능)

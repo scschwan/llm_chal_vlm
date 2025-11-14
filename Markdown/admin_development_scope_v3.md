@@ -1622,30 +1622,78 @@ GET    /api/admin/deployment/logs              # 배포 이력 조회
    - ⚠️ Object Storage 업로드 미구현
    - ⚠️ 다중 파일/ZIP 업로드 기능 확인 필요
 
-### Phase 2: 서버 배포 기능 (1주) - 🔄 **진행 예정**
+### Phase 2: 서버 배포 기능 (1주) ✅ 완료
 **목표**: 비동기 배치 서비스 구현
 
-5. ⬜ **CLIP 임베딩 재구축** (3.9)
+5. ✅ **CLIP 임베딩 재구축** (3.9)
    - Object Storage → 로컬 다운로드
    - 비동기 배치 서비스 구현
    - 진행 상태 추적
    - 화면 개발
+   - **완성 파일**:
+     - `web/routers/admin/deployment.py` (CLIP API)
+     - `web/pages/admin/admin_deploy_clip.html`
+     - `web/static/admin/css/admin_deploy_clip.css`
+     - `web/static/admin/js/admin_deploy_clip.js`
 
-6. ⬜ **PatchCore 메모리뱅크 생성** (3.10)
+6. ✅ **PatchCore 메모리뱅크 생성** (3.10)
+   - Object Storage → 로컬 다운로드
    - 비동기 배치 서비스 구현
    - 진행 상태 추적
    - 화면 개발
+   - **완성 파일**:
+     - `web/routers/admin/deployment.py` (PatchCore API 추가)
+     - `web/pages/admin/admin_deploy_patchcore.html`
+     - `web/static/admin/css/admin_deploy_patchcore.css`
+     - `web/static/admin/js/admin_deploy_patchcore.js`
 
-### Phase 3: 설정 및 모니터링 (3-4일) - ⬜ **대기 중**
+### Phase 3: 설정 및 모니터링 (3-4일) 🚧 진행 예정
 **목표**: 전처리 설정, 모델 선택, 대시보드 구현
 
-7. ⬜ **이미지 전처리 설정** (3.7)
-8. ⬜ **모델 선택** (3.8)
-9. ⬜ **통합 대시보드** (3.1)
+7. ⏳ **이미지 전처리 설정** (3.7)
+   - CRUD API 개발
+   - 화면 개발
+   - **예정 파일**:
+     - `web/routers/admin/preprocessing.py`
+     - `web/pages/admin/admin_preprocessing.html`
+     - `web/static/admin/css/admin_preprocessing.css`
+     - `web/static/admin/js/admin_preprocessing.js`
 
-### Phase 4: 통합 및 테스트 (1주) - ⬜ **대기 중**
+8. ⏳ **모델 선택** (3.8)
+   - CRUD API 개발
+   - 화면 개발
+   - **예정 파일**:
+     - `web/routers/admin/model.py`
+     - `web/pages/admin/admin_model.html`
+     - `web/static/admin/css/admin_model.css`
+     - `web/static/admin/js/admin_model.js`
+
+9. ⏳ **통합 대시보드** (3.1)
+   - 통계 데이터 조회 API
+   - 화면 개발 (차트 포함)
+   - **예정 파일**:
+     - `web/routers/admin/dashboard.py`
+     - `web/pages/admin/admin_dashboard.html`
+     - `web/static/admin/css/admin_dashboard.css`
+     - `web/static/admin/js/admin_dashboard.js`
+
+### Phase 4: 통합 및 테스트 (1주)
 **목표**: 전체 기능 통합 테스트 및 디버깅
 
+10. ⏳ **전체 플로우 테스트**
+    - 제품 등록 → 이미지 업로드 → 배포 → 작업자 검사
+
+11. ⏳ **UI/UX 개선**
+    - 네비게이션 메뉴 개선
+    - 진행률 표시 개선
+    - 에러 처리 개선
+
+### 향후 확장 (PoC 이후)
+- ⌛ 사용자 계정 관리
+- ⌛ 업체별 프로젝트 관리
+- ⌛ 로그 분석 및 통계
+- ⌛ Object Detection 라벨링 기능
+- ⌛ 작업자 페이지 Object Storage 전환
 ---
 
 ## 7. Phase 1 달성 현황
