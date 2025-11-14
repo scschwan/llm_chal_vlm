@@ -17,6 +17,8 @@ import torch
 import warnings
 import os
 
+import subprocess
+
 # ✅ 불필요한 경고 숨기기
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="networkx")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain")
@@ -239,6 +241,43 @@ def init_vlm_components():
         vlm_components["mapper"] = None
         vlm_components["rag"] = None
 
+
+# ✅ 서버 시작 시 tree 갱신 함수
+def update_tree_on_startup():
+    """서버 시작 시 디렉토리 트리 갱신"""
+    try:
+        script_path = project_root / "save_tree.sh"
+        
+        if not script_path.exists():
+            print(f"⚠️  save_tree.sh를 찾을 수 없습니다: {script_path}")
+            return
+        
+        print("\n" + "="*60)
+        print("📂 디렉토리 구조 갱신 중...")
+        print("="*60)
+        
+        # 쉘 스크립트 실행
+        result = subprocess.run(
+            ["bash", str(script_path)],
+            cwd=str(project_root),
+            capture_output=True,
+            text=True,
+            timeout=30  # 30초 타임아웃
+        )
+        
+        if result.returncode == 0:
+            print("✅ 디렉토리 구조 갱신 완료")
+            print(result.stdout)
+        else:
+            print(f"⚠️  갱신 중 오류 발생:")
+            print(result.stderr)
+    
+    except subprocess.TimeoutExpired:
+        print("⚠️  tree 갱신 타임아웃 (30초 초과)")
+    except Exception as e:
+        print(f"⚠️  tree 갱신 실패: {e}")
+
+
 # ====================
 # 라이프사이클 이벤트
 # ====================
@@ -247,6 +286,8 @@ def init_vlm_components():
 async def startup_event():
     """서버 시작 시 초기화"""
     global matcher, detector, current_index_type
+
+    update_tree_on_startup()
     
     print("=" * 60)
     print("유사도 매칭 + Anomaly Detection API 서버 시작")

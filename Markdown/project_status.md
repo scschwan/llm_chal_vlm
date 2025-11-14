@@ -50,6 +50,13 @@
 
 ## 📂 주요 파일 구조
 
+### 트리구조 확인 shell
+명령어 :tree -L 3 -I '__pycache__|*.pyc|*.png|*.jpeg|*.jpg|.git|venv_patch|venv310' -h --du 
+
+/home/dmillion/llm_chal_vlm/save_tree.sh
+ - 수행시 Markdown/TREE.txt 파일 생성
+ - 생성된 파일로 서버내 데이터 구조 확인 가능
+
 ### 백엔드 (Python)
 ```
 llm_chal_vlm/
