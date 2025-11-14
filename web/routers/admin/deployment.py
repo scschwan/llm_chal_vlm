@@ -17,7 +17,7 @@ from pathlib import Path
 # 프로젝트 루트 경로 추가
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from modules.similarity_matcher import SimilarityMatcher
+from modules.similarity_matcher import TopKSimilarityMatcher
 from web.database.crud import (
     create_deployment_log,
     get_deployment_logs,
@@ -118,7 +118,7 @@ async def build_clip_index(
         deployment_tasks[task_id]['message'] = "CLIP 임베딩 생성 중..."
         
         # SimilarityMatcher 초기화
-        matcher = SimilarityMatcher()
+        matcher = TopKSimilarityMatcher()
         
         # 이미지 목록 가져오기
         image_files = []
