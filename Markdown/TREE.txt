@@ -102,6 +102,7 @@
 ├── [  628]  requirements_llm.txt
 ├── [  354]  requirements_patchcore.txt
 ├── [  200]  requirements_vlm_add.txt
+├── [ 6.2K]  save_db_schema.sh
 ├── [  249]  save_tree.sh
 ├── [    6]  uploads
 └── [10.0M]  web
@@ -202,4 +203,4 @@
         ├── [    0]  __init__.py
         └── [ 9.7K]  object_storage.py
 
-   68M used in 44 directories, 158 files
+   68M used in 44 directories, 159 files
