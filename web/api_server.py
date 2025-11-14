@@ -558,6 +558,16 @@ async def serve_admin_image_normal():
 async def serve_admin_image_defect():
     return FileResponse(PAGES_DIR / "admin" / "admin_image_defect.html")
 
+@app.get("/admin/deploy-clip.html")
+async def serve_admin_deploy_clip():
+    return FileResponse(PAGES_DIR / "admin" / "admin_deploy_clip.html")
+
+@app.get("/admin/deploy-patchcore.html")
+async def serve_admin_deploy_patchcore():
+    return FileResponse(PAGES_DIR / "admin" / "admin_deploy_patchcore.html")
+
+
+
 # ====================
 # 기존 API 엔드포인트 유지 (하위 호환성)
 # ====================
