@@ -456,6 +456,7 @@ from routers.admin.image import router as image_router
 from routers.admin.dashboard import router as dashboard_router
 from routers.admin.deployment import router as deployment_router
 from routers.admin.preprocessing import router as preprocessing_router
+from routers.admin.model import router as model_router
 
 
 app.include_router(auth_router)
@@ -475,6 +476,7 @@ app.include_router(image_router)
 app.include_router(dashboard_router)
 app.include_router(deployment_router)
 app.include_router(preprocessing_router)
+app.include_router(model_router)
 
 
 
@@ -571,6 +573,11 @@ async def serve_admin_deploy_patchcore():
 @app.get("/admin/preprocessing.html")
 async def serve_admin_preprocessing():
     return FileResponse(PAGES_DIR / "admin" / "admin_preprocessing.html")
+
+# 페이지 서빙 추가
+@app.get("/admin/model.html")
+async def serve_admin_model():
+    return FileResponse(PAGES_DIR / "admin" / "admin_model.html")
 
 # ====================
 # 기존 API 엔드포인트 유지 (하위 호환성)

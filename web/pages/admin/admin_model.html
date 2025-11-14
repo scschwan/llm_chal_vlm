@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>모델 선택 - 관리자</title>
+    <link rel="stylesheet" href="/static/admin/css/admin_model.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI 모델 선택</h1>
+            <p>유사도 검색 및 이상 탐지에 사용할 AI 모델을 선택합니다.</p>
+        </div>
+
+        <!-- 현재 선택된 모델 -->
+        <div class="card">
+            <h2>현재 사용 중인 모델</h2>
+            <div class="current-models">
+                <div class="current-model-card">
+                    <h3>🔍 CLIP (유사도 검색)</h3>
+                    <div id="currentClip" class="current-model-content">
+                        <div class="empty-message">선택된 모델이 없습니다.</div>
+                    </div>
+                </div>
+                <div class="current-model-card">
+                    <h3>🔬 PatchCore (이상 탐지)</h3>
+                    <div id="currentPatchcore" class="current-model-content">
+                        <div class="empty-message">선택된 모델이 없습니다.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CLIP 모델 선택 -->
+        <div class="card">
+            <h2>CLIP 모델 선택</h2>
+            <p class="description">이미지 유사도 검색에 사용되는 CLIP 모델을 선택합니다.</p>
+            
+            <div id="clipModels" class="model-grid">
+                <!-- JavaScript로 동적 생성 -->
+            </div>
+        </div>
+
+        <!-- PatchCore 모델 선택 -->
+        <div class="card">
+            <h2>PatchCore 백본 모델 선택</h2>
+            <p class="description">이상 탐지(Anomaly Detection)에 사용되는 백본 모델을 선택합니다.</p>
+            
+            <div id="patchcoreModels" class="model-grid">
+                <!-- JavaScript로 동적 생성 -->
+            </div>
+        </div>
+
+        <!-- 모델 비교표 -->
+        <div class="card">
+            <h2>모델 성능 비교</h2>
+            
+            <h3>CLIP 모델</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>모델명</th>
+                        <th>파라미터 수</th>
+                        <th>입력 크기</th>
+                        <th>성능</th>
+                        <th>속도</th>
+                        <th>추천 용도</th>
+                    </tr>
+                </thead>
+                <tbody id="clipComparisonTable">
+                    <!-- JavaScript로 동적 생성 -->
+                </tbody>
+            </table>
+
+            <h3 style="margin-top: 30px;">PatchCore 백본</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>모델명</th>
+                        <th>파라미터 수</th>
+                        <th>입력 크기</th>
+                        <th>성능</th>
+                        <th>속도</th>
+                        <th>추천 용도</th>
+                    </tr>
+                </thead>
+                <tbody id="patchcoreComparisonTable">
+                    <!-- JavaScript로 동적 생성 -->
+                </tbody>
+            </table>
+        </div>
+
+        <div id="alertContainer"></div>
+    </div>
+
+    <!-- 모델 선택 확인 모달 -->
+    <div id="selectModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>모델 선택 확인</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- JavaScript로 동적 생성 -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+                <button class="btn btn-primary" onclick="confirmSelection()">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/admin/js/admin_model.js"></script>
+</body>
+</html>

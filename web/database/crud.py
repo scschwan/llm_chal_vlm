@@ -700,3 +700,71 @@ def set_active_preprocessing_config(config_id: int):
     finally:
         cursor.close()
         conn.close()
+
+# ========================================
+# ModelParams 추가 CRUD 함수
+# ========================================
+
+def create_model_param(db: Session, product_id: int, model_type: str, params: dict) -> ModelParams:
+    """모델 파라미터 생성"""
+    model_param = ModelParams(
+        product_id=product_id,
+        model_type=model_type,
+        params=params
+    )
+    db.add(model_param)
+    db.commit()
+    db.refresh(model_param)
+    return model_param
+
+
+def get_model_params(db: Session, model_type: str = None, is_active: bool = None) -> List[ModelParams]:
+    """모델 파라미터 목록 조회"""
+    query = db.query(ModelParams)
+    if model_type:
+        query = query.filter(ModelParams.model_type == model_type)
+    if is_active is not None:
+        query = query.filter(ModelParams.is_active == (1 if is_active else 0))
+    return query.all()
+
+
+def get_model_param_by_id(db: Session, param_id: int) -> Optional[ModelParams]:
+    """모델 파라미터 ID로 조회"""
+    return db.query(ModelParams).filter(ModelParams.param_id == param_id).first()
+
+
+def get_active_model_param(db: Session, model_type: str) -> Optional[ModelParams]:
+    """활성화된 모델 파라미터 조회"""
+    return db.query(ModelParams).filter(
+        ModelParams.model_type == model_type,
+        ModelParams.is_active == 1
+    ).first()
+
+
+def update_model_param(db: Session, param_id: int, **kwargs) -> Optional[ModelParams]:
+    """모델 파라미터 수정"""
+    model_param = get_model_param_by_id(db, param_id)
+    if model_param:
+        for key, value in kwargs.items():
+            if hasattr(model_param, key):
+                setattr(model_param, key, value)
+        db.commit()
+        db.refresh(model_param)
+    return model_param
+
+
+def set_active_model_param(db: Session, param_id: int) -> bool:
+    """모델 파라미터 활성화 (같은 타입의 다른 설정은 비활성화)"""
+    model_param = get_model_param_by_id(db, param_id)
+    if not model_param:
+        return False
+    
+    # 같은 모델 타입의 모든 설정 비활성화
+    db.query(ModelParams).filter(
+        ModelParams.model_type == model_param.model_type
+    ).update({ModelParams.is_active: 0})
+    
+    # 선택한 설정 활성화
+    model_param.is_active = 1
+    db.commit()
+    return True
