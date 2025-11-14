@@ -2,7 +2,7 @@
 SQLAlchemy 모델 정의
 """
 
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, JSON, Float, BigInteger, DateTime, JSON
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, JSON, Float,Boolean, BigInteger, DateTime, JSON
 from sqlalchemy.sql import func
 from .connection import Base
 
@@ -144,6 +144,21 @@ class DeploymentLog(Base):
     result_data = Column(JSON, comment="결과 상세")
     deployed_by = Column(String(50), comment="배포 실행자")
 
+# 기존 코드 아래에 추가
+
+class PreprocessingConfig(Base):
+    """전처리 설정 테이블"""
+    __tablename__ = 'preprocessing_configs'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)
+    resize_width = Column(Integer, default=224)
+    resize_height = Column(Integer, default=224)
+    normalize = Column(Boolean, default=True)
+    augmentation = Column(JSON, nullable=True)
+    is_active = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 class SystemConfig(Base):
     """시스템 전역 설정"""

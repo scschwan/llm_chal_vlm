@@ -455,6 +455,7 @@ from routers.admin.defect_type import router as defect_type_router
 from routers.admin.image import router as image_router
 from routers.admin.dashboard import router as dashboard_router
 from routers.admin.deployment import router as deployment_router
+from routers.admin.preprocessing import router as preprocessing_router
 
 
 app.include_router(auth_router)
@@ -473,6 +474,7 @@ app.include_router(defect_type_router)
 app.include_router(image_router)
 app.include_router(dashboard_router)
 app.include_router(deployment_router)
+app.include_router(preprocessing_router)
 
 
 
@@ -566,7 +568,9 @@ async def serve_admin_deploy_clip():
 async def serve_admin_deploy_patchcore():
     return FileResponse(PAGES_DIR / "admin" / "admin_deploy_patchcore.html")
 
-
+@app.get("/admin/preprocessing.html")
+async def serve_admin_preprocessing():
+    return FileResponse(PAGES_DIR / "admin" / "admin_preprocessing.html")
 
 # ====================
 # 기존 API 엔드포인트 유지 (하위 호환성)

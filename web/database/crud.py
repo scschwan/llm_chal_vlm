@@ -270,15 +270,90 @@ def update_preprocessing(db: Session, product_id: int, **options) -> Optional[Im
         db.refresh(preprocessing)
     return preprocessing
 
+
+def get_all_preprocessing_configs(db: Session) -> List[ImagePreprocessing]:
+    """전체 전처리 설정 조회 (제품 정보 포함)"""
+    from sqlalchemy.orm import joinedload
+    return db.query(ImagePreprocessing).all()
+
+
+def get_preprocessing_by_id(db: Session, preprocessing_id: int) -> Optional[ImagePreprocessing]:
+    """전처리 설정 ID로 조회"""
+    return db.query(ImagePreprocessing).filter(
+        ImagePreprocessing.preprocessing_id == preprocessing_id
+    ).first()
+
+
+def set_active_preprocessing(db: Session, preprocessing_id: int) -> bool:
+    """전처리 설정 활성화 (같은 제품의 다른 설정은 비활성화)"""
+    preprocessing = get_preprocessing_by_id(db, preprocessing_id)
+    if not preprocessing:
+        return False
+    
+    # 같은 제품의 모든 설정 비활성화
+    db.query(ImagePreprocessing).filter(
+        ImagePreprocessing.product_id == preprocessing.product_id
+    ).update({ImagePreprocessing.is_active: 0})
+    
+    # 선택한 설정 활성화
+    preprocessing.is_active = 1
+    db.commit()
+    return True
+
+
+def delete_preprocessing(db: Session, preprocessing_id: int) -> bool:
+    """전처리 설정 삭제"""
+    preprocessing = get_preprocessing_by_id(db, preprocessing_id)
+    if preprocessing:
+        db.delete(preprocessing)
+        db.commit()
+        return True
+    return False
+
+
+def get_preprocessing_configs_with_product(db: Session) -> list:
+    """전처리 설정 목록 조회 (제품명 포함)"""
+    from sqlalchemy import text
+    
+    query = text("""
+        SELECT p.*, pr.product_name
+        FROM image_preprocessing p
+        LEFT JOIN products pr ON p.product_id = pr.product_id
+        ORDER BY p.created_at DESC
+    """)
+    
+    result = db.execute(query)
+    rows = result.fetchall()
+    
+    configs = []
+    for row in rows:
+        config = {
+            'preprocessing_id': row[0],
+            'product_id': row[1],
+            'grayscale': row[2],
+            'histogram': row[3],
+            'contrast': row[4],
+            'smoothing': row[5],
+            'normalize': row[6],
+            'is_active': bool(row[7]),
+            'created_at': row[8].isoformat() if row[8] else None,
+            'updated_at': row[9].isoformat() if row[9] else None,
+            'product_name': row[10] if len(row) > 10 else None
+        }
+        configs.append(config)
+    
+    return configs
+
 # ========================================
-# PatchCore CRUD
+# Deploy CRUD
 # ========================================
 
 
 def create_deployment_log(
     deployment_type: str,
     target: str,
-    status: str = 'running'
+    status: str = 'pending',
+    product_id: int = None
 ) -> int:
     """배포 로그 생성"""
     from web.database.connection import get_db_connection
@@ -289,11 +364,11 @@ def create_deployment_log(
     try:
         query = """
             INSERT INTO deployment_logs 
-            (deployment_type, target, status, start_time, created_at)
+            (deploy_type, product_id, status, started_at, deployed_by)
             VALUES (%s, %s, %s, %s, %s)
         """
         now = datetime.now()
-        cursor.execute(query, (deployment_type, target, status, now, now))
+        cursor.execute(query, (deployment_type, product_id, status, now, 'admin'))
         conn.commit()
         
         log_id = cursor.lastrowid
@@ -323,11 +398,10 @@ def update_deployment_status(
         query = """
             UPDATE deployment_logs
             SET status = %s,
-                end_time = %s,
+                completed_at = %s,
                 result_data = %s,
-                error_message = %s,
-                updated_at = %s
-            WHERE id = %s
+                result_message = %s
+            WHERE deploy_id = %s
         """
         now = datetime.now()
         result_json = json.dumps(result_data) if result_data else None
@@ -337,7 +411,6 @@ def update_deployment_status(
             now,
             result_json,
             error_message,
-            now,
             log_id
         ))
         conn.commit()
@@ -365,8 +438,8 @@ def get_deployment_logs(
             query = """
                 SELECT *
                 FROM deployment_logs
-                WHERE deployment_type = %s
-                ORDER BY created_at DESC
+                WHERE deploy_type = %s
+                ORDER BY started_at DESC
                 LIMIT %s
             """
             cursor.execute(query, (deployment_type, limit))
@@ -374,7 +447,7 @@ def get_deployment_logs(
             query = """
                 SELECT *
                 FROM deployment_logs
-                ORDER BY created_at DESC
+                ORDER BY started_at DESC
                 LIMIT %s
             """
             cursor.execute(query, (limit,))
@@ -383,16 +456,246 @@ def get_deployment_logs(
         
         # 날짜 형식 변환
         for log in logs:
-            if log.get('start_time'):
-                log['start_time'] = log['start_time'].isoformat()
-            if log.get('end_time'):
-                log['end_time'] = log['end_time'].isoformat()
-            if log.get('created_at'):
-                log['created_at'] = log['created_at'].isoformat()
+            if log.get('started_at'):
+                log['start_time'] = log['started_at'].isoformat()
+            if log.get('completed_at'):
+                log['end_time'] = log['completed_at'].isoformat()
+            # API 호환성을 위한 필드명 매핑
+            log['target'] = log.get('product_id', 'all')
+            log['deployment_type'] = log.get('deploy_type')
+            log['error_message'] = log.get('result_message')
         
         return logs
         
     except Exception as e:
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+# ========================================
+# Preprocessing CRUD
+# ========================================
+
+
+def create_preprocessing_config(
+    name: str,
+    resize_width: int = 224,
+    resize_height: int = 224,
+    normalize: bool = True,
+    augmentation: dict = None
+) -> int:
+    """전처리 설정 생성"""
+    from web.database.connection import get_db_connection
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        query = """
+            INSERT INTO preprocessing_configs 
+            (name, resize_width, resize_height, normalize, augmentation, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        now = datetime.now()
+        augmentation_json = json.dumps(augmentation) if augmentation else None
+        
+        cursor.execute(query, (name, resize_width, resize_height, normalize, augmentation_json, now))
+        conn.commit()
+        
+        config_id = cursor.lastrowid
+        return config_id
+        
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_preprocessing_configs() -> list:
+    """전체 전처리 설정 조회"""
+    from web.database.connection import get_db_connection
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        query = """
+            SELECT *
+            FROM preprocessing_configs
+            ORDER BY created_at DESC
+        """
+        cursor.execute(query)
+        configs = cursor.fetchall()
+        
+        # 날짜 및 JSON 형식 변환
+        for config in configs:
+            if config.get('created_at'):
+                config['created_at'] = config['created_at'].isoformat()
+            if config.get('updated_at'):
+                config['updated_at'] = config['updated_at'].isoformat()
+            if config.get('augmentation') and isinstance(config['augmentation'], str):
+                config['augmentation'] = json.loads(config['augmentation'])
+        
+        return configs
+        
+    except Exception as e:
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_preprocessing_config_by_id(config_id: int) -> dict:
+    """ID로 전처리 설정 조회"""
+    from web.database.connection import get_db_connection
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        query = "SELECT * FROM preprocessing_configs WHERE id = %s"
+        cursor.execute(query, (config_id,))
+        config = cursor.fetchone()
+        
+        if config:
+            if config.get('created_at'):
+                config['created_at'] = config['created_at'].isoformat()
+            if config.get('updated_at'):
+                config['updated_at'] = config['updated_at'].isoformat()
+            if config.get('augmentation') and isinstance(config['augmentation'], str):
+                config['augmentation'] = json.loads(config['augmentation'])
+        
+        return config
+        
+    except Exception as e:
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def update_preprocessing_config(config_id: int, **kwargs):
+    """전처리 설정 수정"""
+    from web.database.connection import get_db_connection
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 업데이트할 필드 구성
+        update_fields = []
+        values = []
+        
+        if 'name' in kwargs:
+            update_fields.append("name = %s")
+            values.append(kwargs['name'])
+        if 'resize_width' in kwargs:
+            update_fields.append("resize_width = %s")
+            values.append(kwargs['resize_width'])
+        if 'resize_height' in kwargs:
+            update_fields.append("resize_height = %s")
+            values.append(kwargs['resize_height'])
+        if 'normalize' in kwargs:
+            update_fields.append("normalize = %s")
+            values.append(kwargs['normalize'])
+        if 'augmentation' in kwargs:
+            update_fields.append("augmentation = %s")
+            values.append(json.dumps(kwargs['augmentation']) if kwargs['augmentation'] else None)
+        
+        update_fields.append("updated_at = %s")
+        values.append(datetime.now())
+        
+        values.append(config_id)
+        
+        query = f"""
+            UPDATE preprocessing_configs
+            SET {', '.join(update_fields)}
+            WHERE id = %s
+        """
+        
+        cursor.execute(query, values)
+        conn.commit()
+        
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def delete_preprocessing_config(config_id: int):
+    """전처리 설정 삭제"""
+    from web.database.connection import get_db_connection
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        query = "DELETE FROM preprocessing_configs WHERE id = %s"
+        cursor.execute(query, (config_id,))
+        conn.commit()
+        
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_active_preprocessing_config() -> dict:
+    """활성화된 전처리 설정 조회"""
+    from web.database.connection import get_db_connection
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        query = "SELECT * FROM preprocessing_configs WHERE is_active = TRUE LIMIT 1"
+        cursor.execute(query)
+        config = cursor.fetchone()
+        
+        if config:
+            if config.get('created_at'):
+                config['created_at'] = config['created_at'].isoformat()
+            if config.get('updated_at'):
+                config['updated_at'] = config['updated_at'].isoformat()
+            if config.get('augmentation') and isinstance(config['augmentation'], str):
+                config['augmentation'] = json.loads(config['augmentation'])
+        
+        return config
+        
+    except Exception as e:
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def set_active_preprocessing_config(config_id: int):
+    """전처리 설정 활성화 (다른 설정은 비활성화)"""
+    from web.database.connection import get_db_connection
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 모든 설정 비활성화
+        cursor.execute("UPDATE preprocessing_configs SET is_active = FALSE")
+        
+        # 선택한 설정 활성화
+        cursor.execute("UPDATE preprocessing_configs SET is_active = TRUE WHERE id = %s", (config_id,))
+        
+        conn.commit()
+        
+    except Exception as e:
+        conn.rollback()
         raise e
     finally:
         cursor.close()

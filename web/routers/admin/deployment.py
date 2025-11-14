@@ -18,11 +18,6 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from modules.similarity_matcher import TopKSimilarityMatcher
-from web.database.crud import (
-    create_deployment_log,
-    get_deployment_logs,
-    update_deployment_status
-)
 from web.utils.object_storage import ObjectStorageManager
 
 router = APIRouter(prefix="/api/admin/deployment", tags=["admin-deployment"])
@@ -46,6 +41,140 @@ class DeploymentStatus(BaseModel):
     end_time: Optional[str]
     error: Optional[str]
 
+
+# ========================================
+# 배포 로그 함수 (기존 스키마 사용)
+# ========================================
+
+def create_deployment_log_record(
+    deploy_type: str,
+    product_id: int = None,
+    status: str = 'pending'
+) -> int:
+    """배포 로그 생성"""
+    import pymysql
+    from web.database.connection import get_db_connection
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        query = """
+            INSERT INTO deployment_logs 
+            (deploy_type, product_id, status, started_at, deployed_by)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        now = datetime.now()
+        cursor.execute(query, (deploy_type, product_id, status, now, 'admin'))
+        conn.commit()
+        
+        log_id = cursor.lastrowid
+        return log_id
+        
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def update_deployment_log_status(
+    deploy_id: int,
+    status: str,
+    result_data: dict = None,
+    error_message: str = None
+):
+    """배포 상태 업데이트"""
+    from web.database.connection import get_db_connection
+    import json
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        query = """
+            UPDATE deployment_logs
+            SET status = %s,
+                completed_at = %s,
+                result_data = %s,
+                result_message = %s
+            WHERE deploy_id = %s
+        """
+        now = datetime.now()
+        result_json = json.dumps(result_data, ensure_ascii=False) if result_data else None
+        
+        cursor.execute(query, (
+            status,
+            now,
+            result_json,
+            error_message,
+            deploy_id
+        ))
+        conn.commit()
+        
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_deployment_log_list(
+    limit: int = 20,
+    deploy_type: str = None
+) -> list:
+    """배포 이력 조회"""
+    from web.database.connection import get_db_connection
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        if deploy_type:
+            query = """
+                SELECT *
+                FROM deployment_logs
+                WHERE deploy_type = %s
+                ORDER BY started_at DESC
+                LIMIT %s
+            """
+            cursor.execute(query, (deploy_type, limit))
+        else:
+            query = """
+                SELECT *
+                FROM deployment_logs
+                ORDER BY started_at DESC
+                LIMIT %s
+            """
+            cursor.execute(query, (limit,))
+        
+        logs = cursor.fetchall()
+        
+        # 날짜 형식 변환 및 필드명 매핑
+        for log in logs:
+            if log.get('started_at'):
+                log['start_time'] = log['started_at'].isoformat()
+            if log.get('completed_at'):
+                log['end_time'] = log['completed_at'].isoformat()
+            # API 호환성을 위한 필드명 매핑
+            log['target'] = str(log.get('product_id', 'all'))
+            log['deployment_type'] = log.get('deploy_type')
+            log['error_message'] = log.get('result_message')
+        
+        return logs
+        
+    except Exception as e:
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ========================================
+# CLIP 재구축 함수들
+# ========================================
 
 async def download_images_from_storage(
     storage_manager: ObjectStorageManager,
@@ -87,7 +216,7 @@ async def download_images_from_storage(
                     )
                     
                     deployment_tasks[task_id]['current'] += 1
-                    progress = int((deployment_tasks[task_id]['current'] / total_files) * 50)  # 다운로드는 전체의 50%
+                    progress = int((deployment_tasks[task_id]['current'] / total_files) * 50)
                     deployment_tasks[task_id]['progress'] = progress
                     deployment_tasks[task_id]['message'] = f"다운로드 중... ({deployment_tasks[task_id]['current']}/{total_files})"
                     
@@ -117,57 +246,49 @@ async def build_clip_index(
         deployment_tasks[task_id]['progress'] = 50
         deployment_tasks[task_id]['message'] = "CLIP 임베딩 생성 중..."
         
-        # SimilarityMatcher 초기화
-        matcher = TopKSimilarityMatcher()
+        # TopKSimilarityMatcher 초기화
+        matcher = TopKSimilarityMatcher(
+            model_id="ViT-B-32",
+            pretrained="openai",
+            device="auto",
+            use_fp16=False,
+            batch_size=32,
+            num_workers=4,
+            verbose=True
+        )
         
-        # 이미지 목록 가져오기
-        image_files = []
-        for root, dirs, files in os.walk(image_dir):
-            for file in files:
-                if file.lower().endswith(('.jpg', '.jpeg', '.png')):
-                    image_files.append(os.path.join(root, file))
+        # 인덱스 구축
+        deployment_tasks[task_id]['progress'] = 60
+        deployment_tasks[task_id]['message'] = f"인덱스 구축 중..."
         
-        total_images = len(image_files)
-        if total_images == 0:
-            raise Exception("이미지 파일이 없습니다.")
-        
-        # 임베딩 생성 (배치 단위)
-        batch_size = 32
-        for i in range(0, total_images, batch_size):
-            batch_files = image_files[i:i+batch_size]
-            # 배치 처리는 SimilarityMatcher 내부에서 처리됨
-            
-            progress = 50 + int(((i + len(batch_files)) / total_images) * 40)
-            deployment_tasks[task_id]['progress'] = progress
-            deployment_tasks[task_id]['message'] = f"임베딩 생성 중... ({i+len(batch_files)}/{total_images})"
+        build_info = await asyncio.get_event_loop().run_in_executor(
+            None,
+            matcher.build_index,
+            image_dir
+        )
         
         # 인덱스 저장
         deployment_tasks[task_id]['progress'] = 90
         deployment_tasks[task_id]['message'] = "인덱스 저장 중..."
         
-        # 기존 build_index 메소드 활용
-        if index_type == 'normal':
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                matcher.build_index,
-                image_dir,
-                'normal'
-            )
-        else:  # defect
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                matcher.build_index,
-                image_dir,
-                'defect'
-            )
+        # 저장 경로 설정
+        cache_dir = Path("/home/dmillion/llm_chal_vlm/web/index_cache")
+        save_dir = cache_dir / index_type
+        
+        await asyncio.get_event_loop().run_in_executor(
+            None,
+            matcher.save_index,
+            save_dir
+        )
         
         deployment_tasks[task_id]['progress'] = 100
         deployment_tasks[task_id]['message'] = "완료"
         
         return {
-            'total_images': total_images,
+            'total_images': build_info['num_images'],
             'index_type': index_type,
-            'index_path': matcher.get_index_path(index_type)
+            'index_path': str(save_dir),
+            'embedding_dim': build_info['embedding_dim']
         }
         
     except Exception as e:
@@ -180,6 +301,7 @@ async def clip_rebuild_task(
     storage_prefix: str
 ):
     """CLIP 재구축 백그라운드 작업"""
+    deploy_id = None
     try:
         deployment_tasks[task_id] = {
             'status': 'running',
@@ -191,12 +313,12 @@ async def clip_rebuild_task(
         }
         
         # DB 로그 생성
-        log_id = create_deployment_log(
-            deployment_type='clip',
-            target=index_type,
+        deploy_id = create_deployment_log_record(
+            deploy_type='clip_rebuild',
+            product_id=None,
             status='running'
         )
-        deployment_tasks[task_id]['log_id'] = log_id
+        deployment_tasks[task_id]['log_id'] = deploy_id
         
         # 1. Object Storage에서 다운로드
         storage_manager = ObjectStorageManager()
@@ -221,9 +343,9 @@ async def clip_rebuild_task(
         deployment_tasks[task_id]['result'] = result
         
         # DB 업데이트
-        update_deployment_status(
-            log_id,
-            status='success',
+        update_deployment_log_status(
+            deploy_id,
+            status='completed',
             result_data=result
         )
         
@@ -237,16 +359,21 @@ async def clip_rebuild_task(
         deployment_tasks[task_id]['error'] = error_msg
         deployment_tasks[task_id]['end_time'] = datetime.now().isoformat()
         
-        if 'log_id' in deployment_tasks[task_id]:
-            update_deployment_status(
-                deployment_tasks[task_id]['log_id'],
+        if deploy_id:
+            update_deployment_log_status(
+                deploy_id,
                 status='failed',
                 error_message=error_msg
             )
 
 
+# ========================================
+# PatchCore 함수들
+# ========================================
+
 async def patchcore_build_task(task_id: str):
     """PatchCore 메모리뱅크 생성 백그라운드 작업"""
+    deploy_id = None
     try:
         deployment_tasks[task_id] = {
             'status': 'running',
@@ -263,12 +390,12 @@ async def patchcore_build_task(task_id: str):
             deployment_tasks[task_id]['products'][product] = 'pending'
         
         # DB 로그 생성
-        log_id = create_deployment_log(
-            deployment_type='patchcore',
-            target='all',
+        deploy_id = create_deployment_log_record(
+            deploy_type='patchcore_create',
+            product_id=None,
             status='running'
         )
-        deployment_tasks[task_id]['log_id'] = log_id
+        deployment_tasks[task_id]['log_id'] = deploy_id
         
         # 스크립트 경로
         script_path = '/home/dmillion/llm_chal_vlm/build_patchcore.sh'
@@ -304,7 +431,6 @@ async def patchcore_build_task(task_id: str):
                 deployment_tasks[task_id]['logs'].append(log_line)
                 
                 # 제품별 진행 상태 파싱
-                # 예: "Building memory bank for prod1..."
                 product_match = re.search(r'Building.*for\s+(\w+)', log_line, re.IGNORECASE)
                 if product_match:
                     current_product = product_match.group(1)
@@ -313,7 +439,6 @@ async def patchcore_build_task(task_id: str):
                         deployment_tasks[task_id]['message'] = f'{current_product} 메모리뱅크 생성 중...'
                 
                 # 완료 메시지 파싱
-                # 예: "Successfully built memory bank for prod1"
                 success_match = re.search(r'Successfully.*for\s+(\w+)', log_line, re.IGNORECASE)
                 if success_match:
                     product = success_match.group(1)
@@ -347,9 +472,9 @@ async def patchcore_build_task(task_id: str):
             deployment_tasks[task_id]['result'] = result_data
             
             # DB 업데이트
-            update_deployment_status(
-                log_id,
-                status='success',
+            update_deployment_log_status(
+                deploy_id,
+                status='completed',
                 result_data=result_data
             )
         else:
@@ -363,13 +488,17 @@ async def patchcore_build_task(task_id: str):
         deployment_tasks[task_id]['end_time'] = datetime.now().isoformat()
         deployment_tasks[task_id]['logs'].append(f'ERROR: {error_msg}')
         
-        if 'log_id' in deployment_tasks[task_id]:
-            update_deployment_status(
-                deployment_tasks[task_id]['log_id'],
+        if deploy_id:
+            update_deployment_log_status(
+                deploy_id,
                 status='failed',
                 error_message=error_msg
             )
 
+
+# ========================================
+# API 엔드포인트
+# ========================================
 
 @router.post("/clip/normal", response_model=DeploymentResponse)
 async def rebuild_clip_normal(background_tasks: BackgroundTasks):
@@ -443,16 +572,14 @@ async def get_deployment_status(task_id: str):
 @router.get("/logs")
 async def get_deployment_history(
     limit: int = 20,
-    deployment_type: Optional[str] = None
+    deployment_type: str = None
 ):
     """배포 이력 조회"""
     try:
-        logs = get_deployment_logs(limit=limit, deployment_type=deployment_type)
+        logs = get_deployment_log_list(limit=limit, deploy_type=deployment_type)
         return {'logs': logs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
-
 
 
 @router.post("/patchcore", response_model=DeploymentResponse)
