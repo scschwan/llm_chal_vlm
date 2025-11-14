@@ -36,14 +36,14 @@
 │   └── [  79K]  unified_index
 │       ├── [  63K]  index.faiss
 │       └── [  16K]  index.pkl
-├── [ 217K]  Markdown
-│   ├── [  72K]  admin_development_scope_v3.md
+├── [ 231K]  Markdown
+│   ├── [  83K]  admin_development_scope_v3.md
 │   ├── [  25K]  database_schema.md
 │   ├── [ 1.4K]  defect_management_TODO.md
 │   ├── [  30K]  유사이미지_검색_솔루션_설계서.md
-│   ├── [  22K]  project_status.md
+│   ├── [  27K]  project_status.md
 │   ├── [ 7.9K]  readme_patchcore.md
-│   ├── [  11K]  session_handover.md
+│   ├── [ 8.4K]  session_handover.md
 │   ├── [  36K]  system_architecture.md
 │   ├── [ 4.5K]  TOP-K TEST_GUIDE.md
 │   ├── [    0]  TREE.txt
@@ -79,9 +79,9 @@
 ├── [  200]  requirements_vlm_add.txt
 ├── [  249]  save_tree.sh
 ├── [    6]  uploads
-└── [ 689K]  web
+└── [ 690K]  web
     ├── [    6]  anomaly_outputs
-    ├── [  24K]  api_server.py
+    ├── [  25K]  api_server.py
     ├── [  18K]  database
     │   ├── [ 1.7K]  connection.py
     │   ├── [ 8.3K]  crud.py
