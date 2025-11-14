@@ -61,14 +61,14 @@
 │   └── [  79K]  unified_index
 │       ├── [  63K]  index.faiss
 │       └── [  16K]  index.pkl
-├── [ 231K]  Markdown
-│   ├── [  83K]  admin_development_scope_v3.md
+├── [ 235K]  Markdown
+│   ├── [  85K]  admin_development_scope_v3.md
 │   ├── [  25K]  database_schema.md
 │   ├── [ 1.4K]  defect_management_TODO.md
 │   ├── [  30K]  유사이미지_검색_솔루션_설계서.md
 │   ├── [  27K]  project_status.md
 │   ├── [ 7.9K]  readme_patchcore.md
-│   ├── [ 8.4K]  session_handover.md
+│   ├── [  11K]  session_handover.md
 │   ├── [  36K]  system_architecture.md
 │   ├── [ 4.5K]  TOP-K TEST_GUIDE.md
 │   ├── [    0]  TREE.txt
@@ -104,13 +104,13 @@
 ├── [  200]  requirements_vlm_add.txt
 ├── [  249]  save_tree.sh
 ├── [    6]  uploads
-└── [ 9.9M]  web
+└── [10.0M]  web
     ├── [    6]  anomaly_outputs
     ├── [  25K]  api_server.py
-    ├── [  21K]  database
+    ├── [  31K]  database
     │   ├── [ 1.7K]  connection.py
-    │   ├── [  11K]  crud.py
-    │   └── [ 7.7K]  models.py
+    │   ├── [  21K]  crud.py
+    │   └── [ 8.4K]  models.py
     ├── [ 1.9K]  defect_mapping.json
     ├── [ 9.4M]  index_cache
     │   ├── [ 8.3M]  defect
@@ -122,8 +122,8 @@
     │       ├── [ 296K]  faiss_index.bin
     │       └── [ 309K]  index_data.pt
     ├── [  14K]  matching.html
-    ├── [  84K]  pages
-    │   ├── [  34K]  admin
+    ├── [  90K]  pages
+    │   ├── [  40K]  admin
     │   │   ├── [ 3.7K]  admin_defect_type.html
     │   │   ├── [ 3.4K]  admin_deploy_clip.html
     │   │   ├── [ 3.4K]  admin_deploy_patchcore.html
@@ -131,6 +131,7 @@
     │   │   ├── [ 3.5K]  admin_image_normal.html
     │   │   ├── [ 4.9K]  admin_layout.html
     │   │   ├── [ 2.9K]  admin_manual.html
+    │   │   ├── [ 5.9K]  admin_preprocessing.html
     │   │   ├── [ 2.6K]  admin_product.html
     │   │   └── [ 5.2K]  dashboard.html
     │   ├── [ 9.7K]  admin.html
@@ -141,14 +142,15 @@
     │   └── [ 6.8K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [  92K]  routers
-    │   ├── [  62K]  admin
+    ├── [ 105K]  routers
+    │   ├── [  74K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [ 8.0K]  defect_type.py
-    │   │   ├── [  17K]  deployment.py
+    │   │   ├── [  19K]  deployment.py
     │   │   ├── [  18K]  image.py
-    │   │   ├── [  402]  __init__.py
+    │   │   ├── [  488]  __init__.py
     │   │   ├── [ 6.0K]  manual.py
+    │   │   ├── [ 9.5K]  preprocessing.py
     │   │   └── [ 5.9K]  product.py
     │   ├── [ 7.7K]  anomaly.py
     │   ├── [ 3.4K]  auth.py
@@ -156,9 +158,9 @@
     │   ├── [ 7.9K]  manual.py
     │   ├── [ 6.9K]  search.py
     │   └── [ 4.2K]  upload.py
-    ├── [ 264K]  static
-    │   ├── [ 126K]  admin
-    │   │   ├── [  48K]  css
+    ├── [ 287K]  static
+    │   ├── [ 149K]  admin
+    │   │   ├── [  55K]  css
     │   │   │   ├── [ 4.5K]  admin_defect_type.css
     │   │   │   ├── [ 3.6K]  admin_deploy_clip.css
     │   │   │   ├── [ 5.0K]  admin_deploy_patchcore.css
@@ -166,9 +168,10 @@
     │   │   │   ├── [ 7.2K]  admin_image_normal.css
     │   │   │   ├── [ 5.4K]  admin_layout.css
     │   │   │   ├── [ 5.1K]  admin_manual.css
+    │   │   │   ├── [ 7.0K]  admin_preprocessing.css
     │   │   │   ├── [ 3.9K]  admin_product.css
     │   │   │   └── [ 6.0K]  dashboard.css
-    │   │   └── [  78K]  js
+    │   │   └── [  93K]  js
     │   │       ├── [ 7.8K]  admin_defect_type.js
     │   │       ├── [ 7.6K]  admin_deploy_clip.js
     │   │       ├── [ 9.9K]  admin_deploy_patchcore.js
@@ -176,6 +179,7 @@
     │   │       ├── [  12K]  admin_image_normal.js
     │   │       ├── [ 1.8K]  admin_layout.js
     │   │       ├── [ 9.1K]  admin_manual.js
+    │   │       ├── [  16K]  admin_preprocessing.js
     │   │       ├── [ 5.5K]  admin_product.js
     │   │       └── [ 8.8K]  dashboard.js
     │   ├── [  38K]  css
@@ -198,4 +202,4 @@
         ├── [    0]  __init__.py
         └── [ 9.7K]  object_storage.py
 
-   68M used in 44 directories, 154 files
+   68M used in 44 directories, 158 files
