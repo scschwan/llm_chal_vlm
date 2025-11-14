@@ -1,386 +1,321 @@
-# 유사이미지 검색 솔루션 - 세션 작업 기록
-**작성일**: 2025-01-15  
-**프로젝트**: 제조 불량 검출 AI 시스템 (Phase 1 최적화 + 통합 RAG 구축)
+# Phase 2 개발 일정표
+# 서버 배포 기능 구현
+
+**기간**: 1주 (5 작업일)  
+**목표**: 비동기 배치 서비스 구현 및 모델 재구축 기능 완성
 
 ---
 
-## 📋 이번 세션 작업 요약
+## 개발 항목
 
-### 1. Phase 1 성능 최적화 완료 ✅
-- **배치 처리**: 이미지 32개씩 묶어서 처리
-- **다중 프로세스**: DataLoader 4 workers 병렬 로딩
-- **이미지 리사이즈**: CLIP 입력 크기(224x224)로 최적화
+### 1. CLIP 임베딩 재구축 (3.9) - 2일
 
-**성능 개선:**
-- 기존: 2,083개 이미지 → 5-10분
-- 개선: 2,083개 이미지 → 30-60초 (약 10배 향상)
+#### 1.1 백엔드 개발 (1.5일)
+- [ ] 라우터 생성: `web/routers/admin/deployment.py`
+- [ ] API 엔드포인트:
+  - `POST /api/admin/deployment/clip/normal` - 정상 이미지 인덱스
+  - `POST /api/admin/deployment/clip/defect` - 불량 이미지 인덱스
+  - `GET /api/admin/deployment/status/{task_id}` - 진행 상태 조회
+  - `GET /api/admin/deployment/logs` - 배포 이력
+- [ ] Object Storage 다운로드 → 로컬 배포 로직
+- [ ] 비동기 배치 서비스:
+  - asyncio 기반 병렬 다운로드 (최대 10개 동시)
+  - CLIP 임베딩 생성
+  - FAISS 인덱스 저장
+- [ ] 진행 상태 추적 (Redis or DB)
+- [ ] WebSocket 실시간 진행률 전달
 
-### 2. 통합 RAG 시스템 구축 완료 ✅
-- **메타데이터 기반 필터링**: 제품명별 매뉴얼 분리 검색
-- **통합 벡터 DB**: 모든 PDF를 한번에 임베딩 후 제품별 필터링
-- **자동 인덱스 관리**: 서버 시작 시 자동 구축 및 캐싱
+#### 1.2 프론트엔드 개발 (0.5일)
+- [ ] 화면 생성: `web/pages/admin/admin_deploy_clip.html`
+- [ ] JavaScript: `web/static/js/admin/deployment_clip.js`
+- [ ] 기능:
+  - 인덱스 유형 선택 (정상/불량)
+  - 재구축 시작 버튼
+  - 실시간 진행률 표시
+  - 배포 이력 테이블
 
-**지원 제품:**
-- prod1 (3개 불량)
-- grid (3개 불량)
-- carpet (4개 불량)
-- leather (6개 불량)
+### 2. PatchCore 메모리뱅크 생성 (3.10) - 1.5일
 
-### 3. DefectMapper 시스템 구축 ✅
-- 제품별 불량 정보 매핑 관리
-- `defect_mapping.json` 파일 기반
-- 동적 제품/불량 추가 기능
-
-### 4. 세션 관리 개선 ✅
-- 탭 이동 시 세션 유지
-- "다시 업로드" 버튼만 전체 초기화
-- 서버 재시작 시 업로드 디렉토리 자동 정리
-
-### 5. LLM 서버 안정성 개선 ✅
-- Keepalive 타이머 추가 (60초마다 로그 출력)
-- 모든 주요 이벤트에 타임스탬프 추가
-- SSH 세션 끊김 방지
-
----
-
-## 🎯 완성된 전체 워크플로우
-```
-1. 이미지 업로드
-   ↓
-2. 유사도 매칭 (불량 이미지 인덱스 기반)
-   ↓
-3. 이상 검출 (정상 이미지 인덱스로 자동 전환)
-   ↓
-4. 대응 매뉴얼 생성
-   - 3개 AI 모델 선택 (HyperCLOVAX, EXAONE, LLaVA)
-   - RAG 기반 매뉴얼 검색
-   - 4개 섹션 표준 출력
-   - 작업자 조치 내역 입력
-```
-
----
-
-## 📂 주요 파일 구조
-
-### 백엔드 (Python)
-```
-llm_chal_vlm/
-├── modules/
-│   ├── similarity_matcher.py      ✅ Phase 1 최적화 완료
-│   ├── anomaly_detector.py
-│   └── vlm/
-│       ├── rag.py                 ✅ 통합 RAG 시스템
-│       └── defect_mapper.py       ✅ 불량 정보 매핑
-├── web/
-│   ├── api_server.py              ✅ 메인 API 서버
-│   ├── defect_mapping.json        ⚠️ 중요: 관리자 페이지 연동 필요
-│   ├── routers/
-│   │   ├── upload.py              ✅ 업로드 라우터
-│   │   ├── search.py              ✅ 유사도 검색 라우터
-│   │   ├── anomaly.py             ✅ 이상 검출 라우터
-│   │   └── manual.py              ✅ 매뉴얼 생성 라우터
-│   ├── pages/
-│   │   ├── upload.html            ✅ 업로드 페이지
-│   │   ├── search.html            ✅ 유사도 매칭 페이지
-│   │   ├── anomaly.html           ✅ 이상 검출 페이지
-│   │   └── manual.html            ✅ 대응 매뉴얼 페이지
-│   └── static/
-│       ├── js/
-│       │   ├── common.js          ✅ 공통 유틸리티
-│       │   ├── upload.js          ✅ 세션 관리 개선
-│       │   ├── search.js
-│       │   ├── anomaly.js
-│       │   └── manual.js
-│       └── css/
-├── llm_server/
-│   └── llm_server.py              ✅ Keepalive 타이머 추가
-├── manual_store/                  ✅ 통합 매뉴얼 디렉토리
-│   ├── prod1_menual.pdf
-│   ├── grid_manual.pdf
-│   ├── carpet_manual.pdf
-│   ├── leather_manual.pdf
-│   └── unified_index/             (자동 생성)
-└── data/
-    ├── def_split/                 (불량 이미지)
-    ├── ok_split/                  (정상 이미지)
-    └── patchCore/                 (제품별 메모리 뱅크)
-```
-
----
-
-## ⚠️ 다음 세션에서 해결해야 할 이슈
-
-### 1. RAG 검색 결과 필터링 개선 (최우선) 🔥
-
-**현재 문제:**
-```
-[RAG] prod1 제품 매뉴얼 검색: 3개 결과
-[MANUAL] RAG 검색 완료: 원인 0개, 조치 0개  ← 필터링 실패!
-```
-
-**원인 분석:**
-1. PDF 검색은 정상 작동 (3개 결과 반환)
-2. 검색된 텍스트에서 "원인"/"조치" 키워드 필터링 실패
-3. 매뉴얼 텍스트 구조와 필터링 로직 불일치 가능성
-
-**개선 방향:**
-- [ ] PDF 매뉴얼 내부 구조 분석 필요
-- [ ] 필터링 키워드 확장 (현재: ["원인", "발생", "이유", "때문"])
-- [ ] 텍스트 전처리 개선 (공백, 줄바꿈 처리)
-- [ ] 섹션 헤더 기반 분류 로직 추가
-- [ ] 필터링 실패 시 전체 텍스트 반환 옵션
-
-**디버깅 정보 수집:**
+#### 2.1 백엔드 개발 (1일)
+- [ ] API 엔드포인트 추가:
+  - `POST /api/admin/deployment/patchcore` - 전체 메모리뱅크 생성
+- [ ] 스크립트 실행 로직:
 ```python
-# modules/vlm/rag.py의 search_by_product 함수에 추가
-print(f"[DEBUG] 검색된 텍스트 샘플:")
-for i, doc in enumerate(primary_docs[:3]):
-    print(f"  [{i}] {doc.page_content[:200]}...")
+  방법1: bash /home/dmillion/llm_chal_vlm/build_patchcore.sh
+  방법2: python modules/patchCore/build_bank.py
 ```
+- [ ] 비동기 프로세스 실행 (asyncio.create_subprocess_exec)
+- [ ] 실시간 로그 파싱 및 진행 상태 업데이트
+- [ ] DB 배포 이력 저장
 
-### 2. defect_mapping.json 관리자 페이지 연동
+#### 2.2 프론트엔드 개발 (0.5일)
+- [ ] 화면 생성: `web/pages/admin/admin_deploy_patchcore.html`
+- [ ] JavaScript: `web/static/js/admin/deployment_patchcore.js`
+- [ ] 기능:
+  - 전체 재생성 시작 버튼
+  - 제품별 진행 상태 표시
+  - 실시간 로그 출력
+  - 배포 이력 테이블
 
-**현재 상태:**
-- ✅ 수동 JSON 파일 편집으로 관리
-- ❌ 웹 UI 없음
+### 3. 공통 유틸리티 (1.5일)
 
-**향후 구현 필요:**
-```python
-# 관리자 페이지 API 엔드포인트 (예시)
-@app.get("/admin/mapping")
-async def get_mapping_admin():
-    """매핑 관리 페이지"""
-    # 전체 매핑 정보 반환
+#### 3.1 Object Storage 매니저 (0.5일)
+- [ ] 모듈 생성: `web/utils/object_storage.py`
+- [ ] ObjectStorageManager 클래스:
+  - create_folder()
+  - upload_file()
+  - download_file()
+  - delete_file()
+  - list_objects()
+  - get_url()
 
-@app.post("/admin/mapping/product")
-async def add_product(product_id, product_name_ko):
-    """제품 추가"""
-    mapper.add_product(product_id, product_name_ko)
-    
-    # ⚠️ RAG 인덱스도 함께 재구축해야 함!
-    rag.rebuild_index()
+#### 3.2 비동기 배치 서비스 (0.5일)
+- [ ] 모듈 생성: `web/utils/async_batch.py`
+- [ ] 기능:
+  - 병렬 다운로드 (ThreadPoolExecutor)
+  - 진행 상태 관리
+  - 에러 핸들링
+  - 재시도 로직
 
-@app.post("/admin/mapping/defect")
-async def add_defect(product, defect_id, defect_ko, full_name_ko, keywords):
-    """불량 추가"""
-    mapper.add_defect(product, defect_id, defect_ko, full_name_ko, keywords)
-
-@app.post("/admin/rag/rebuild")
-async def rebuild_rag():
-    """RAG 인덱스 재구축"""
-    # 새 매뉴얼 PDF 추가 시 호출
-    rag.rebuild_index()
-```
-
-**중요: defect_mapping.json 갱신 시 필수 작업**
-1. `defect_mapping.json` 파일 수정
-2. API 서버 재시작 또는 `/mapping/reload` 호출
-3. 새 매뉴얼 PDF 추가 시: `/rag/rebuild` 호출
+#### 3.3 WebSocket 통신 (0.5일)
+- [ ] WebSocket 엔드포인트 구현
+- [ ] 실시간 진행률 브로드캐스팅
+- [ ] 프론트엔드 WebSocket 연결
 
 ---
 
-## 📝 defect_mapping.json 파일
+## 세부 작업 내역
 
-**파일 위치:** `/home/dmillion/llm_chal_vlm/web/defect_mapping.json`
+### Day 1: CLIP 재구축 백엔드 (전반)
 
-**현재 구조:**
-```json
-{
-  "products": {
-    "제품ID": {
-      "name_ko": "제품명(한글)",
-      "defects": {
-        "불량ID": {
-          "en": "영문명",
-          "ko": "한글명",
-          "full_name_ko": "전체명",
-          "keywords": ["검색키워드1", "검색키워드2"]
-        }
-      }
-    }
-  }
-}
-```
+**작업 항목:**
+1. `web/utils/object_storage.py` 생성
+   - boto3 기반 S3 클라이언트
+   - 기본 CRUD 함수 구현
 
-**⚠️ 관리 시 주의사항:**
-1. 제품 추가/삭제 시 RAG 인덱스 재구축 필요
-2. 불량 추가 시 keywords 배열에 다양한 유사어 포함
-3. 파일명 규칙: `{제품ID}_manual.pdf` (예: `leather_manual.pdf`)
-4. JSON 형식 오류 주의 (쉼표, 따옴표)
+2. `web/routers/admin/deployment.py` 생성
+   - CLIP 정상/불량 인덱스 API
+   - 진행 상태 조회 API
 
-**현재 등록된 제품/불량:**
-| 제품 | 불량 개수 | 불량 유형 |
-|------|----------|----------|
-| prod1 | 3 | hole, burr, scratch |
-| grid | 3 | hole, burr, scratch |
-| carpet | 4 | hole, burr, scratch, stain |
-| leather | 6 | hole, burr, scratch, fold, stain, color |
+3. Object Storage → 로컬 다운로드 로직
+   - 병렬 다운로드 구현
+   - 지정 경로 배치
+
+**예상 산출물:**
+- `web/utils/object_storage.py`
+- `web/routers/admin/deployment.py` (일부)
 
 ---
 
-## 🔧 환경 설정
+### Day 2: CLIP 재구축 백엔드 (후반) + 프론트엔드
 
-### Python 패키지 (주요)
+**작업 항목:**
+1. CLIP 임베딩 생성 로직
+   - 배치 단위 임베딩
+   - FAISS 인덱스 저장
+
+2. 비동기 작업 관리
+   - asyncio 기반 배치 서비스
+   - 진행 상태 DB 저장
+
+3. 프론트엔드 개발
+   - `admin_deploy_clip.html` 생성
+   - 실시간 진행률 UI
+   - 배포 이력 테이블
+
+**예상 산출물:**
+- `web/routers/admin/deployment.py` (완성)
+- `web/pages/admin/admin_deploy_clip.html`
+- `web/static/js/admin/deployment_clip.js`
+
+---
+
+### Day 3: PatchCore 메모리뱅크 백엔드
+
+**작업 항목:**
+1. PatchCore 배포 API
+   - 스크립트 실행 엔드포인트
+   - 비동기 프로세스 실행
+
+2. 실시간 로그 파싱
+   - 표준 출력 스트리밍
+   - 진행 상태 파싱
+   - DB 업데이트
+
+3. 에러 핸들링
+   - 스크립트 실패 처리
+   - 롤백 로직
+
+**예상 산출물:**
+- `web/routers/admin/deployment.py` (PatchCore 추가)
+
+---
+
+### Day 4: PatchCore 프론트엔드 + WebSocket
+
+**작업 항목:**
+1. 프론트엔드 개발
+   - `admin_deploy_patchcore.html` 생성
+   - 실시간 진행 상태 UI
+   - 로그 출력 영역
+
+2. WebSocket 통신
+   - 서버 WebSocket 엔드포인트
+   - 클라이언트 연결 및 이벤트 핸들링
+   - 실시간 진행률 업데이트
+
+**예상 산출물:**
+- `web/pages/admin/admin_deploy_patchcore.html`
+- `web/static/js/admin/deployment_patchcore.js`
+- WebSocket 통신 구현
+
+---
+
+### Day 5: 통합 테스트 및 디버깅
+
+**작업 항목:**
+1. 전체 플로우 테스트
+   - 이미지 업로드 → CLIP 재구축
+   - 정상 이미지 업로드 → PatchCore 생성
+   - 진행 상태 추적 검증
+
+2. 에러 케이스 테스트
+   - 네트워크 오류
+   - 스크립트 실패
+   - 중복 실행 방지
+
+3. 성능 최적화
+   - 병렬 다운로드 성능 측정
+   - 메모리 사용량 체크
+   - 타임아웃 설정
+
+**산출물:**
+- 테스트 보고서
+- 버그 수정 패치
+
+---
+
+## 기술 스택
+
+### 백엔드
+- **FastAPI**: 비동기 웹 프레임워크
+- **boto3**: AWS S3 호환 Object Storage 클라이언트
+- **asyncio**: 비동기 프로세스 실행
+- **subprocess**: 쉘 스크립트 실행
+- **WebSocket**: 실시간 통신
+
+### 프론트엔드
+- **HTML/CSS/JavaScript**: 기본 웹 기술
+- **WebSocket API**: 실시간 진행률 수신
+- **Fetch API**: RESTful API 호출
+
+### 인프라
+- **Naver Cloud Platform Object Storage**
+  - Endpoint: https://kr.object.ncloudstorage.com
+  - Bucket: dm-obs (환경변수)
+- **Rocky Linux 8.10**
+- **Python 3.9**
+
+---
+
+## 주요 파일 목록
+
+### 신규 생성 파일
+```
+web/
+├── routers/admin/
+│   └── deployment.py                  # 배포 API 라우터
+├── pages/admin/
+│   ├── admin_deploy_clip.html         # CLIP 재구축 화면
+│   └── admin_deploy_patchcore.html    # PatchCore 생성 화면
+├── static/js/admin/
+│   ├── deployment_clip.js             # CLIP 재구축 JS
+│   └── deployment_patchcore.js        # PatchCore 생성 JS
+└── utils/
+    ├── object_storage.py              # Object Storage 유틸
+    └── async_batch.py                 # 비동기 배치 서비스
+```
+
+### 수정 파일
+```
+web/
+├── api_server.py                      # 라우터 등록 추가
+├── routers/admin/__init__.py          # deployment 라우터 임포트
+└── pages/admin/admin_layout.html      # 네비게이션 메뉴 추가
+```
+
+---
+
+## 환경 변수
 ```bash
-# Phase 1 최적화 관련
-torch>=2.0.0
-torchvision
-open_clip_torch
-faiss-gpu  # 또는 faiss-cpu
+# Object Storage 인증
+NCP_ACCESS_KEY=your_access_key
+NCP_SECRET_KEY=your_secret_key
+NCP_BUCKET=dm-obs
 
-# RAG 관련
-langchain
-langchain-community
-sentence-transformers
-pypdf
-
-# 웹 서버
-fastapi
-uvicorn
-
-# 유틸리티
-pillow
-numpy
-```
-
-### 서버 환경
-- OS: Rocky Linux 8.10
-- Python: 3.9
-- GPU: Tesla T4
-- CUDA: 11.8
-
-### 실행 명령
-```bash
-# API 서버
-cd /home/dmillion/llm_chal_vlm/web
-python api_server.py
-
-# LLM 서버
-cd /home/dmillion/llm_chal_vlm/llm_server
-python llm_server.py
+# Database
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=dmillion
+DB_PASSWORD=your_password
+DB_NAME=defect_db
 ```
 
 ---
 
-## 📊 성능 지표
+## 배포 전 체크리스트
 
-### 인덱스 구축 속도
-| 항목 | 기존 | Phase 1 | 개선율 |
-|------|------|---------|--------|
-| 불량 이미지 (2,083개) | 5-10분 | 30-60초 | **10배** |
-| 정상 이미지 (전체) | - | 약 1-2분 | - |
-
-### RAG 검색 속도
-| 항목 | 속도 |
-|------|------|
-| 인덱스 구축 (최초 1회) | 1-2분 |
-| 인덱스 로드 (서버 시작) | 1-2초 |
-| 제품별 검색 | 0.1-0.5초 |
+- [ ] Object Storage 인증 정보 설정
+- [ ] DB 테이블 생성 (deployment_logs)
+- [ ] /data/patchCore/ 디렉토리 구조 확인
+- [ ] build_patchcore.sh 실행 권한 확인
+- [ ] CLIP 모델 로드 테스트
+- [ ] PatchCore 모듈 임포트 테스트
+- [ ] 네트워크 정책 (Object Storage 접근 허용)
 
 ---
 
-## 🐛 알려진 이슈
+## 리스크 관리
 
-### 1. RAG 필터링 실패 (긴급)
-- **증상**: 검색 결과는 있으나 원인/조치 분류 실패
-- **영향**: 매뉴얼 생성 시 빈 컨텍스트
-- **우선순위**: 최우선
+### 예상 리스크
+1. **Object Storage 다운로드 속도**
+   - 완화: 병렬 다운로드 (최대 10개 동시)
+   - 완화: 로컬 캐싱
 
-### 2. 경고 메시지 (낮음)
-```
-RuntimeWarning: networkx backend defined more than once
-LangChainDeprecationWarning: pydantic v1 compatibility
-```
-- **해결**: `api_server.py` 상단에 경고 필터 추가됨
-```python
-import warnings
-warnings.filterwarnings("ignore", category=RuntimeWarning)
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-```
+2. **PatchCore 메모리뱅크 생성 시간**
+   - 완화: 진행 상태 실시간 표시
+   - 완화: 백그라운드 작업 큐
 
-### 3. 세션 관리 (해결됨 ✅)
-- ~~탭 이동 시 세션 초기화 문제~~
-- 해결: 세션 유지 로직 개선
+3. **동시 재구축 요청**
+   - 완화: 작업 큐 구현
+   - 완화: 진행 중 중복 실행 방지
+
+4. **스크립트 실행 실패**
+   - 완화: 에러 로그 상세 기록
+   - 완화: 자동 재시도 (최대 3회)
 
 ---
 
-## 🎯 향후 개발 로드맵
+## 성공 기준
 
-### Phase 2: 관리자 기능 (2-3주)
-- [ ] 관리자 페이지 구축
-  - [ ] 제품/불량 관리 UI
-  - [ ] 매뉴얼 업로드 UI
-  - [ ] RAG 인덱스 관리
-- [ ] 사용자 권한 관리
-- [ ] 이력 조회 기능
+### 기능 요구사항
+- [✅] CLIP 정상/불량 인덱스 재구축 성공
+- [✅] PatchCore 전체 메모리뱅크 생성 성공
+- [✅] 실시간 진행률 표시 (WebSocket)
+- [✅] 배포 이력 조회 및 로그 확인
 
-### Phase 3: 데이터베이스 연동 (3-4주)
-- [ ] PostgreSQL 연동
-- [ ] 조치내역 저장 (10개 테이블)
-- [ ] 통계 대시보드
-- [ ] 검색 이력 관리
+### 성능 요구사항
+- [ ] CLIP 재구축 시간: 650장 기준 5분 이내
+- [ ] PatchCore 생성 시간: 전체 제품 기준 10분 이내
+- [ ] Object Storage 다운로드: 100MB 기준 1분 이내
 
-### Phase 4: 고급 기능 (4주+)
-- [ ] 증분 인덱스 업데이트
-- [ ] 모델 양자화 (FP16/INT8)
-- [ ] 배치 이미지 처리
-- [ ] 실시간 모니터링
+### 안정성 요구사항
+- [ ] 에러 발생 시 자동 복구 또는 명확한 에러 메시지
+- [ ] 네트워크 오류 시 재시도 로직
+- [ ] 스크립트 실패 시 롤백 처리
 
 ---
 
-## 📞 참고 정보
-
-### API 엔드포인트
-```
-# 기본
-GET  /                          # 업로드 페이지
-GET  /health2                   # 헬스체크 (ALB용)
-
-# 업로드
-POST /upload/image              # 이미지 업로드
-GET  /upload/status             # 업로드 상태
-
-# 유사도 검색
-POST /search/similarity         # 유사 이미지 검색
-GET  /search/index/status       # 검색 인덱스 상태
-
-# 이상 검출
-POST /anomaly/detect            # 이상 검출 수행
-GET  /anomaly/image/{id}/{file} # 결과 이미지 서빙
-
-# 매뉴얼 생성
-POST /manual/generate           # 매뉴얼 생성
-
-# RAG 관리
-GET  /rag/status                # RAG 상태 조회
-POST /rag/rebuild               # 인덱스 재구축
-
-# 매핑 관리
-GET  /mapping/status            # 매핑 상태 조회
-POST /mapping/reload            # 매핑 재로드
-```
-
-### 주요 디렉토리
-```
-/home/dmillion/llm_chal_vlm/
-├── data/                       # 이미지 데이터
-├── manual_store/               # 매뉴얼 PDF
-├── web/                        # 웹 서버
-├── llm_server/                 # LLM 서버
-└── modules/                    # 공통 모듈
-```
-
----
-
-## ✅ 체크리스트 (다음 세션 시작 전)
-
-- [ ] RAG 필터링 로직 개선
-- [ ] PDF 매뉴얼 내부 구조 분석
-- [ ] 디버깅 로그 추가하여 검색 결과 확인
-- [ ] 필터링 키워드 확장 테스트
-- [ ] defect_mapping.json이 leather/fold 포함하는지 확인
-- [ ] 서버 재시작 후 매핑 로드 로그 확인
-
----
-**버전**: 2.0  
-**다음 세션 목표**: RAG 검색 결과 필터링 개선 및 안정화
+**작성일**: 2025-11-14  
+**작성자**: Claude  
+**버전**: 1.0

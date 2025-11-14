@@ -1,8 +1,10 @@
-# 관리자 페이지 개발 Scope 및 아키텍처 (v3.0)
+# 관리자 페이지 개발 Scope 및 아키텍처 (v3.1)
 
-**작성일**: 2025-11-13  
-**버전**: 3.0  
+**작성일**: 2025-11-14  
+**버전**: 3.1  
 **기준**: LLM_화면_개발_가이드_ver_1_3.xlsx  
+**갱신 내역**: Phase 1 달성 현황 추가
+
 
 ---
 
@@ -14,6 +16,7 @@
 4. [Object Storage 연동](#4-object-storage-연동)
 5. [API 설계](#5-api-설계)
 6. [개발 우선순위](#6-개발-우선순위)
+7. [Phase 1 달성 현황](#7-phase-1-달성-현황) ⭐ 신규 추가
 
 ---
 
@@ -1595,9 +1598,10 @@ GET    /api/admin/deployment/logs              # 배포 이력 조회
 
 ---
 
+
 ## 6. 개발 우선순위
 
-### Phase 1: 핵심 CRUD 기능 (1주)
+### Phase 1: 핵심 CRUD 기능 (1주) - ✅ **완료**
 **목표**: 제품, 매뉴얼, 불량 유형, 이미지 등록 기능 구현
 
 1. ✅ **제품 관리** (3.2)
@@ -1605,66 +1609,370 @@ GET    /api/admin/deployment/logs              # 배포 이력 조회
    - 화면 개발
 
 2. ✅ **매뉴얼 관리** (3.3)
-   - Object Storage 업로드/다운로드 구현
    - CRUD API 개발
    - 화면 개발
+   - ⚠️ Object Storage 업로드/다운로드 미구현
 
 3. ✅ **불량 유형 관리** (3.4)
    - CRUD API 개발
    - 화면 개발
 
 4. ✅ **정상/불량 이미지 등록** (3.5, 3.6)
-   - Object Storage 업로드 구현
-   - 다중 파일/ZIP 업로드 처리
    - 화면 개발
+   - ⚠️ Object Storage 업로드 미구현
+   - ⚠️ 다중 파일/ZIP 업로드 기능 확인 필요
 
-### Phase 2: 서버 배포 기능 (1주)
+### Phase 2: 서버 배포 기능 (1주) - 🔄 **진행 예정**
 **목표**: 비동기 배치 서비스 구현
 
-5. ✅ **CLIP 임베딩 재구축** (3.9)
+5. ⬜ **CLIP 임베딩 재구축** (3.9)
    - Object Storage → 로컬 다운로드
    - 비동기 배치 서비스 구현
    - 진행 상태 추적
    - 화면 개발
 
-6. ✅ **PatchCore 메모리뱅크 생성** (3.10)
-   - Object Storage → 로컬 다운로드
+6. ⬜ **PatchCore 메모리뱅크 생성** (3.10)
    - 비동기 배치 서비스 구현
    - 진행 상태 추적
    - 화면 개발
 
-### Phase 3: 설정 및 모니터링 (3-4일)
+### Phase 3: 설정 및 모니터링 (3-4일) - ⬜ **대기 중**
 **목표**: 전처리 설정, 모델 선택, 대시보드 구현
 
-7. ✅ **이미지 전처리 설정** (3.7)
-   - CRUD API 개발
-   - 화면 개발
+7. ⬜ **이미지 전처리 설정** (3.7)
+8. ⬜ **모델 선택** (3.8)
+9. ⬜ **통합 대시보드** (3.1)
 
-8. ✅ **모델 선택** (3.8)
-   - CRUD API 개발
-   - 화면 개발
-
-9. ✅ **통합 대시보드** (3.1)
-   - 통계 데이터 조회 API
-   - 화면 개발 (차트 포함)
-
-### Phase 4: 통합 및 테스트 (1주)
+### Phase 4: 통합 및 테스트 (1주) - ⬜ **대기 중**
 **목표**: 전체 기능 통합 테스트 및 디버깅
 
-10. ✅ **전체 플로우 테스트**
-    - 제품 등록 → 이미지 업로드 → 배포 → 작업자 검사
+---
 
-11. ✅ **UI/UX 개선**
-    - 네비게이션 메뉴 개선
-    - 진행률 표시 개선
-    - 에러 처리 개선
+## 7. Phase 1 달성 현황
 
-### 향후 확장 (PoC 이후)
-- ❌ 사용자 계정 관리
-- ❌ 업체별 프로젝트 관리
-- ❌ 로그 분석 및 통계
-- ❌ Object Detection 라벨링 기능
-- ❌ 작업자 페이지 Object Storage 전환
+**점검일**: 2025-11-14  
+**전체 진행률**: 80% (4/5 주요 기능 완료)
+
+### 7.1 완료된 항목 ✅
+
+#### 1. 제품 관리 (100% 완료)
+- **백엔드**: `web/routers/admin/product.py` ✅
+  - POST /api/admin/product - 제품 등록
+  - GET /api/admin/product - 제품 목록 조회
+  - PUT /api/admin/product/{id} - 제품 수정
+  - DELETE /api/admin/product/{id} - 제품 삭제
+
+- **프론트엔드**: `web/pages/admin/admin_product.html` ✅
+  - 신규 제품 등록 폼
+  - 제품 목록 테이블
+  - 수정/삭제 기능
+
+- **DB 연동**: `web/database/models.py` - Product 모델 ✅
+
+#### 2. 매뉴얼 관리 (80% 완료)
+- **백엔드**: `web/routers/admin/manual.py` ✅
+  - POST /api/admin/manual - 매뉴얼 업로드
+  - GET /api/admin/manual - 매뉴얼 목록 조회
+  - DELETE /api/admin/manual/{id} - 매뉴얼 삭제
+
+- **프론트엔드**: `web/pages/admin/admin_manual.html` ✅
+  - 매뉴얼 파일 업로드 폼
+  - 매뉴얼 목록 테이블
+
+- **미완료**: ⚠️
+  - Object Storage 연동 (업로드/다운로드)
+  - 현재 로컬 파일 시스템 기반
+
+#### 3. 불량 유형 관리 (100% 완료)
+- **백엔드**: `web/routers/admin/defect_type.py` ✅
+  - POST /api/admin/defect-type - 불량 유형 등록
+  - GET /api/admin/defect-type - 불량 유형 목록 조회
+  - PUT /api/admin/defect-type/{id} - 불량 유형 수정
+  - DELETE /api/admin/defect-type/{id} - 불량 유형 삭제
+
+- **프론트엔드**: `web/pages/admin/admin_defect_type.html` ✅
+  - 신규 불량 유형 등록 폼
+  - 불량 유형 목록 테이블
+  - 제품별 필터링
+
+- **DB 연동**: `web/database/models.py` - DefectType 모델 ✅
+
+#### 4. 이미지 등록 관리 (80% 완료)
+- **백엔드**: `web/routers/admin/image.py` ✅
+  - POST /api/admin/image/normal - 정상 이미지 업로드
+  - POST /api/admin/image/defect - 불량 이미지 업로드
+  - GET /api/admin/image/normal - 정상 이미지 목록
+  - GET /api/admin/image/defect - 불량 이미지 목록
+  - DELETE /api/admin/image/{id} - 이미지 삭제
+
+- **프론트엔드**: ✅
+  - `web/pages/admin/admin_image_normal.html` - 정상 이미지 등록
+  - `web/pages/admin/admin_image_defect.html` - 불량 이미지 등록
+
+- **미완료**: ⚠️
+  - Object Storage 업로드 구현
+  - ZIP 파일 업로드 처리
+  - 다중 파일 업로드 진행률 표시
+
+#### 5. DB 연동 (100% 완료)
+- **모델**: `web/database/models.py` ✅
+  - Product
+  - Manual
+  - DefectType
+  - Image
+  - (기타 테이블)
+
+- **연결**: `web/database/connection.py` ✅
+  - MariaDB 연결 풀
+  - Session 관리
+
+- **CRUD**: `web/database/crud.py` ✅
+  - 제품 CRUD
+  - 매뉴얼 CRUD
+  - 불량 유형 CRUD
+  - 이미지 CRUD
+
+#### 6. 관리자 페이지 레이아웃 (100% 완료)
+- **레이아웃**: `web/pages/admin/admin_layout.html` ✅
+  - 좌측 네비게이션 메뉴
+  - 중메뉴/소메뉴 구조
+  - 메인 컨텐츠 영역
+
+- **네비게이션 구조**: ✅
+  - 📊 통합 대시보드
+  - 📦 제품/매뉴얼 등록 (제품 관리, 매뉴얼 관리, 불량 유형 관리)
+  - 🖼️ 이미지 등록 관리 (정상 이미지, 불량 이미지)
+  - ⚙️ 시스템 설정 (전처리, 모델 선택)
+  - 🚀 서버 배포 (CLIP, PatchCore)
+
+### 7.2 미완료 항목 ⚠️
+
+#### 1. Object Storage 연동 (0% 완료)
+**우선순위**: 🔴 높음 (Phase 2 선행 작업)
+
+**필요 작업**:
+1. `web/utils/object_storage.py` 모듈 생성
+   - ObjectStorageManager 클래스
+   - boto3 기반 S3 호환 API
+   - 기본 CRUD 함수 (upload, download, delete, list)
+
+2. 매뉴얼 업로드/다운로드 연동
+   - `web/routers/admin/manual.py` 수정
+   - 업로드: 로컬 → Object Storage
+   - 다운로드: Object Storage → 스트리밍 응답
+
+3. 이미지 업로드 연동
+   - `web/routers/admin/image.py` 수정
+   - 업로드: 로컬 → Object Storage
+   - DB에 Object Storage 경로 저장
+
+**예상 소요 시간**: 0.5일
+
+#### 2. 다중 파일/ZIP 업로드 처리 (0% 완료)
+**우선순위**: 🟡 중간
+
+**필요 작업**:
+1. ZIP 파일 압축 해제 로직
+2. 다중 파일 병렬 업로드
+3. 실시간 진행률 표시 (WebSocket 또는 SSE)
+
+**예상 소요 시간**: 0.5일
+
+#### 3. 통합 테스트 및 디버깅
+**우선순위**: 🟢 낮음 (Phase 4)
+
+**필요 작업**:
+1. 전체 플로우 테스트
+2. 에러 케이스 검증
+3. UI/UX 개선
+
+### 7.3 Phase 1 완료를 위한 남은 작업
+
+#### 작업 1: Object Storage 유틸리티 구현
+```python
+# web/utils/object_storage.py 생성
+
+import os
+import boto3
+from pathlib import Path
+from typing import List, Optional
+
+class ObjectStorageManager:
+    """Naver Cloud Platform Object Storage 관리 클래스"""
+    
+    def __init__(self):
+        self.s3 = boto3.client(
+            's3',
+            endpoint_url='https://kr.object.ncloudstorage.com',
+            aws_access_key_id=os.environ.get('NCP_ACCESS_KEY'),
+            aws_secret_access_key=os.environ.get('NCP_SECRET_KEY'),
+            region_name='kr-standard'
+        )
+        self.bucket = os.environ.get('NCP_BUCKET', 'dm-obs')
+    
+    def upload_file(self, local_path: str, s3_key: str) -> bool:
+        """파일 업로드"""
+        try:
+            self.s3.upload_file(local_path, self.bucket, s3_key)
+            return True
+        except Exception as e:
+            print(f"Upload error: {e}")
+            return False
+    
+    def download_file(self, s3_key: str, local_path: str) -> bool:
+        """파일 다운로드"""
+        try:
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            self.s3.download_file(self.bucket, s3_key, local_path)
+            return True
+        except Exception as e:
+            print(f"Download error: {e}")
+            return False
+    
+    def delete_file(self, s3_key: str) -> bool:
+        """파일 삭제"""
+        try:
+            self.s3.delete_object(Bucket=self.bucket, Key=s3_key)
+            return True
+        except Exception as e:
+            print(f"Delete error: {e}")
+            return False
+    
+    def list_objects(self, prefix: str = '') -> List[dict]:
+        """객체 목록 조회"""
+        objects = []
+        try:
+            response = self.s3.list_objects_v2(
+                Bucket=self.bucket,
+                Prefix=prefix
+            )
+            if 'Contents' in response:
+                objects = response['Contents']
+        except Exception as e:
+            print(f"List error: {e}")
+        return objects
+    
+    def get_url(self, s3_key: str) -> str:
+        """공개 URL 생성"""
+        return f"https://kr.object.ncloudstorage.com/{self.bucket}/{s3_key}"
+```
+
+#### 작업 2: 매뉴얼 업로드 API 수정
+```python
+# web/routers/admin/manual.py 수정
+
+from fastapi import UploadFile
+from web.utils.object_storage import ObjectStorageManager
+
+obs = ObjectStorageManager()
+
+@router.post("/manual")
+async def upload_manual(
+    product_id: int,
+    file: UploadFile
+):
+    # 1. 임시 파일로 저장
+    temp_path = f"/tmp/{file.filename}"
+    with open(temp_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    
+    # 2. Object Storage 업로드
+    s3_key = f"manuals/{product_id}/{file.filename}"
+    success = obs.upload_file(temp_path, s3_key)
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="Upload failed")
+    
+    # 3. DB 저장
+    manual = Manual(
+        product_id=product_id,
+        file_name=file.filename,
+        file_path=s3_key,  # Object Storage 경로
+        file_size=os.path.getsize(temp_path)
+    )
+    db.add(manual)
+    db.commit()
+    
+    # 4. 임시 파일 삭제
+    os.remove(temp_path)
+    
+    return {"message": "Manual uploaded successfully"}
+```
+
+#### 작업 3: 이미지 업로드 API 수정
+```python
+# web/routers/admin/image.py 수정
+
+@router.post("/image/normal")
+async def upload_normal_images(
+    product_id: int,
+    files: List[UploadFile]
+):
+    results = []
+    
+    for file in files:
+        # 1. 임시 파일로 저장
+        temp_path = f"/tmp/{file.filename}"
+        with open(temp_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        
+        # 2. Object Storage 업로드
+        s3_key = f"images/normal/{product_id}/{file.filename}"
+        success = obs.upload_file(temp_path, s3_key)
+        
+        if success:
+            # 3. DB 저장
+            image = Image(
+                product_id=product_id,
+                image_type='normal',
+                file_name=file.filename,
+                file_path=s3_key,
+                file_size=os.path.getsize(temp_path)
+            )
+            db.add(image)
+            results.append({"filename": file.filename, "status": "success"})
+        else:
+            results.append({"filename": file.filename, "status": "failed"})
+        
+        # 4. 임시 파일 삭제
+        os.remove(temp_path)
+    
+    db.commit()
+    return {"results": results}
+```
+
+### 7.4 다음 단계 (Phase 2)
+
+Phase 1 완료 후 즉시 Phase 2로 진행:
+
+1. **CLIP 임베딩 재구축** (3.9)
+   - 의존성: Object Storage 연동 완료 필수
+   - 예상 소요: 2일
+
+2. **PatchCore 메모리뱅크 생성** (3.10)
+   - 의존성: CLIP 재구축 완료 권장
+   - 예상 소요: 1.5일
+
+### 7.5 요약
+
+**Phase 1 현황**:
+- ✅ 완료: 제품 관리, 불량 유형 관리, DB 연동, 레이아웃
+- ⚠️ 부분 완료: 매뉴얼 관리, 이미지 관리
+- ⬜ 미완료: Object Storage 연동, ZIP 업로드
+
+**Phase 1 완료를 위한 예상 추가 작업 시간**: 1일
+- Object Storage 유틸리티: 0.5일
+- API 연동 수정: 0.5일
+
+**권장 다음 작업**:
+1. Object Storage 유틸리티 구현 (최우선)
+2. 매뉴얼 업로드/다운로드 연동
+3. 이미지 업로드 연동
+4. Phase 2 시작
+
+
 
 ---
 
@@ -1697,64 +2005,91 @@ GET    /api/admin/deployment/logs              # 배포 이력 조회
 ### 디렉토리 구조
 ```
 llm_chal_vlm/
-├── web/
-│   ├── api_server.py
-│   ├── routers/
-│   │   ├── admin/                    # 신규 추가
-│   │   │   ├── __init__.py
-│   │   │   ├── dashboard.py          # 대시보드
-│   │   │   ├── product.py            # 제품 관리
-│   │   │   ├── manual.py             # 매뉴얼 관리
-│   │   │   ├── defect_type.py        # 불량 유형
-│   │   │   ├── image.py              # 이미지 관리
-│   │   │   ├── preprocessing.py      # 전처리 설정
-│   │   │   ├── model.py              # 모델 선택
-│   │   │   └── deployment.py         # 서버 배포
-│   │   └── worker/                   # 기존 유지 (개발 완료)
-│   ├── pages/
-│   │   ├── admin/                    # 신규 추가
-│   │   │   ├── admin_dashboard.html
-│   │   │   ├── admin_product.html
-│   │   │   ├── admin_manual.html
-│   │   │   ├── admin_defect_type.html
-│   │   │   ├── admin_image_normal.html
-│   │   │   ├── admin_image_defect.html
-│   │   │   ├── admin_preprocessing.html
-│   │   │   ├── admin_model.html
-│   │   │   ├── admin_deploy_clip.html
-│   │   │   └── admin_deploy_patchcore.html
-│   │   └── worker/                   # 기존 유지
-│   ├── static/
-│   │   ├── js/
-│   │   │   ├── admin/                # 신규 추가
-│   │   │   │   ├── dashboard.js
-│   │   │   │   ├── product.js
-│   │   │   │   └── ...
-│   │   │   └── common.js             # 기존 유지
-│   │   └── css/
-│   │       ├── admin.css             # 신규 추가
-│   │       └── common.css            # 기존 유지
-│   ├── database/                     # 신규 추가
-│   │   ├── __init__.py
-│   │   ├── connection.py             # MariaDB 연결
-│   │   ├── models.py                 # SQLAlchemy 모델
-│   │   └── crud.py                   # CRUD 함수
-│   └── utils/                        # 신규 추가
-│       ├── __init__.py
-│       ├── object_storage.py         # Object Storage 유틸
-│       └── async_batch.py            # 비동기 배치 서비스
-├── modules/
-│   ├── similarity_matcher.py         # 기존 유지
-│   ├── anomaly_detector.py           # 기존 유지
-│   └── vlm/                          # 기존 유지
-└── data/                             # 기존 유지
-    ├── patchCore/                    # 제품별 정상 이미지
-    └── def_split/                    # 불량 이미지
+├── .gitignore
+├── .vscode/
+├── Markdown/                          # 프로젝트 문서
+│   ├── admin_development_scope_v3.md
+│   ├── database_schema.md
+│   ├── project_status.md
+│   ├── session_handover.md
+│   ├── system_architecture.md
+│   └── ...
+├── admin/                             # 관리 스크립트
+├── docs/                              # 추가 문서
+├── llm_server/                        # LLM 서버 관련
+├── manual_store/                      # 매뉴얼 저장소
+├── modules/                           # 핵심 모듈
+│   ├── patchCore/                     # PatchCore 모듈
+│   ├── similarity_matcher.py          # CLIP 유사도 매칭
+│   ├── anomaly_detector.py            # 이상 검출
+│   └── vlm/                           # VLM/LLM 관련
+├── object_storage/                    # Object Storage 테스트
+├── regacy/                            # 레거시 코드
+├── results/                           # 결과 저장
+└── web/                               # 웹 애플리케이션 ⭐
+    ├── api_server.py                  # FastAPI 메인 서버
+    ├── matching.html                  # (레거시)
+    ├── defect_mapping.json            # 불량 매핑 설정
+    ├── requirements.txt
+    ├── README.md
+    │
+    ├── routers/                       # API 라우터
+    │   ├── __init__.py
+    │   ├── admin/                     # ✅ 관리자 API
+    │   │   ├── __init__.py
+    │   │   ├── dashboard.py           # 대시보드
+    │   │   ├── product.py             # 제품 관리
+    │   │   ├── manual.py              # 매뉴얼 관리
+    │   │   ├── defect_type.py         # 불량 유형 관리
+    │   │   └── image.py               # 이미지 관리
+    │   ├── anomaly.py                 # 이상 검출 API (작업자)
+    │   ├── auth.py                    # 인증
+    │   ├── manual.py                  # 매뉴얼 API (작업자)
+    │   ├── search.py                  # 검색 API (작업자)
+    │   └── upload.py                  # 업로드 API (작업자)
+    │
+    ├── pages/                         # HTML 페이지
+    │   ├── admin.html                 # 관리자 메인
+    │   ├── admin/                     # ✅ 관리자 페이지
+    │   │   ├── admin_layout.html      # 레이아웃
+    │   │   ├── dashboard.html         # 대시보드
+    │   │   ├── admin_product.html     # 제품 관리
+    │   │   ├── admin_manual.html      # 매뉴얼 관리
+    │   │   ├── admin_defect_type.html # 불량 유형 관리
+    │   │   ├── admin_image_normal.html # 정상 이미지
+    │   │   └── admin_image_defect.html # 불량 이미지
+    │   ├── login.html                 # 로그인
+    │   ├── upload.html                # 업로드 (작업자)
+    │   ├── search.html                # 검색 (작업자)
+    │   ├── anomaly.html               # 이상 검출 (작업자)
+    │   └── manual.html                # 매뉴얼 (작업자)
+    │
+    ├── static/                        # 정적 파일
+    │   ├── admin/                     # ⚠️ admin용 정적 파일 (확인 필요)
+    │   ├── css/
+    │   │   └── (CSS 파일들)
+    │   └── js/                        # JavaScript
+    │       ├── common.js              # 공통 함수
+    │       ├── upload.js              # 업로드 (작업자)
+    │       ├── search.js              # 검색 (작업자)
+    │       ├── anomaly.js             # 이상 검출 (작업자)
+    │       ├── manual.js              # 매뉴얼 (작업자)
+    │       └── matching.js            # 매칭 (작업자)
+    │
+    ├── database/                      # ✅ DB 연동
+    │   ├── __init__.py
+    │   ├── connection.py              # MariaDB 연결
+    │   ├── models.py                  # SQLAlchemy 모델
+    │   └── crud.py                    # CRUD 함수
+    │
+    └── utils/                         # ✅ 유틸리티
+        ├── __init__.py
+        ├── auth.py                    # 인증 유틸
+        └── object_storage.py          # ✅ Object Storage 유틸 (구현 완료!)
 ```
 
 ---
 
-**작성자**: Claude  
 **검토자**: dhkim  
-**승인일**: 2025-11-13  
-**버전**: 3.0
+**승인일**: 2025-11-14
+**버전**: 3.1
