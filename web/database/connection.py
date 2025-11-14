@@ -10,8 +10,8 @@ from sqlalchemy.pool import QueuePool
 # 환경변수에서 DB 설정 읽기
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "3306")
-DB_USER = os.getenv("DB_USER", "defect_user")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "your_secure_password")
+DB_USER = os.getenv("DB_USER", "dmillion")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "dm250120@")
 DB_NAME = os.getenv("DB_NAME", "defect_detection_db")
 
 # MariaDB 연결 URL
