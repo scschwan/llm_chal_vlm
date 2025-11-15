@@ -259,7 +259,7 @@ async def sync_manual():
             local_filename = f"{prod_name}_manual{file_ext}"
             local_path = MANUAL_STORE_PATH / local_filename
             
-            obs_url = f"{OBS_BASE_URL}/{file_path}"
+            obs_url = f"{OBS_BASE_URL}{file_path}"
             print(f"[SYNC] 다운로드 중: {obs_url} -> {local_path}")
             
             try:

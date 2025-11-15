@@ -91,13 +91,17 @@ def init_db():
 
 
 def test_connection():
+    from sqlalchemy import text
     """
     DB 연결 테스트
     """
     try:
         db = SessionLocal()
         #db.execute("SELECT 1 from products;")
-        db.execute("SELECT 1")
+        query = text("""
+            SELECT 1
+        """)
+        db.execute(query)
         db.close()
         print("✅ 데이터베이스 연결 성공")
         return True
