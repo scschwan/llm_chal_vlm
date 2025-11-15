@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from pathlib import Path
 import shutil
-
+import os
 import sys
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -217,7 +217,8 @@ async def sync_manual():
     sys.path.append(str(project_root))
     
     # Object Storage 설정
-    OBS_BASE_URL = "https://kr.object.private.ncloudstorage.com/dm-obs"
+    
+    OBS_BASE_URL=os.getenv('NCP_STORAGE_BASE_URL', 'https://kr.object.ncloudstorage.com')
     MANUAL_STORE_PATH = project_root / "manual_store"
     MANUAL_STORE_PATH.mkdir(parents=True, exist_ok=True)
     
