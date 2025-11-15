@@ -96,6 +96,7 @@ def test_connection():
     """
     try:
         db = SessionLocal()
+        #db.execute("SELECT 1 from products;")
         db.execute("SELECT 1")
         db.close()
         print("✅ 데이터베이스 연결 성공")
