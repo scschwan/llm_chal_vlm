@@ -219,3 +219,123 @@ def delete_defect_type(defect_type_id: int, db: Session = Depends(get_db)):
     
     except Exception as e:
         raise HTTPException(500, f"불량 유형 삭제 실패: {str(e)}")
+    
+@router.post("/refresh-mapping")
+async def refresh_mapping():
+    """
+    DB 기반으로 defect_mapping.json 파일 재생성 및 리로드
+    
+    1. DB에서 defect_types 조회
+    2. JSON 포맷으로 변환
+    3. defect_mapping.json 파일 저장
+    4. DefectMapper 리로드
+    """
+    import json
+    from pathlib import Path
+    from sqlalchemy import text
+    from collections import defaultdict
+    
+    # 프로젝트 루트 경로
+    project_root = Path(__file__).parent.parent.parent
+    mapping_file_path = project_root / "web" / "defect_mapping.json"
+    
+    # DB 연결
+    db = next(get_db())
+    
+    try:
+        print("[MAPPING] defect_mapping.json 재생성 시작")
+        
+        # 1. DB에서 불량 유형 조회
+        query = text("""
+            SELECT 
+                (SELECT p.product_name FROM products p WHERE p.product_id = dt.product_id) AS name_ko,
+                (SELECT p.product_code FROM products p WHERE p.product_id = dt.product_id) AS prod_code,
+                dt.defect_code,
+                dt.defect_name_ko,
+                dt.defect_name_en
+            FROM defect_types dt
+            WHERE dt.defect_code != 'ok'
+            ORDER BY prod_code, dt.defect_code
+        """)
+        
+        result = db.execute(query)
+        defect_data = result.fetchall()
+        
+        if not defect_data:
+            print("[MAPPING] 조회된 불량 유형이 없습니다.")
+            return {"status": "error", "message": "조회된 불량 유형이 없습니다."}
+        
+        print(f"[MAPPING] {len(defect_data)}개 불량 유형 조회 완료")
+        
+        # 2. JSON 구조 생성
+        products_dict = defaultdict(lambda: {"name_ko": "", "defects": {}})
+        
+        for row in defect_data:
+            name_ko, prod_code, defect_code, defect_name_ko, defect_name_en = row
+            
+            # 제품명 설정
+            if not products_dict[prod_code]["name_ko"]:
+                products_dict[prod_code]["name_ko"] = name_ko
+            
+            # 불량 유형 추가
+            products_dict[prod_code]["defects"][defect_code] = {
+                "en": defect_name_en or defect_code,
+                "ko": defect_name_ko
+            }
+        
+        # 3. 최종 JSON 구조 생성
+        mapping_json = {
+            "products": dict(products_dict)
+        }
+        
+        # 4. 파일 저장
+        with open(mapping_file_path, 'w', encoding='utf-8') as f:
+            json.dump(mapping_json, f, ensure_ascii=False, indent=2)
+        
+        print(f"[MAPPING] 파일 저장 완료: {mapping_file_path}")
+        
+        # 5. DefectMapper 리로드 (api_server.py의 전역 변수 업데이트)
+        try:
+            # api_server에서 사용 중인 DefectMapper 리로드
+            from modules.vlm.defect_mapper import DefectMapper
+            
+            # 새로운 매퍼 인스턴스 생성
+            new_mapper = DefectMapper(mapping_file_path)
+            
+            print("[MAPPING] DefectMapper 리로드 완료")
+            
+            # 생성된 제품 목록 출력
+            product_codes = list(mapping_json["products"].keys())
+            print(f"[MAPPING] 생성된 제품: {', '.join(product_codes)}")
+            
+            return {
+                "status": "success",
+                "message": "매핑 파일 재생성 및 리로드 완료",
+                "file_path": str(mapping_file_path),
+                "products": product_codes,
+                "total_defects": len(defect_data)
+            }
+            
+        except Exception as e:
+            print(f"[MAPPING] DefectMapper 리로드 실패: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            return {
+                "status": "partial",
+                "message": "파일은 생성되었으나 리로드 실패",
+                "error": str(e)
+            }
+        
+    except Exception as e:
+        print(f"[MAPPING] 매핑 파일 생성 실패: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        return {
+            "status": "error",
+            "message": f"매핑 파일 생성 실패: {str(e)}"
+        }
+        
+    finally:
+        db.close()

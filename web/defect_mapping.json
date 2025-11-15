@@ -1,7 +1,7 @@
 {
   "products": {
     "prod1": {
-      "name_ko": "주조제품",
+      "name_ko": "주조제품 A형",
       "defects": {
         "burr": {
           "en": "burr",
@@ -18,7 +18,7 @@
       }
     },
     "grid": {
-      "name_ko": "그리드",
+      "name_ko": "그리드 제품",
       "defects": {
         "bent": {
           "en": "bent",
@@ -43,7 +43,7 @@
       }
     },
     "carpet": {
-      "name_ko": "카펫",
+      "name_ko": "카펫 제품",
       "defects": {
         "color": {
           "en": "color",
@@ -68,7 +68,7 @@
       }
     },
     "leather": {
-      "name_ko": "가죽",
+      "name_ko": "가죽 제품",
       "defects": {
         "color": {
           "en": "color",
