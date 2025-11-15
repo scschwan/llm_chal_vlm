@@ -32,8 +32,8 @@
           "en": "glue",
           "ko": "접착제 오염"
         },
-        "metal contamination": {
-          "en": "metal contamination",
+        "metal": {
+          "en": "metal",
           "ko": "금속 이물 오염/찌름"
         },
         "thread": {
@@ -57,8 +57,8 @@
           "en": "hole",
           "ko": "구멍·천공"
         },
-        "metal contamination": {
-          "en": "metal contamination",
+        "metal": {
+          "en": "metal",
           "ko": "금속 이물 오염"
         },
         "thread": {
