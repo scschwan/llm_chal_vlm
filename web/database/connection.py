@@ -3,6 +3,7 @@
 """
 
 import os
+from urllib.parse import quote_plus
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import QueuePool
@@ -14,8 +15,11 @@ DB_USER = os.getenv("DB_USER", "dmillion")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "dm250120@")
 DB_NAME = os.getenv("DB_NAME", "defect_detection_db")
 
+# ✅ 비밀번호 URL 인코딩 (특수문자 처리)
+encoded_password = quote_plus(DB_PASSWORD)
+
 # MariaDB 연결 URL
-DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
+DATABASE_URL = f"mysql+pymysql://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
 
 # SQLAlchemy 엔진 생성
 engine = create_engine(
