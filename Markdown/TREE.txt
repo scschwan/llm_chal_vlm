@@ -49,7 +49,7 @@
 ├── [  31M]  manual_store
 │   ├── [  19K]  carpet_manual.docx
 │   ├── [ 3.8M]  carpet_manual.pdf
-│   ├── [  612]  file_metadata.json
+│   ├── [  916]  file_metadata.json
 │   ├── [  19K]  grid_manual.docx
 │   ├── [ 3.8M]  grid_manual.pdf
 │   ├── [ 9.0K]  index.faiss
@@ -67,9 +67,9 @@
 │   │   └── [ 3.8M]  prod1_menual.pdf
 │   ├── [  18K]  prod1_menual.docx
 │   ├── [ 3.8M]  prod1_menual.pdf
-│   └── [  79K]  unified_index
-│       ├── [  63K]  index.faiss
-│       └── [  16K]  index.pkl
+│   └── [ 156K]  unified_index
+│       ├── [ 135K]  index.faiss
+│       └── [  21K]  index.pkl
 ├── [ 256K]  Markdown
 │   ├── [  86K]  admin_development_scope_v3.md
 │   ├── [  25K]  database_schema.md
