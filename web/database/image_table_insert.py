@@ -219,18 +219,18 @@ def scan_defect_images() -> List[Dict]:
         for img_path in defect_dir.glob(ext):
             filename = img_path.name
             parsed = parse_defect_filename(filename)
-            
-            storage_url = f"{NCP_STORAGE_BASE_URL}/{NCP_BUCKET}/def_split/{filename}"
-            
-            images.append({
-                'file_name': filename,
-                'file_path': str(img_path),
-                'storage_url': storage_url,
-                'product_code': parsed['product_code'],
-                'defect_code': parsed['defect_code'],
-                'image_type': 'defect'
-            })
-    
+            if parsed != None :
+                storage_url = f"{NCP_STORAGE_BASE_URL}/{NCP_BUCKET}/def_split/{filename}"
+                
+                images.append({
+                    'file_name': filename,
+                    'file_path': str(img_path),
+                    'storage_url': storage_url,
+                    'product_code': parsed['product_code'],
+                    'defect_code': parsed['defect_code'],
+                    'image_type': 'defect'
+                })
+        
     return images
 
 
