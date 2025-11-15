@@ -124,7 +124,7 @@
     │   └── [   82]  leather_color_017
     ├── [  44K]  api_server.py
     ├── [  48K]  database
-    │   ├── [ 2.9K]  connection.py
+    │   ├── [ 3.0K]  connection.py
     │   ├── [  26K]  crud.py
     │   ├── [  10K]  image_table_insert.py
     │   └── [ 8.7K]  models.py
@@ -230,9 +230,11 @@
     │       ├── [  15K]  search.js
     │       └── [  11K]  upload.js
     ├── [    6]  uploads
-    └── [  11K]  utils
-        ├── [ 1.6K]  auth.py
-        ├── [    0]  __init__.py
-        └── [ 9.7K]  object_storage.py
+    ├── [  11K]  utils
+    │   ├── [ 1.6K]  auth.py
+    │   ├── [    0]  __init__.py
+    │   └── [ 9.7K]  object_storage.py
+    └── [ 4.0K]  web
+        └── [ 4.0K]  defect_mapping.json
 
-   91M used in 52 directories, 183 files
+   91M used in 53 directories, 184 files
