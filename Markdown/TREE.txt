@@ -110,12 +110,76 @@
 │   ├── [ 1.5K]  multi-part_file_upload_sample.py
 │   ├── [ 1.6K]  ncp_obj_public_get_test.py
 │   └── [   82]  readme.txt
+├── [ 227M]  regacy
+│   ├── [  792]  config.py
+│   ├── [  12K]  main.py
+│   ├── [ 227M]  model
+│   │   ├── [  39M]  bolt_model
+│   │   │   ├── [ 1.6K]  args.yaml
+│   │   │   ├── [ 8.5K]  results.csv
+│   │   │   └── [  39M]  weights
+│   │   │       ├── [  20M]  best.pt
+│   │   │       └── [  20M]  last.pt
+│   │   ├── [  39M]  bolt_model2
+│   │   │   ├── [ 1.6K]  args.yaml
+│   │   │   ├── [ 8.5K]  results.csv
+│   │   │   └── [  39M]  weights
+│   │   │       ├── [  20M]  best.pt
+│   │   │       └── [  20M]  last.pt
+│   │   ├── [  39M]  bolt_model3
+│   │   │   ├── [ 1.6K]  args.yaml
+│   │   │   ├── [ 8.5K]  results.csv
+│   │   │   └── [  39M]  weights
+│   │   │       ├── [  20M]  best.pt
+│   │   │       └── [  20M]  last.pt
+│   │   ├── [ 1.6K]  bolt_model4
+│   │   │   └── [ 1.6K]  args.yaml
+│   │   ├── [ 1.6K]  bolt_model5
+│   │   │   └── [ 1.6K]  args.yaml
+│   │   ├── [  37M]  bolt_model6
+│   │   │   ├── [ 1.6K]  args.yaml
+│   │   │   ├── [ 6.3K]  results.csv
+│   │   │   └── [  37M]  weights
+│   │   │       ├── [  18M]  best.pt
+│   │   │       └── [  18M]  last.pt
+│   │   ├── [  37M]  bolt_model7
+│   │   │   ├── [ 1.6K]  args.yaml
+│   │   │   ├── [ 6.3K]  results.csv
+│   │   │   └── [  37M]  weights
+│   │   │       ├── [  18M]  best.pt
+│   │   │       └── [  18M]  last.pt
+│   │   ├── [ 1.6K]  bolt_model8
+│   │   │   └── [ 1.6K]  args.yaml
+│   │   └── [  37M]  bolt_model9
+│   │       ├── [ 1.6K]  args.yaml
+│   │       ├── [ 6.3K]  results.csv
+│   │       └── [  37M]  weights
+│   │           ├── [  18M]  best.pt
+│   │           └── [  18M]  last.pt
+│   └── [  58K]  modules
+│       ├── [ 8.4K]  clip_search.py
+│       ├── [ 6.5K]  evaluate_yolo_seg.py
+│       ├── [ 1.4K]  image_processor.py
+│       ├── [ 2.3K]  object_guidance.py
+│       ├── [ 1.8K]  preprocess.py
+│       ├── [ 5.4K]  prompts.py
+│       ├── [ 6.3K]  region_detect.py
+│       ├── [  795]  shape_diff.py
+│       ├── [ 1.8K]  split_train_to_test.py
+│       ├── [ 2.2K]  ssim_utils.py
+│       ├── [ 6.3K]  train_val_pipeline.py
+│       ├── [  11K]  train_yolo_seg.py
+│       └── [ 3.8K]  vlm_local.py
 ├── [  628]  requirements_llm.txt
 ├── [  354]  requirements_patchcore.txt
 ├── [  200]  requirements_vlm_add.txt
+├── [ 5.1K]  results
+│   ├── [ 1.0K]  eval_test
+│   │   └── [  979]  metrics_summary.json
+│   └── [ 4.0K]  roi
 ├── [ 6.2K]  save_db_schema.sh
 ├── [  249]  save_tree.sh
-├── [  691]  settings.config
+├── [  335]  settings.config
 ├── [    6]  uploads
 └── [  17M]  web
     ├── [  324]  anomaly_outputs
@@ -171,10 +235,10 @@
     │   └── [ 6.8K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 138K]  routers
-    │   ├── [  96K]  admin
+    ├── [ 142K]  routers
+    │   ├── [ 101K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
-    │   │   ├── [ 8.0K]  defect_type.py
+    │   │   ├── [  12K]  defect_type.py
     │   │   ├── [  26K]  deployment.py
     │   │   ├── [  18K]  image.py
     │   │   ├── [  488]  __init__.py
@@ -230,11 +294,9 @@
     │       ├── [  15K]  search.js
     │       └── [  11K]  upload.js
     ├── [    6]  uploads
-    ├── [  11K]  utils
-    │   ├── [ 1.6K]  auth.py
-    │   ├── [    0]  __init__.py
-    │   └── [ 9.7K]  object_storage.py
-    └── [ 4.0K]  web
-        └── [ 4.0K]  defect_mapping.json
+    └── [  11K]  utils
+        ├── [ 1.6K]  auth.py
+        ├── [    0]  __init__.py
+        └── [ 9.7K]  object_storage.py
 
-   91M used in 52 directories, 185 files
+  318M used in 72 directories, 227 files
