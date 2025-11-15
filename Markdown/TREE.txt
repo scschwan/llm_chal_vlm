@@ -114,7 +114,7 @@
     │   ├── [   82]  carpet_thread_017
     │   ├── [   82]  cast_def_0_619
     │   └── [   82]  leather_color_017
-    ├── [  33K]  api_server.py
+    ├── [  34K]  api_server.py
     ├── [  47K]  database
     │   ├── [ 1.8K]  connection.py
     │   ├── [  26K]  crud.py
@@ -140,7 +140,7 @@
     │       ├── [ 222K]  faiss_index.bin
     │       └── [  53K]  metadata.json
     ├── [  14K]  matching.html
-    ├── [  94K]  pages
+    ├── [ 113K]  pages
     │   ├── [  44K]  admin
     │   │   ├── [ 3.7K]  admin_defect_type.html
     │   │   ├── [ 3.4K]  admin_deploy_clip.html
@@ -158,14 +158,15 @@
     │   ├── [  10K]  login.html
     │   ├── [ 7.3K]  manual.html
     │   ├── [ 9.5K]  search.html
+    │   ├── [  19K]  search_v2_test.html
     │   └── [ 6.8K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 122K]  routers
-    │   ├── [  84K]  admin
+    ├── [ 129K]  routers
+    │   ├── [  90K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [ 8.0K]  defect_type.py
-    │   │   ├── [  19K]  deployment.py
+    │   │   ├── [  26K]  deployment.py
     │   │   ├── [  18K]  image.py
     │   │   ├── [  488]  __init__.py
     │   │   ├── [ 6.0K]  manual.py
@@ -225,4 +226,4 @@
         ├── [    0]  __init__.py
         └── [ 9.7K]  object_storage.py
 
-   75M used in 50 directories, 175 files
+   75M used in 50 directories, 176 files
