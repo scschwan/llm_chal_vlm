@@ -41,7 +41,6 @@
 ├── [  33K]  docs
 │   ├── [  14K]  API_명세서.md
 │   └── [  18K]  API_명세서.xlsx
-├── [ 9.2K]  image_table_insert.py
 ├── [  35K]  llm_server
 │   ├── [ 2.7K]  =4.54.0
 │   ├── [  692]  check_hyperclova.sh
@@ -107,16 +106,16 @@
 ├── [  200]  requirements_vlm_add.txt
 ├── [ 6.2K]  save_db_schema.sh
 ├── [  249]  save_tree.sh
-├── [  335]  settings.config
+├── [  691]  settings.config
 ├── [    6]  uploads
 └── [  17M]  web
     ├── [  324]  anomaly_outputs
     │   ├── [   82]  carpet_thread_017
     │   ├── [   82]  cast_def_0_619
     │   └── [   82]  leather_color_017
-    ├── [  34K]  api_server.py
-    ├── [  47K]  database
-    │   ├── [ 1.8K]  connection.py
+    ├── [  44K]  api_server.py
+    ├── [  48K]  database
+    │   ├── [ 2.8K]  connection.py
     │   ├── [  26K]  crud.py
     │   ├── [  10K]  image_table_insert.py
     │   └── [ 8.7K]  models.py
@@ -162,7 +161,7 @@
     │   └── [ 6.8K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 129K]  routers
+    ├── [ 133K]  routers
     │   ├── [  91K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [ 8.0K]  defect_type.py
@@ -178,7 +177,7 @@
     │   ├── [  291]  __init__.py
     │   ├── [ 7.9K]  manual.py
     │   ├── [ 6.9K]  search.py
-    │   ├── [ 7.8K]  search_v2.py
+    │   ├── [  11K]  search_v2.py
     │   └── [ 4.2K]  upload.py
     ├── [ 304K]  static
     │   ├── [ 166K]  admin
@@ -220,10 +219,10 @@
     │       ├── [  45K]  matching.js
     │       ├── [  15K]  search.js
     │       └── [  11K]  upload.js
-    ├── [  113]  uploads
+    ├── [    6]  uploads
     └── [  11K]  utils
         ├── [ 1.6K]  auth.py
         ├── [    0]  __init__.py
         └── [ 9.7K]  object_storage.py
 
-   75M used in 50 directories, 176 files
+   75M used in 50 directories, 175 files
