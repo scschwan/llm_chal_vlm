@@ -62,7 +62,7 @@
 │       ├── [  63K]  index.faiss
 │       └── [  16K]  index.pkl
 ├── [ 235K]  Markdown
-│   ├── [  85K]  admin_development_scope_v3.md
+│   ├── [  86K]  admin_development_scope_v3.md
 │   ├── [  25K]  database_schema.md
 │   ├── [ 1.4K]  defect_management_TODO.md
 │   ├── [  30K]  유사이미지_검색_솔루션_설계서.md
@@ -105,14 +105,16 @@
 ├── [ 6.2K]  save_db_schema.sh
 ├── [  249]  save_tree.sh
 ├── [    6]  uploads
-└── [10.0M]  web
-    ├── [  220]  anomaly_outputs
+└── [  10M]  web
+    ├── [  324]  anomaly_outputs
     │   ├── [   82]  carpet_thread_017
+    │   ├── [   82]  cast_def_0_619
     │   └── [   82]  leather_color_017
     ├── [  26K]  api_server.py
-    ├── [  33K]  database
+    ├── [  42K]  database
     │   ├── [ 1.7K]  connection.py
     │   ├── [  23K]  crud.py
+    │   ├── [ 9.2K]  image_table_insert.py
     │   └── [ 8.4K]  models.py
     ├── [ 1.9K]  defect_mapping.json
     ├── [ 9.4M]  index_cache
@@ -142,7 +144,7 @@
     │   ├── [ 6.3K]  anomaly.html
     │   ├── [  10K]  login.html
     │   ├── [ 7.3K]  manual.html
-    │   ├── [ 9.7K]  search.html
+    │   ├── [ 9.5K]  search.html
     │   └── [ 6.8K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
@@ -203,10 +205,10 @@
     │       ├── [  45K]  matching.js
     │       ├── [  15K]  search.js
     │       └── [  11K]  upload.js
-    ├── [  106]  uploads
+    ├── [   33]  uploads
     └── [  11K]  utils
         ├── [ 1.6K]  auth.py
         ├── [    0]  __init__.py
         └── [ 9.7K]  object_storage.py
 
-   68M used in 46 directories, 163 files
+   68M used in 47 directories, 164 files
