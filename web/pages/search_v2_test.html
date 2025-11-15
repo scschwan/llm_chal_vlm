@@ -431,7 +431,8 @@
             formData.append('file', file);
 
             try {
-                const response = await fetch('/api/upload', {
+                // ✅ 경로 수정: /api/upload → /upload/image
+                const response = await fetch('/upload/image', {
                     method: 'POST',
                     body: formData
                 });
@@ -439,7 +440,8 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
-                    uploadedImagePath = data.saved_path;
+                    // ✅ 응답 필드명 수정: saved_path → file_path
+                    uploadedImagePath = data.file_path;
                     console.log('업로드 성공:', uploadedImagePath);
                 } else {
                     throw new Error('업로드 실패');

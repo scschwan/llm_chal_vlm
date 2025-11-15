@@ -52,31 +52,41 @@ def create_deployment_log_record(
     status: str = 'pending'
 ) -> int:
     """배포 로그 생성"""
-    import pymysql
-    from web.database.connection import get_db_connection
+    from web.database.connection import get_db
+    from sqlalchemy import text
+    from datetime import datetime
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    db = next(get_db())
     
     try:
-        query = """
+        query = text("""
             INSERT INTO deployment_logs 
             (deploy_type, product_id, status, started_at, deployed_by)
-            VALUES (%s, %s, %s, %s, %s)
-        """
-        now = datetime.now()
-        cursor.execute(query, (deploy_type, product_id, status, now, 'admin'))
-        conn.commit()
+            VALUES (:deploy_type, :product_id, :status, :started_at, :deployed_by)
+        """)
         
-        log_id = cursor.lastrowid
+        now = datetime.now()
+        db.execute(query, {
+            "deploy_type": deploy_type,
+            "product_id": product_id,
+            "status": status,
+            "started_at": now,
+            "deployed_by": 'admin'
+        })
+        db.commit()
+        
+        # last insert id 조회
+        result = db.execute(text("SELECT LAST_INSERT_ID() as id"))
+        log_id = result.first()[0]
+        
         return log_id
         
     except Exception as e:
-        conn.rollback()
+        db.rollback()
+        print(f"배포 로그 생성 오류: {e}")
         raise e
     finally:
-        cursor.close()
-        conn.close()
+        db.close()
 
 
 def update_deployment_log_status(
@@ -86,90 +96,97 @@ def update_deployment_log_status(
     error_message: str = None
 ):
     """배포 상태 업데이트"""
-    from web.database.connection import get_db_connection
+    from web.database.connection import get_db
+    from sqlalchemy import text
+    from datetime import datetime
     import json
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    db = next(get_db())
     
     try:
-        query = """
+        query = text("""
             UPDATE deployment_logs
-            SET status = %s,
-                completed_at = %s,
-                result_data = %s,
-                result_message = %s
-            WHERE deploy_id = %s
-        """
+            SET status = :status,
+                completed_at = :completed_at,
+                result_data = :result_data,
+                result_message = :result_message
+            WHERE deploy_id = :deploy_id
+        """)
+        
         now = datetime.now()
         result_json = json.dumps(result_data, ensure_ascii=False) if result_data else None
         
-        cursor.execute(query, (
-            status,
-            now,
-            result_json,
-            error_message,
-            deploy_id
-        ))
-        conn.commit()
+        db.execute(query, {
+            "status": status,
+            "completed_at": now,
+            "result_data": result_json,
+            "result_message": error_message,
+            "deploy_id": deploy_id
+        })
+        db.commit()
         
     except Exception as e:
-        conn.rollback()
+        db.rollback()
+        print(f"배포 상태 업데이트 오류: {e}")
         raise e
     finally:
-        cursor.close()
-        conn.close()
-
+        db.close()
 
 def get_deployment_log_list(
     limit: int = 20,
     deploy_type: str = None
 ) -> list:
     """배포 이력 조회"""
-    from web.database.connection import get_db_connection
+    from web.database.connection import get_db
+    from sqlalchemy import text
     
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    db = next(get_db())
     
     try:
         if deploy_type:
-            query = """
+            query = text("""
                 SELECT *
                 FROM deployment_logs
-                WHERE deploy_type = %s
+                WHERE deploy_type = :deploy_type
                 ORDER BY started_at DESC
-                LIMIT %s
-            """
-            cursor.execute(query, (deploy_type, limit))
+                LIMIT :limit
+            """)
+            result = db.execute(query, {"deploy_type": deploy_type, "limit": limit})
         else:
-            query = """
+            query = text("""
                 SELECT *
                 FROM deployment_logs
                 ORDER BY started_at DESC
-                LIMIT %s
-            """
-            cursor.execute(query, (limit,))
+                LIMIT :limit
+            """)
+            result = db.execute(query, {"limit": limit})
         
-        logs = cursor.fetchall()
-        
-        # 날짜 형식 변환 및 필드명 매핑
-        for log in logs:
+        logs = []
+        for row in result:
+            log = dict(row._mapping)
+            
+            # 날짜 형식 변환
             if log.get('started_at'):
-                log['start_time'] = log['started_at'].isoformat()
+                log['start_time'] = log['started_at'].isoformat() if log['started_at'] else None
             if log.get('completed_at'):
-                log['end_time'] = log['completed_at'].isoformat()
+                log['end_time'] = log['completed_at'].isoformat() if log['completed_at'] else None
+            
             # API 호환성을 위한 필드명 매핑
             log['target'] = str(log.get('product_id', 'all'))
             log['deployment_type'] = log.get('deploy_type')
             log['error_message'] = log.get('result_message')
+            
+            logs.append(log)
         
         return logs
         
     except Exception as e:
+        print(f"배포 이력 조회 오류: {e}")
+        import traceback
+        traceback.print_exc()
         raise e
     finally:
-        cursor.close()
-        conn.close()
+        db.close()
 
 
 # ========================================
