@@ -129,6 +129,7 @@
     │   ├── [  10K]  image_table_insert.py
     │   └── [ 8.7K]  models.py
     ├── [ 1.9K]  defect_mapping.json
+    ├── [ 1.9K]  defect_mapping_origin.json
     ├── [ 9.4M]  index_cache
     │   ├── [ 8.3M]  defect
     │   │   ├── [ 4.1M]  faiss_index.bin
@@ -147,7 +148,6 @@
     │       ├── [ 224K]  embeddings.pt
     │       ├── [ 222K]  faiss_index.bin
     │       └── [  53K]  metadata.json
-    ├── [    6]  manual_store
     ├── [  14K]  matching.html
     ├── [ 113K]  pages
     │   ├── [  44K]  admin
@@ -229,7 +229,7 @@
     │       ├── [  45K]  matching.js
     │       ├── [  15K]  search.js
     │       └── [  11K]  upload.js
-    ├── [   34]  uploads
+    ├── [    6]  uploads
     ├── [  11K]  utils
     │   ├── [ 1.6K]  auth.py
     │   ├── [    0]  __init__.py
@@ -237,4 +237,4 @@
     └── [ 4.0K]  web
         └── [ 4.0K]  defect_mapping.json
 
-   91M used in 53 directories, 184 files
+   91M used in 52 directories, 185 files
