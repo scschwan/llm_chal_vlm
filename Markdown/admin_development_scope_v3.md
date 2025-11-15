@@ -1647,35 +1647,69 @@ GET    /api/admin/deployment/logs              # 배포 이력 조회
      - `web/static/admin/css/admin_deploy_patchcore.css`
      - `web/static/admin/js/admin_deploy_patchcore.js`
 
-### Phase 3: 설정 및 모니터링 (3-4일) 🚧 진행 예정
-**목표**: 전처리 설정, 모델 선택, 대시보드 구현
+### Phase 3: 설정 및 모니터링 ✅ 완료 (2025-11-14)
 
-7. ⏳ **이미지 전처리 설정** (3.7)
-   - CRUD API 개발
-   - 화면 개발
-   - **예정 파일**:
-     - `web/routers/admin/preprocessing.py`
-     - `web/pages/admin/admin_preprocessing.html`
-     - `web/static/admin/css/admin_preprocessing.css`
-     - `web/static/admin/js/admin_preprocessing.js`
+#### 3.1 이미지 전처리 설정 ✅
 
-8. ⏳ **모델 선택** (3.8)
-   - CRUD API 개발
-   - 화면 개발
-   - **예정 파일**:
-     - `web/routers/admin/model.py`
-     - `web/pages/admin/admin_model.html`
-     - `web/static/admin/css/admin_model.css`
-     - `web/static/admin/js/admin_model.js`
+**완성된 파일:**
+1. `web/routers/admin/preprocessing.py` - 전처리 설정 API
+2. `web/pages/admin/admin_preprocessing.html` - 전처리 설정 화면
+3. `web/static/admin/css/admin_preprocessing.css` - 전처리 화면 스타일
+4. `web/static/admin/js/admin_preprocessing.js` - 전처리 화면 로직
 
-9. ⏳ **통합 대시보드** (3.1)
-   - 통계 데이터 조회 API
-   - 화면 개발 (차트 포함)
-   - **예정 파일**:
-     - `web/routers/admin/dashboard.py`
-     - `web/pages/admin/admin_dashboard.html`
-     - `web/static/admin/css/admin_dashboard.css`
-     - `web/static/admin/js/admin_dashboard.js`
+**수정된 파일:**
+- `web/database/crud.py` - 전처리 관련 CRUD 함수 추가
+  - `get_all_preprocessing_configs()`
+  - `get_preprocessing_by_id()`
+  - `set_active_preprocessing()`
+  - `delete_preprocessing()`
+  - `get_preprocessing_configs_with_product()`
+- `web/api_server.py` - preprocessing 라우터 등록 및 페이지 서빙
+
+**구현된 기능:**
+- 제품별 전처리 설정 생성/수정/삭제
+- 전처리 옵션: grayscale, histogram, contrast, smoothing, normalize
+- 프리셋 지원 (기본, 그레이스케일, 전체 전처리, 히스토그램)
+- 설정 활성화/비활성화
+- 제품별 전처리 설정 조회
+
+**DB 스키마 매핑:**
+- 기존 `image_preprocessing` 테이블 사용
+- 필드: `preprocessing_id`, `product_id`, `grayscale`, `histogram`, `contrast`, `smoothing`, `normalize`, `is_active`, `created_at`, `updated_at`
+
+#### 3.2 모델 선택 ✅
+
+**완성된 파일:**
+1. `web/routers/admin/model.py` - 모델 선택 API
+2. `web/pages/admin/admin_model.html` - 모델 선택 화면
+3. `web/static/admin/css/admin_model.css` - 모델 선택 화면 스타일
+4. `web/static/admin/js/admin_model.js` - 모델 선택 화면 로직
+
+**수정된 파일:**
+- `web/database/crud.py` - 모델 파라미터 관련 CRUD 함수 추가
+  - `create_model_param()`
+  - `get_model_params()`
+  - `get_model_param_by_id()`
+  - `get_active_model_param()`
+  - `update_model_param()`
+  - `set_active_model_param()`
+- `web/api_server.py` - model 라우터 등록 및 페이지 서빙
+
+**구현된 기능:**
+- CLIP 모델 선택 (ViT-B-32, ViT-B-16, ViT-L-14)
+- PatchCore 백본 모델 선택 (WideResNet50, ResNet18)
+- 현재 사용 중인 모델 표시
+- 모델 성능 비교표
+- 모델 상세 정보 조회
+- 모델 활성화
+
+**DB 스키마 매핑:**
+- 기존 `model_params` 테이블 사용
+- 필드: `param_id`, `product_id`, `model_type`, `params` (JSON), `is_active`, `created_at`, `updated_at`
+
+**지원 모델:**
+- CLIP: ViT-B-32 (권장), ViT-B-16, ViT-L-14
+- PatchCore: WideResNet50 (권장), ResNet18
 
 ### Phase 4: 통합 및 테스트 (1주)
 **목표**: 전체 기능 통합 테스트 및 디버깅
@@ -1990,36 +2024,6 @@ async def upload_normal_images(
     db.commit()
     return {"results": results}
 ```
-
-### 7.4 다음 단계 (Phase 2)
-
-Phase 1 완료 후 즉시 Phase 2로 진행:
-
-1. **CLIP 임베딩 재구축** (3.9)
-   - 의존성: Object Storage 연동 완료 필수
-   - 예상 소요: 2일
-
-2. **PatchCore 메모리뱅크 생성** (3.10)
-   - 의존성: CLIP 재구축 완료 권장
-   - 예상 소요: 1.5일
-
-### 7.5 요약
-
-**Phase 1 현황**:
-- ✅ 완료: 제품 관리, 불량 유형 관리, DB 연동, 레이아웃
-- ⚠️ 부분 완료: 매뉴얼 관리, 이미지 관리
-- ⬜ 미완료: Object Storage 연동, ZIP 업로드
-
-**Phase 1 완료를 위한 예상 추가 작업 시간**: 1일
-- Object Storage 유틸리티: 0.5일
-- API 연동 수정: 0.5일
-
-**권장 다음 작업**:
-1. Object Storage 유틸리티 구현 (최우선)
-2. 매뉴얼 업로드/다운로드 연동
-3. 이미지 업로드 연동
-4. Phase 2 시작
-
 
 
 ---
