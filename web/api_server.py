@@ -30,8 +30,11 @@ sys.path.insert(0, str(project_root))
 
 # 기존 imports
 from modules.similarity_matcher import TopKSimilarityMatcher, create_matcher
+from modules.similarity_matcher_v2 import create_matcher_v2
 from modules.anomaly_detector import AnomalyDetector, create_detector
 from modules.vlm import RAGManager, DefectMapper, PromptBuilder
+
+
 
 # ====================
 # FastAPI 앱 생성
@@ -49,7 +52,12 @@ STATIC_DIR = WEB_DIR / "static"
 PAGES_DIR = WEB_DIR / "pages"
 UPLOAD_DIR = WEB_DIR / "uploads"
 INDEX_DIR = WEB_DIR / "index_cache"
+
+INDEX_DIR_V2 = Path(__file__).parent / "index_cache_v2"
+
 ANOMALY_OUTPUT_DIR = WEB_DIR / "anomaly_outputs"
+
+
 
 # 디렉토리 생성
 STATIC_DIR.mkdir(exist_ok=True)
@@ -75,6 +83,9 @@ app.add_middleware(
 # ====================
 # 전역 변수
 # ====================
+# 전역 변수 추가 (기존 변수들 아래에)
+similarity_matcher_v2 = None
+
 
 matcher: Optional[TopKSimilarityMatcher] = None
 detector: Optional[AnomalyDetector] = None
@@ -285,7 +296,37 @@ def update_tree_on_startup():
 @app.on_event("startup")
 async def startup_event():
     """서버 시작 시 초기화"""
-    global matcher, detector, current_index_type
+    global matcher, detector, current_index_type  
+
+    # ==================== 설정 파일 로드 ====================
+    config_file = project_root / "settings.config"
+    config = {}
+    
+    if config_file.exists():
+        print("\n" + "=" * 70)
+        print("설정 파일 로드 중...")
+        print("=" * 70)
+        with open(config_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        config[key.strip()] = value.strip()
+        
+        print(f"인덱스 버전: {'V2 (DB 메타데이터)' if config.get('USE_INDEX_V2', 'false') == 'true' else 'V1 (파일명 파싱)'}")
+        print(f"CLIP 모델: {config.get('CLIP_MODEL_ID', 'ViT-B-32')}/{config.get('CLIP_PRETRAINED', 'openai')}")
+        print("=" * 70 + "\n")
+    else:
+        print(f"⚠️  설정 파일 없음: {config_file}")
+        print("기본 설정 사용: V1 인덱스")
+    
+    USE_INDEX_V2 = config.get('USE_INDEX_V2', 'false') == 'true'
+    CLIP_MODEL = config.get('CLIP_MODEL_ID', 'ViT-B-32')
+    CLIP_PRETRAINED = config.get('CLIP_PRETRAINED', 'openai')
+    CLIP_BATCH_SIZE = int(config.get('CLIP_BATCH_SIZE', '32'))
+    CLIP_NUM_WORKERS = int(config.get('CLIP_NUM_WORKERS', '4'))
+    CLIP_USE_FP16 = config.get('CLIP_USE_FP16', 'false') == 'true'
 
     update_tree_on_startup()
     
@@ -305,93 +346,184 @@ async def startup_event():
     except Exception as e:
         print(f"⚠️  임시 파일 삭제 실패: {e}")
     
-    # 1. 유사도 매처 생성
-    matcher = create_matcher(
-        model_id="ViT-B-32/openai",
-        device="auto",
-        use_fp16=False,  # FP16은 안정성 확인 후 활성화
-        batch_size=32,   # ✅ 배치 크기 32
-        num_workers=4,   # ✅ 워커 4개 (CPU 코어 수에 맞게 조정)
-        verbose=True
-    )
-    
-    # 2. 두 인덱스 모두 미리 구축
-    print("\n" + "="*60)
-    print("인덱스 사전 구축 시작")
-    print("="*60)
-    
-    # 2-1. 불량 이미지 인덱스 구축
-    defect_dir = project_root / "data" / "def_split"
-    defect_index_path = INDEX_DIR / "defect"
-    defect_index_path.mkdir(parents=True, exist_ok=True)
-    
-    if defect_dir.exists():
+    # ==================== 인덱스 버전 분기 ====================
+    if USE_INDEX_V2:
+        # ========== V2: DB 메타데이터 기반 인덱스 ==========
+        print("\n" + "=" * 70)
+        print("V2 인덱스 구축 (DB 메타데이터 기반)")
+        print("=" * 70)
+        
+        from modules.similarity_matcher_v2 import create_matcher_v2
+        from web.database.connection import get_db
+        
+        # V2 매처 생성
+        matcher = create_matcher_v2(
+            model_id=f"{CLIP_MODEL}/{CLIP_PRETRAINED}",
+            device="auto",
+            use_fp16=CLIP_USE_FP16,
+            batch_size=CLIP_BATCH_SIZE,
+            num_workers=CLIP_NUM_WORKERS,
+            verbose=True
+        )
+        
+        # V2 인덱스 디렉토리
+        INDEX_DIR_V2 = WEB_DIR / "index_cache_v2"
+        INDEX_DIR_V2.mkdir(parents=True, exist_ok=True)
+        
+        defect_index_v2 = INDEX_DIR_V2 / "defect"
+        normal_index_v2 = INDEX_DIR_V2 / "normal"
+        
+        defect_index_v2.mkdir(parents=True, exist_ok=True)
+        normal_index_v2.mkdir(parents=True, exist_ok=True)
+        
         try:
-            print(f"\n[1/2] 불량 이미지 인덱스 구축 중...")
-            print(f"      경로: {defect_dir}")
+            # DB 세션 생성
+            db = next(get_db())
             
-            info = matcher.build_index(str(defect_dir))
-            matcher.save_index(str(defect_index_path))
+            # 1. 정상 이미지 인덱스 구축
+            print(f"\n[1/2] 정상 이미지 인덱스 구축 (DB 기반)...")
+            try:
+                info = matcher.build_index_from_db(db, image_type='normal')
+                matcher.save_index(str(normal_index_v2))
+                print(f"      ✅ 완료: {info['num_images']}개 이미지")
+            except Exception as e:
+                print(f"      ⚠️  실패: {e}")
+                # 저장된 인덱스 로드 시도
+                if (normal_index_v2 / "metadata.json").exists():
+                    print(f"      → 저장된 인덱스 로드 시도...")
+                    matcher.load_index(str(normal_index_v2))
+                    print(f"      ✅ 저장된 인덱스 로드 완료")
             
-            print(f"      ✅ 완료: {info['num_images']}개 이미지")
+            # 2. 불량 이미지 인덱스 구축
+            print(f"\n[2/2] 불량 이미지 인덱스 구축 (DB 기반)...")
+            try:
+                info = matcher.build_index_from_db(db, image_type='defect')
+                matcher.save_index(str(defect_index_v2))
+                print(f"      ✅ 완료: {info['num_images']}개 이미지")
+            except Exception as e:
+                print(f"      ⚠️  실패: {e}")
+                # 저장된 인덱스 로드 시도
+                if (defect_index_v2 / "metadata.json").exists():
+                    print(f"      → 저장된 인덱스 로드 시도...")
+                    matcher.load_index(str(defect_index_v2))
+                    print(f"      ✅ 저장된 인덱스 로드 완료")
+            
+            # 3. 기본 인덱스를 불량 이미지로 설정
+            print("\n🔄 기본 인덱스 설정 (불량 이미지)...")
+            if (defect_index_v2 / "metadata.json").exists():
+                matcher.load_index(str(defect_index_v2))
+                current_index_type = "defect"
+                print(f"✅ 불량 이미지 인덱스 로드 완료: {len(matcher.gallery_metadata)}개")
+            
         except Exception as e:
-            print(f"      ❌ 실패: {e}")
+            print(f"\n❌ V2 인덱스 구축 실패: {e}")
             import traceback
             traceback.print_exc()
+        
+        # V2 라우터 초기화
+        from routers.search_v2 import init_search_v2_router
+        init_search_v2_router(matcher, INDEX_DIR_V2, project_root)
+        
+        print("\n" + "=" * 70)
+        print("V2 인덱스 구축 완료")
+        print("=" * 70)
+    
     else:
-        print(f"\n[1/2] ⚠️  불량 이미지 디렉토리 없음: {defect_dir}")
-    
-    # 2-2. 정상 이미지 통합 인덱스 구축
-    normal_base_dir = project_root / "data" / "patchCore"
-    normal_index_path = INDEX_DIR / "normal"
-    normal_index_path.mkdir(parents=True, exist_ok=True)
-    
-    if normal_base_dir.exists():
-        try:
-            print(f"\n[2/2] 정상 이미지 통합 인덱스 구축 중...")
-            print(f"      기본 경로: {normal_base_dir}")
-            
-            # 모든 제품 폴더 탐색
-            product_dirs = [d for d in normal_base_dir.iterdir() if d.is_dir()]
-            
-            if not product_dirs:
-                print(f"      ⚠️  제품 폴더를 찾을 수 없습니다")
-            else:
-                print(f"      발견된 제품: {[d.name for d in product_dirs]}")
+        # ========== V1: 파일명 파싱 기반 인덱스 (기존 코드) ==========
+        print("\n" + "=" * 70)
+        print("V1 인덱스 구축 (파일명 파싱 기반)")
+        print("=" * 70)
+        
+        # V1 매처 생성
+        matcher = create_matcher(
+            model_id=f"{CLIP_MODEL}/{CLIP_PRETRAINED}",
+            device="auto",
+            use_fp16=CLIP_USE_FP16,
+            batch_size=CLIP_BATCH_SIZE,
+            num_workers=CLIP_NUM_WORKERS,
+            verbose=True
+        )
+        
+        # 불량 이미지 인덱스 구축
+        defect_dir = project_root / "data" / "def_split"
+        defect_index_path = INDEX_DIR / "defect"
+        defect_index_path.mkdir(parents=True, exist_ok=True)
+        
+        if defect_dir.exists():
+            try:
+                print(f"\n[1/2] 불량 이미지 인덱스 구축 중...")
+                print(f"      경로: {defect_dir}")
                 
-                # 통합 인덱스 구축 (하위 폴더 재귀 탐색)
-                info = matcher.build_index(str(normal_base_dir))
-                matcher.save_index(str(normal_index_path))
+                info = matcher.build_index(str(defect_dir))
+                matcher.save_index(str(defect_index_path))
                 
-                print(f"      ✅ 완료: {info['num_images']}개 이미지 (통합)")
-                
-                # 제품별 이미지 개수 표시
-                for prod_dir in product_dirs:
-                    prod_images = list(prod_dir.glob("*.jpg")) + list(prod_dir.glob("*.png"))
-                    print(f"         - {prod_dir.name}: {len(prod_images)}개")
-                    
-        except Exception as e:
-            print(f"      ❌ 실패: {e}")
-            import traceback
-            traceback.print_exc()
-    else:
-        print(f"\n[2/2] ⚠️  정상 이미지 기본 디렉토리 없음: {normal_base_dir}")
-    
-    print("\n" + "="*60)
-    print("인덱스 사전 구축 완료")
-    print("="*60)
-    
-    # 3. 기본 인덱스를 불량 이미지로 설정
-    try:
-        print("\n🔄 기본 인덱스 로드 중 (불량 이미지)...")
-        if (defect_index_path / "index_data.pt").exists():
-            matcher.load_index(str(defect_index_path))
-            current_index_type = "defect"
-            print(f"✅ 불량 이미지 인덱스 로드 완료: {len(matcher.gallery_paths)}개")
+                print(f"      ✅ 완료: {info['num_images']}개 이미지")
+            except Exception as e:
+                print(f"      ❌ 실패: {e}")
+                import traceback
+                traceback.print_exc()
         else:
-            print("⚠️  저장된 불량 인덱스를 찾을 수 없습니다")
-    except Exception as e:
-        print(f"⚠️  기본 인덱스 로드 실패: {e}")
+            print(f"\n[1/2] ⚠️  불량 이미지 디렉토리 없음: {defect_dir}")
+        
+        # 정상 이미지 통합 인덱스 구축
+        normal_base_dir = project_root / "data" / "patchCore"
+        normal_index_path = INDEX_DIR / "normal"
+        normal_index_path.mkdir(parents=True, exist_ok=True)
+        
+        if normal_base_dir.exists():
+            try:
+                print(f"\n[2/2] 정상 이미지 통합 인덱스 구축 중...")
+                print(f"      기본 경로: {normal_base_dir}")
+                
+                # 모든 제품 폴더 탐색
+                product_dirs = [d for d in normal_base_dir.iterdir() if d.is_dir()]
+                
+                if not product_dirs:
+                    print(f"      ⚠️  제품 폴더를 찾을 수 없습니다")
+                else:
+                    print(f"      발견된 제품: {[d.name for d in product_dirs]}")
+                    
+                    # 통합 인덱스 구축
+                    info = matcher.build_index(str(normal_base_dir))
+                    matcher.save_index(str(normal_index_path))
+                    
+                    print(f"      ✅ 완료: {info['num_images']}개 이미지 (통합)")
+                    
+                    # 제품별 이미지 개수 표시
+                    for prod_dir in product_dirs:
+                        ok_dir = prod_dir / "ok"
+                        if ok_dir.exists():
+                            prod_images = list(ok_dir.glob("*.jpg")) + list(ok_dir.glob("*.png"))
+                            print(f"         - {prod_dir.name}: {len(prod_images)}개")
+                        
+            except Exception as e:
+                print(f"      ❌ 실패: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print(f"\n[2/2] ⚠️  정상 이미지 기본 디렉토리 없음: {normal_base_dir}")
+        
+        # 기본 인덱스를 불량 이미지로 설정
+        try:
+            print("\n🔄 기본 인덱스 로드 중 (불량 이미지)...")
+            if (defect_index_path / "index_data.pt").exists():
+                matcher.load_index(str(defect_index_path))
+                current_index_type = "defect"
+                print(f"✅ 불량 이미지 인덱스 로드 완료: {len(matcher.gallery_paths)}개")
+            else:
+                print("⚠️  저장된 불량 인덱스를 찾을 수 없습니다")
+        except Exception as e:
+            print(f"⚠️  기본 인덱스 로드 실패: {e}")
+        
+        # V1 라우터 초기화
+        from routers.search import init_search_router
+        init_search_router(matcher, INDEX_DIR, project_root)
+        
+        print("\n" + "=" * 70)
+        print("V1 인덱스 구축 완료")
+        print("=" * 70)
+    
+    # ==================== 공통: Anomaly Detector & VLM ====================
 
     # 4. Anomaly Detector 생성
     try:
@@ -415,10 +547,12 @@ async def startup_event():
     from routers.anomaly import init_anomaly_router
     from routers.manual import init_manual_router
 
+
+    current_index_dir = WEB_DIR / "index_cache_v2" if USE_INDEX_V2 else INDEX_DIR
+    
    
     
     init_upload_router(UPLOAD_DIR)
-    init_search_router(matcher, INDEX_DIR, project_root)
     init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR)  # ✅ INDEX_DIR 추가
     init_manual_router(
         vlm_components.get("mapper"),
@@ -426,6 +560,13 @@ async def startup_event():
         project_root,
         "http://localhost:5001"  # LLM 서버 URL
     )
+    #init_search_router(matcher, INDEX_DIR, project_root)
+    #init_search_v2_router(matcher_v2=similarity_matcher_v2, index_dir_v2=INDEX_DIR_V2,proj_root=project_root)
+
+    if USE_INDEX_V2:
+        from routers.search_v2 import router as search_v2_router
+        app.include_router(search_v2_router)
+        print("✅ V2 검색 라우터 등록 완료")
     
     
     print("\n" + "=" * 60)
@@ -457,6 +598,9 @@ from routers.admin.dashboard import router as dashboard_router
 from routers.admin.deployment import router as deployment_router
 from routers.admin.preprocessing import router as preprocessing_router
 from routers.admin.model import router as model_router
+
+
+from routers.search_v2 import router as search_v2_router, init_search_v2_router
 
 
 app.include_router(auth_router)

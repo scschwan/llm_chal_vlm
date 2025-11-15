@@ -768,3 +768,129 @@ def set_active_model_param(db: Session, param_id: int) -> bool:
     model_param.is_active = 1
     db.commit()
     return True
+
+# ==================== V2 메타데이터 조회 함수 ====================
+
+def fetch_image_metadata_for_index(
+    db: Session, 
+    image_type: str
+) -> List[Dict[str, Any]]:
+    """
+    V2 인덱스 구축을 위한 이미지 메타데이터 조회
+    
+    Args:
+        db: DB 세션
+        image_type: 이미지 타입 ('normal' or 'defect')
+    
+    Returns:
+        메타데이터 리스트
+        [
+            {
+                "image_id": 123,
+                "local_path": "/home/dmillion/llm_chal_vlm/data/def_split/prod1_burr_021.jpeg",
+                "storage_url": "https://kr.object.ncloudstorage.com/dm-obs/def_split/prod1_burr_021.jpeg",
+                "product_id": 1,
+                "product_code": "prod1",
+                "product_name": "제품1",
+                "defect_type_id": 3,
+                "defect_code": "burr",
+                "defect_name": "버(Burr)",
+                "image_type": "defect",
+                "file_name": "prod1_burr_021.jpeg"
+            }
+        ]
+    """
+    from .models import Image, Product, DefectType
+    
+    query = db.query(
+        Image.image_id,
+        Image.file_path.label('local_path'),
+        Image.storage_url,
+        Image.product_id,
+        Product.product_code,
+        Product.product_name,
+        Image.defect_type_id,
+        DefectType.defect_code,
+        DefectType.defect_name_ko.label('defect_name'),
+        Image.image_type,
+        Image.file_name
+    ).join(
+        Product, Image.product_id == Product.product_id
+    ).outerjoin(
+        DefectType, Image.defect_type_id == DefectType.defect_type_id
+    ).filter(
+        Image.image_type == image_type
+    ).order_by(
+        Image.image_id
+    )
+    
+    results = query.all()
+    
+    metadata_list = []
+    for row in results:
+        metadata_list.append({
+            "image_id": row.image_id,
+            "local_path": row.local_path,
+            "storage_url": row.storage_url or "",
+            "product_id": row.product_id,
+            "product_code": row.product_code,
+            "product_name": row.product_name,
+            "defect_type_id": row.defect_type_id,
+            "defect_code": row.defect_code if row.defect_code else "normal",
+            "defect_name": row.defect_name if row.defect_name else "정상",
+            "image_type": row.image_type,
+            "file_name": row.file_name
+        })
+    
+    return metadata_list
+
+
+def get_image_metadata_by_id(db: Session, image_id: int) -> Dict[str, Any]:
+    """
+    단일 이미지 메타데이터 조회
+    
+    Args:
+        db: DB 세션
+        image_id: 이미지 ID
+    
+    Returns:
+        메타데이터 딕셔너리
+    """
+    from .models import Image, Product, DefectType
+    
+    result = db.query(
+        Image.image_id,
+        Image.file_path.label('local_path'),
+        Image.storage_url,
+        Image.product_id,
+        Product.product_code,
+        Product.product_name,
+        Image.defect_type_id,
+        DefectType.defect_code,
+        DefectType.defect_name_ko.label('defect_name'),
+        Image.image_type,
+        Image.file_name
+    ).join(
+        Product, Image.product_id == Product.product_id
+    ).outerjoin(
+        DefectType, Image.defect_type_id == DefectType.defect_type_id
+    ).filter(
+        Image.image_id == image_id
+    ).first()
+    
+    if not result:
+        return None
+    
+    return {
+        "image_id": result.image_id,
+        "local_path": result.local_path,
+        "storage_url": result.storage_url or "",
+        "product_id": result.product_id,
+        "product_code": result.product_code,
+        "product_name": result.product_name,
+        "defect_type_id": result.defect_type_id,
+        "defect_code": result.defect_code if result.defect_code else "normal",
+        "defect_name": result.defect_name if result.defect_name else "정상",
+        "image_type": result.image_type,
+        "file_name": result.file_name
+    }

@@ -4,6 +4,7 @@ SQLAlchemy 모델 정의
 
 from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, JSON, Float,Boolean, BigInteger, DateTime, JSON
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from .connection import Base
 
 from datetime import datetime
@@ -62,6 +63,11 @@ class Image(Base):
     file_size = Column(BigInteger, comment="파일 크기")
     uploaded_at = Column(TIMESTAMP, server_default=func.now(), comment="업로드 일시")
     storage_url = Column(String(500), comment="Object Storage URL")  # ✅ 추가
+
+    # ✅ Relationship 추가
+    product = relationship("Product", foreign_keys=[product_id], backref="images")
+    defect_type = relationship("DefectType", foreign_keys=[defect_type_id], backref="images")
+
 
 
 class ImagePreprocessing(Base):
