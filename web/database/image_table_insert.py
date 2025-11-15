@@ -12,7 +12,7 @@ import re
 # 프로젝트 루트 경로 추가
 sys.path.append('/home/dmillion/llm_chal_vlm')
 
-from connection import get_db_connection
+from database.connection import get_db_connection
 
 # 환경변수 로드
 NCP_STORAGE_BASE_URL = os.getenv('NCP_STORAGE_BASE_URL', 'https://kr.object.ncloudstorage.com')
