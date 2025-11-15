@@ -116,7 +116,7 @@
     │   ├── [ 1.8K]  connection.py
     │   ├── [  23K]  crud.py
     │   ├── [  10K]  image_table_insert.py
-    │   └── [ 8.4K]  models.py
+    │   └── [ 8.5K]  models.py
     ├── [ 1.9K]  defect_mapping.json
     ├── [ 9.4M]  index_cache
     │   ├── [ 8.3M]  defect
