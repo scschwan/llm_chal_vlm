@@ -39,29 +39,57 @@ def get_db_connection():
 def parse_defect_filename(filename: str) -> Dict[str, str]:
     """
     불량 이미지 파일명 파싱
-    예: carpet_thread_012.png → {product: carpet, defect: thread, seq: 012}
+    
+    패턴:
+    - {product}_{defect}_xxx.png
+    - {product}_{defect1}_{defect2}_xxx.png (metal_contamination 등)
+    
+    마지막 숫자 부분을 찾아서 그 앞까지를 defect_code로 간주
     """
     stem = Path(filename).stem
     parts = stem.split('_')
     
-    if len(parts) >= 3:
-        return {
-            'product_code': parts[0],
-            'defect_code': parts[1],
-            'sequence': parts[2]
-        }
-    elif len(parts) == 2:
-        return {
-            'product_code': parts[0],
-            'defect_code': parts[1],
-            'sequence': '000'
-        }
-    else:
+    if len(parts) < 2:
         return {
             'product_code': parts[0] if parts else 'unknown',
             'defect_code': 'unknown',
             'sequence': '000'
         }
+    
+    product_code = parts[0]
+    
+    # ✅ 마지막부터 역순으로 숫자 패턴 찾기
+    # 예: grid_metal_contamination_008_r180 → sequence는 008 또는 r180
+    # 첫 번째 숫자 패턴(또는 회전 패턴)을 찾을 때까지 역순 탐색
+    
+    seq_index = -1
+    for i in range(len(parts) - 1, 0, -1):
+        # 숫자로 시작하거나 r로 시작(회전)하면 sequence 부분
+        if parts[i].isdigit() or parts[i].startswith('r') or parts[i].startswith('fh'):
+            seq_index = i
+        else:
+            # 숫자 아닌 부분을 만나면 중단
+            break
+    
+    # defect_code는 product 다음부터 sequence 앞까지
+    if seq_index > 1:
+        defect_parts = parts[1:seq_index]
+        defect_code = '_'.join(defect_parts)
+        sequence = parts[seq_index] if seq_index < len(parts) else '000'
+    else:
+        # 패턴을 못 찾으면 기본 로직
+        defect_code = parts[1]
+        sequence = parts[2] if len(parts) > 2 else '000'
+    
+    # ✅ 'ok'는 정상 이미지 → None 반환
+    if defect_code == 'ok':
+        return None
+    
+    return {
+        'product_code': product_code,
+        'defect_code': defect_code,
+        'sequence': sequence
+    }
 
 
 def parse_normal_filename(filename: str) -> Dict[str, str]:
@@ -102,21 +130,39 @@ def get_product_id(cursor, product_code: str) -> int:
         return None
 
 
-def get_defect_type_id(cursor, product_id: int, defect_code: str) -> int:
-    """불량 코드로 defect_type_id 조회"""
-    query = """
-        SELECT defect_type_id 
-        FROM defect_types 
-        WHERE product_id = %s AND defect_code = %s
+def get_defect_type_id(db, product_id: int, defect_code: str) -> int:
     """
-    cursor.execute(query, (product_id, defect_code))
-    result = cursor.fetchone()
+    불량 코드로 defect_type_id 조회
     
-    if result:
-        return result['defect_type_id']
-    else:
-        print(f"⚠️  불량 유형을 찾을 수 없음: product_id={product_id}, defect_code={defect_code}")
-        return None
+    매칭 전략:
+    1. 정확한 매칭 시도 (metal_contamination)
+    2. 실패 시 첫 단어로 매칭 시도 (metal)
+    """
+    from web.database.models import DefectType
+    
+    # ✅ 1차: 정확한 매칭
+    defect_type = db.query(DefectType).filter(
+        DefectType.product_id == product_id,
+        DefectType.defect_code == defect_code
+    ).first()
+    
+    if defect_type:
+        return defect_type.defect_type_id
+    
+    # ✅ 2차: 첫 단어로 매칭 (metal_contamination → metal)
+    if '_' in defect_code:
+        first_word = defect_code.split('_')[0]
+        defect_type = db.query(DefectType).filter(
+            DefectType.product_id == product_id,
+            DefectType.defect_code == first_word
+        ).first()
+        
+        if defect_type:
+            print(f"ℹ️  매칭: {defect_code} → {first_word}")
+            return defect_type.defect_type_id
+    
+    print(f"⚠️  불량 유형을 찾을 수 없음: product_id={product_id}, defect_code={defect_code}")
+    return None
 
 
 def check_duplicate(cursor, file_name: str) -> bool:
