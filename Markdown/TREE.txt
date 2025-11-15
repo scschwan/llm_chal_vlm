@@ -192,7 +192,7 @@
     │   ├── [  26K]  crud.py
     │   ├── [  10K]  image_table_insert.py
     │   └── [ 8.7K]  models.py
-    ├── [ 1.8K]  defect_mapping.json
+    ├── [ 1.9K]  defect_mapping.json
     ├── [ 1.9K]  defect_mapping_origin.json
     ├── [ 9.4M]  index_cache
     │   ├── [ 8.3M]  defect
@@ -235,12 +235,12 @@
     │   └── [ 6.8K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 142K]  routers
-    │   ├── [ 101K]  admin
+    ├── [ 153K]  routers
+    │   ├── [ 111K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
     │   │   ├── [  26K]  deployment.py
-    │   │   ├── [  18K]  image.py
+    │   │   ├── [  28K]  image.py
     │   │   ├── [  488]  __init__.py
     │   │   ├── [  11K]  manual.py
     │   │   ├── [ 9.7K]  model.py
