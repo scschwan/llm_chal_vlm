@@ -61,6 +61,7 @@ class Image(Base):
     file_path = Column(String(500), nullable=False, comment="파일 경로")
     file_size = Column(BigInteger, comment="파일 크기")
     uploaded_at = Column(TIMESTAMP, server_default=func.now(), comment="업로드 일시")
+    storage_url = Column(String(500), comment="Object Storage URL")  # ✅ 추가
 
 
 class ImagePreprocessing(Base):
