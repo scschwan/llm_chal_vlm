@@ -209,17 +209,30 @@ async def sync_manual():
     """
     비동기화된 메뉴얼 파일 Object Storage에서 다운로드 후 RAG 재수행
     """
-    import requests
+    import boto3
     from sqlalchemy import text
     
     # 프로젝트 루트 경로
     project_root = Path(__file__).parent.parent.parent
     sys.path.append(str(project_root))
     
-    # Object Storage 설정
+    # Object Storage 설정 (환경변수에서 로드)
+    endpoint_url = os.getenv('NCP_STORAGE_BASE_URL', 'https://kr.object.ncloudstorage.com')
+    access_key = os.getenv('NCP_ACCESS_KEY', '')
+    secret_key = os.getenv('NCP_SECRET_KEY', '')
+    bucket_name = os.getenv('NCP_BUCKET', 'dm-obs')
+    region_name = 'kr-standard'
     
-    OBS_BASE_URL=os.getenv('NCP_STORAGE_BASE_URL', 'https://kr.object.ncloudstorage.com')
-    BUCKET_NAME=os.getenv('NCP_BUCKET', 'dm-obs')
+    # boto3 S3 클라이언트 생성
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=endpoint_url,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name=region_name
+    )
+    
+    # 로컬 저장 경로
     MANUAL_STORE_PATH = project_root / "manual_store"
     MANUAL_STORE_PATH.mkdir(parents=True, exist_ok=True)
     
@@ -230,7 +243,7 @@ async def sync_manual():
     db = next(get_db())
     
     try:
-        # 1. 비동기화된 메뉴얼 조회 (SQLAlchemy 방식)
+        # 1. 비동기화된 메뉴얼 조회
         query = text("""
             SELECT 
                 (SELECT p.product_code FROM products p WHERE p.product_id = m.product_id) AS prod_name,
@@ -250,7 +263,7 @@ async def sync_manual():
         
         print(f"[SYNC] {len(unindexed_manuals)}개 메뉴얼 동기화 시작")
         
-        # 2. Object Storage에서 다운로드
+        # 2. Object Storage에서 다운로드 (boto3 사용)
         for manual in unindexed_manuals:
             prod_name, manual_id, file_path, original_filename = manual
             
@@ -261,21 +274,26 @@ async def sync_manual():
             local_filename = f"{prod_name}_manual{file_ext}"
             local_path = MANUAL_STORE_PATH / local_filename
             
-            obs_url = f"{OBS_BASE_URL}/{BUCKET_NAME}{file_path}"
-            print(f"[SYNC] 다운로드 중: {obs_url} -> {local_path}")
+            # file_path는 DB에 저장된 경로 (예: "manuals/1/test.pdf")
+            # 슬래시로 시작하면 제거
+            object_key = file_path.lstrip('/')
+            
+            print(f"[SYNC] 다운로드 중: s3://{bucket_name}/{object_key} -> {local_path}")
             
             try:
-                response = requests.get(obs_url, stream=True)
-                response.raise_for_status()
-                
-                with open(local_path, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        f.write(chunk)
+                # boto3로 파일 다운로드
+                s3_client.download_file(
+                    Bucket=bucket_name,
+                    Key=object_key,
+                    Filename=str(local_path)
+                )
                 
                 print(f"[SYNC] 다운로드 완료: {local_filename}")
                 
             except Exception as e:
                 print(f"[SYNC] 다운로드 실패 ({prod_name}): {str(e)}")
+                import traceback
+                traceback.print_exc()
                 continue
         
         # 3. 매핑 파일 확인 및 생성
