@@ -11,6 +11,8 @@ from pathlib import Path
 import zipfile
 import shutil
 import tempfile
+import boto3
+import os
 
 import sys
 project_root = Path(__file__).parent.parent.parent.parent
@@ -505,3 +507,305 @@ def get_image_stats(db: Session = Depends(get_db)):
     
     except Exception as e:
         raise HTTPException(500, f"통계 조회 실패: {str(e)}")
+    
+
+@router.post("/sync-normal")
+async def sync_normal_images():
+    """
+    정상(normal) 이미지 Object Storage에서 다운로드
+    
+    1. DB에서 sync_yn=0, use_yn=1, image_type='normal' 조회
+    2. Object Storage에서 파일 다운로드
+    3. DEFECT_PATH에 원본 파일명으로 저장
+    4. NORMAL_PATH/{prod_code}/ok/ 에도 저장
+    5. DB에서 sync_yn=1로 업데이트
+    """
+    import boto3
+    import os
+    from pathlib import Path
+    from sqlalchemy import text
+    import shutil
+    
+    # 프로젝트 루트 경로
+    project_root = Path(__file__).parent.parent.parent
+    
+    # Object Storage 설정
+    endpoint_url = os.getenv('NCP_STORAGE_BASE_URL', 'https://kr.object.ncloudstorage.com')
+    access_key = os.getenv('NCP_ACCESS_KEY', '')
+    secret_key = os.getenv('NCP_SECRET_KEY', '')
+    bucket_name = os.getenv('NCP_BUCKET', 'dm-obs')
+    region_name = 'kr-standard'
+    
+    # 저장 경로
+    defect_path = Path(os.getenv('DEFECT_PATH', '/home/dmillion/llm_chal_vlm/data/def_split'))
+    normal_path = Path(os.getenv('NORMAL_PATH', '/home/dmillion/llm_chal_vlm/data/patchCore'))
+    
+    defect_path.mkdir(parents=True, exist_ok=True)
+    normal_path.mkdir(parents=True, exist_ok=True)
+    
+    # boto3 S3 클라이언트 생성
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=endpoint_url,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name=region_name
+    )
+    
+    # DB 연결
+    db = next(get_db())
+    
+    try:
+        print("[SYNC-NORMAL] 정상 이미지 동기화 시작")
+        
+        # 1. 동기화 대상 조회
+        query = text("""
+            SELECT
+                im.image_id,
+                (SELECT p.product_code FROM products p WHERE p.product_id = im.product_id) AS prod_code,
+                (SELECT dt.defect_code FROM defect_types dt WHERE dt.defect_type_id = im.defect_type_id) AS defect_code,
+                im.image_type,
+                im.file_name,
+                im.storage_url
+            FROM images im
+            WHERE im.sync_yn = 0
+              AND im.use_yn = 1
+              AND im.image_type = 'normal'
+        """)
+        
+        result = db.execute(query)
+        normal_images = result.fetchall()
+        
+        if not normal_images:
+            print("[SYNC-NORMAL] 동기화할 정상 이미지가 없습니다.")
+            return {
+                "status": "success",
+                "message": "동기화할 정상 이미지가 없습니다.",
+                "synced_count": 0
+            }
+        
+        print(f"[SYNC-NORMAL] {len(normal_images)}개 정상 이미지 동기화 시작")
+        
+        synced_ids = []
+        failed_count = 0
+        
+        # 2. Object Storage에서 다운로드
+        for img in normal_images:
+            image_id, prod_code, defect_code, image_type, file_name, storage_url = img
+            
+            # storage_url에서 object_key 추출
+            if storage_url.startswith('http'):
+                object_key = '/'.join(storage_url.split('/')[-3:])
+            else:
+                object_key = storage_url.lstrip('/')
+            
+            # 1) DEFECT_PATH에 저장
+            defect_local_path = defect_path / file_name
+            
+            # 2) NORMAL_PATH/{prod_code}/ok/ 에 저장
+            product_dir = normal_path / prod_code
+            ok_dir = product_dir / "ok"
+            ok_dir.mkdir(parents=True, exist_ok=True)
+            normal_local_path = ok_dir / file_name
+            
+            print(f"[SYNC-NORMAL] 다운로드 중: {object_key}")
+            
+            try:
+                # DEFECT_PATH에 다운로드
+                s3_client.download_file(
+                    Bucket=bucket_name,
+                    Key=object_key,
+                    Filename=str(defect_local_path)
+                )
+                
+                print(f"[SYNC-NORMAL] DEFECT_PATH 저장: {defect_local_path}")
+                
+                # NORMAL_PATH/{prod_code}/ok/에 복사
+                shutil.copy2(str(defect_local_path), str(normal_local_path))
+                
+                print(f"[SYNC-NORMAL] NORMAL_PATH 저장: {normal_local_path}")
+                print(f"[SYNC-NORMAL] 다운로드 완료: {file_name}")
+                
+                synced_ids.append(image_id)
+                
+            except Exception as e:
+                print(f"[SYNC-NORMAL] 다운로드 실패 ({file_name}): {str(e)}")
+                import traceback
+                traceback.print_exc()
+                failed_count += 1
+                continue
+        
+        # 3. DB 업데이트 - sync_yn = 1
+        if synced_ids:
+            update_query = text("""
+                UPDATE images 
+                SET sync_yn = 1 
+                WHERE image_id IN :image_ids
+            """)
+            db.execute(update_query, {"image_ids": tuple(synced_ids)})
+            db.commit()
+            
+            print(f"[SYNC-NORMAL] DB 업데이트 완료: {len(synced_ids)}개")
+        
+        return {
+            "status": "success",
+            "message": "정상 이미지 동기화 완료",
+            "synced_count": len(synced_ids),
+            "failed_count": failed_count,
+            "total": len(normal_images)
+        }
+        
+    except Exception as e:
+        print(f"[SYNC-NORMAL] 동기화 실패: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        db.rollback()
+        
+        return {
+            "status": "error",
+            "message": f"동기화 실패: {str(e)}"
+        }
+        
+    finally:
+        db.close()
+
+@router.post("/sync-defect")
+async def sync_defect_images():
+    """
+    불량(defect) 이미지 Object Storage에서 다운로드
+    
+    1. DB에서 sync_yn=0, use_yn=1, image_type='defect' 조회
+    2. Object Storage에서 파일 다운로드
+    3. DEFECT_PATH에 원본 파일명으로 저장
+    4. DB에서 sync_yn=1로 업데이트
+    """
+    
+    
+    from sqlalchemy import text
+    
+    # 프로젝트 루트 경로
+    project_root = Path(__file__).parent.parent.parent
+    
+    # Object Storage 설정
+    endpoint_url = os.getenv('NCP_STORAGE_BASE_URL', 'https://kr.object.ncloudstorage.com')
+    access_key = os.getenv('NCP_ACCESS_KEY', '')
+    secret_key = os.getenv('NCP_SECRET_KEY', '')
+    bucket_name = os.getenv('NCP_BUCKET', 'dm-obs')
+    region_name = 'kr-standard'
+    
+    # 저장 경로
+    defect_path = Path(os.getenv('DEFECT_PATH', '/home/dmillion/llm_chal_vlm/data/def_split'))
+    defect_path.mkdir(parents=True, exist_ok=True)
+    
+    # boto3 S3 클라이언트 생성
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=endpoint_url,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name=region_name
+    )
+    
+    # DB 연결
+    db = next(get_db())
+    
+    try:
+        print("[SYNC-DEFECT] 불량 이미지 동기화 시작")
+        
+        # 1. 동기화 대상 조회
+        query = text("""
+            SELECT
+                im.image_id,
+                (SELECT p.product_code FROM products p WHERE p.product_id = im.product_id) AS prod_code,
+                (SELECT dt.defect_code FROM defect_types dt WHERE dt.defect_type_id = im.defect_type_id) AS defect_code,
+                im.image_type,
+                im.file_name,
+                im.storage_url
+            FROM images im
+            WHERE im.sync_yn = 0
+              AND im.use_yn = 1
+              AND im.image_type = 'defect'
+        """)
+        
+        result = db.execute(query)
+        defect_images = result.fetchall()
+        
+        if not defect_images:
+            print("[SYNC-DEFECT] 동기화할 불량 이미지가 없습니다.")
+            return {
+                "status": "success",
+                "message": "동기화할 불량 이미지가 없습니다.",
+                "synced_count": 0
+            }
+        
+        print(f"[SYNC-DEFECT] {len(defect_images)}개 불량 이미지 동기화 시작")
+        
+        synced_ids = []
+        failed_count = 0
+        
+        # 2. Object Storage에서 다운로드
+        for img in defect_images:
+            image_id, prod_code, defect_code, image_type, file_name, storage_url = img
+            
+            # 저장 경로 (원본 파일명 그대로)
+            local_path = defect_path / file_name
+            
+            # storage_url에서 object_key 추출
+            # storage_url 형식: https://kr.object.ncloudstorage.com/dm-obs/images/defect/xxx.jpg
+            # 또는 images/defect/xxx.jpg
+            if storage_url.startswith('http'):
+                object_key = '/'.join(storage_url.split('/')[-3:])  # images/defect/xxx.jpg
+            else:
+                object_key = storage_url.lstrip('/')
+            
+            print(f"[SYNC-DEFECT] 다운로드 중: {object_key} -> {local_path}")
+            
+            try:
+                # boto3로 파일 다운로드
+                s3_client.download_file(
+                    Bucket=bucket_name,
+                    Key=object_key,
+                    Filename=str(local_path)
+                )
+                
+                print(f"[SYNC-DEFECT] 다운로드 완료: {file_name}")
+                synced_ids.append(image_id)
+                
+            except Exception as e:
+                print(f"[SYNC-DEFECT] 다운로드 실패 ({file_name}): {str(e)}")
+                failed_count += 1
+                continue
+        
+        # 3. DB 업데이트 - sync_yn = 1
+        if synced_ids:
+            update_query = text("""
+                UPDATE images 
+                SET sync_yn = 1 
+                WHERE image_id IN :image_ids
+            """)
+            db.execute(update_query, {"image_ids": tuple(synced_ids)})
+            db.commit()
+            
+            print(f"[SYNC-DEFECT] DB 업데이트 완료: {len(synced_ids)}개")
+        
+        return {
+            "status": "success",
+            "message": "불량 이미지 동기화 완료",
+            "synced_count": len(synced_ids),
+            "failed_count": failed_count,
+            "total": len(defect_images)
+        }
+        
+    except Exception as e:
+        print(f"[SYNC-DEFECT] 동기화 실패: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        db.rollback()
+        
+        return {
+            "status": "error",
+            "message": f"동기화 실패: {str(e)}"
+        }
+        
+    finally:
+        db.close()
