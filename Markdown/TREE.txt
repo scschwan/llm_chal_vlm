@@ -130,6 +130,9 @@
     │   └── [ 605K]  normal
     │       ├── [ 296K]  faiss_index.bin
     │       └── [ 309K]  index_data.pt
+    ├── [   46]  index_cache_v2
+    │   ├── [    6]  defect
+    │   └── [    6]  normal
     ├── [  14K]  matching.html
     ├── [  94K]  pages
     │   ├── [  44K]  admin
@@ -216,4 +219,4 @@
         ├── [    0]  __init__.py
         └── [ 9.7K]  object_storage.py
 
-   68M used in 47 directories, 169 files
+   68M used in 50 directories, 169 files
