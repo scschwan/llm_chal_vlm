@@ -348,7 +348,6 @@ def get_preprocessing_configs_with_product(db: Session) -> list:
 # Deploy CRUD
 # ========================================
 
-
 def create_deployment_log(
     deployment_type: str,
     target: str,
@@ -356,9 +355,9 @@ def create_deployment_log(
     product_id: int = None
 ) -> int:
     """배포 로그 생성"""
-    from web.database.connection import get_db
+    from web.database.connection import get_db_connection
     
-    conn = get_db()
+    conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
@@ -389,9 +388,9 @@ def update_deployment_status(
     error_message: str = None
 ):
     """배포 상태 업데이트"""
-    from web.database.connection import get_db
+    from web.database.connection import get_db_connection
     
-    conn = get_db()
+    conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
@@ -404,15 +403,9 @@ def update_deployment_status(
             WHERE deploy_id = %s
         """
         now = datetime.now()
-        result_json = json.dumps(result_data) if result_data else None
+        result_json = json.dumps(result_data, ensure_ascii=False) if result_data else None
         
-        cursor.execute(query, (
-            status,
-            now,
-            result_json,
-            error_message,
-            log_id
-        ))
+        cursor.execute(query, (status, now, result_json, error_message, log_id))
         conn.commit()
         
     except Exception as e:
@@ -423,21 +416,17 @@ def update_deployment_status(
         conn.close()
 
 
-def get_deployment_logs(
-    limit: int = 20,
-    deployment_type: str = None
-) -> list:
+def get_deployment_logs(limit: int = 20, deployment_type: str = None) -> list:
     """배포 이력 조회"""
-    from web.database.connection import get_db
+    from web.database.connection import get_db_connection
     
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    conn = get_db_connection()
+    cursor = conn.cursor()
     
     try:
         if deployment_type:
             query = """
-                SELECT *
-                FROM deployment_logs
+                SELECT * FROM deployment_logs
                 WHERE deploy_type = %s
                 ORDER BY started_at DESC
                 LIMIT %s
@@ -445,8 +434,7 @@ def get_deployment_logs(
             cursor.execute(query, (deployment_type, limit))
         else:
             query = """
-                SELECT *
-                FROM deployment_logs
+                SELECT * FROM deployment_logs
                 ORDER BY started_at DESC
                 LIMIT %s
             """
@@ -454,14 +442,12 @@ def get_deployment_logs(
         
         logs = cursor.fetchall()
         
-        # 날짜 형식 변환
         for log in logs:
             if log.get('started_at'):
                 log['start_time'] = log['started_at'].isoformat()
             if log.get('completed_at'):
                 log['end_time'] = log['completed_at'].isoformat()
-            # API 호환성을 위한 필드명 매핑
-            log['target'] = log.get('product_id', 'all')
+            log['target'] = str(log.get('product_id', 'all'))
             log['deployment_type'] = log.get('deploy_type')
             log['error_message'] = log.get('result_message')
         
@@ -472,8 +458,6 @@ def get_deployment_logs(
     finally:
         cursor.close()
         conn.close()
-
-
 
 # ========================================
 # Preprocessing CRUD
