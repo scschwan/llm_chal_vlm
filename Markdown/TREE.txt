@@ -41,6 +41,7 @@
 ├── [  33K]  docs
 │   ├── [  14K]  API_명세서.md
 │   └── [  18K]  API_명세서.xlsx
+├── [ 9.2K]  image_table_insert.py
 ├── [  35K]  llm_server
 │   ├── [ 2.7K]  =4.54.0
 │   ├── [  692]  check_hyperclova.sh
@@ -105,16 +106,15 @@
 ├── [ 6.2K]  save_db_schema.sh
 ├── [  249]  save_tree.sh
 ├── [    6]  uploads
-└── [  10M]  web
+└── [10.0M]  web
     ├── [  324]  anomaly_outputs
     │   ├── [   82]  carpet_thread_017
     │   ├── [   82]  cast_def_0_619
     │   └── [   82]  leather_color_017
     ├── [  26K]  api_server.py
-    ├── [  42K]  database
+    ├── [  33K]  database
     │   ├── [ 1.7K]  connection.py
     │   ├── [  23K]  crud.py
-    │   ├── [ 9.2K]  image_table_insert.py
     │   └── [ 8.4K]  models.py
     ├── [ 1.9K]  defect_mapping.json
     ├── [ 9.4M]  index_cache
