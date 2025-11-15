@@ -213,7 +213,7 @@ async def sync_manual():
     from sqlalchemy import text
     
     # 프로젝트 루트 경로
-    project_root = Path(__file__).parent.parent.parent
+    project_root = Path(__file__).parent.parent.parent.parent
     sys.path.append(str(project_root))
     
     # Object Storage 설정 (환경변수에서 로드)
