@@ -738,19 +738,27 @@ async def get_index_status():
             "gallery_count": 0
         }
     
+    # V2 체크
+    is_v2 = hasattr(matcher, 'gallery_metadata')
+    
+    if is_v2:
+        gallery_count = len(matcher.gallery_metadata) if matcher.gallery_metadata else 0
+    else:
+        gallery_count = len(matcher.gallery_paths) if matcher.gallery_paths else 0
+    
     return {
         "status": "success",
         "current_index_type": current_index_type,
-        "gallery_count": len(matcher.gallery_paths) if matcher.gallery_paths else 0,
+        "gallery_count": gallery_count,
         "index_built": matcher.index_built,
-        "model_id": matcher.model_id if hasattr(matcher, 'model_id') else None
+        "model_id": matcher.model_id if hasattr(matcher, 'model_id') else None,
+        "version": "v2" if is_v2 else "v1"
     }
 
 
 @app.post("/build_index")
 async def build_index(request: dict):
     """인덱스 재구축"""
-    
     
     class BuildIndexRequest(BaseModel):
         gallery_dir: str = Field(..., description="갤러리 디렉토리")
@@ -765,18 +773,40 @@ async def build_index(request: dict):
     if not gallery_dir.exists():
         raise HTTPException(404, f"디렉토리를 찾을 수 없습니다: {gallery_dir}")
     
-    try:
-        info = matcher.build_index(str(gallery_dir))
-        
-        if req.save_index:
-            save_dir = INDEX_DIR / "defect"
-            matcher.save_index(str(save_dir))
-            info["index_saved"] = True
-            info["index_save_path"] = str(save_dir)
-        
-        return info
+    # V2 체크
+    is_v2 = hasattr(matcher, 'gallery_metadata')
     
+    try:
+        if is_v2:
+            # V2는 디렉토리 스캔이 아닌 DB 기반이므로 지원하지 않음
+            raise HTTPException(
+                400, 
+                "V2 인덱스는 DB 기반입니다. "
+                "관리자 페이지에서 인덱스 재구축을 사용하세요."
+            )
+        else:
+            # V1 인덱스 구축
+            info = matcher.build_index(str(gallery_dir))
+            
+            if req.save_index:
+                # 디렉토리명으로 인덱스 타입 판단
+                if "def_split" in str(gallery_dir) or "defect" in str(gallery_dir):
+                    save_dir = INDEX_DIR / "defect"
+                else:
+                    save_dir = INDEX_DIR / "normal"
+                
+                save_dir.mkdir(parents=True, exist_ok=True)
+                matcher.save_index(str(save_dir))
+                info["index_saved"] = True
+                info["index_save_path"] = str(save_dir)
+            
+            return info
+    
+    except HTTPException:
+        raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(500, f"인덱스 구축 실패: {str(e)}")
 
 
@@ -919,15 +949,29 @@ async def reload_mapping():
 
 
 @app.get("/health2")
+@app.get("/health2")
 async def health_check():
     """헬스체크 엔드포인트 (ALB 용)"""
+    
+    # V2 체크
+    is_v2 = hasattr(matcher, 'gallery_metadata') if matcher else False
+    
+    if matcher and matcher.index_built:
+        if is_v2:
+            gallery_size = len(matcher.gallery_metadata) if matcher.gallery_metadata else 0
+        else:
+            gallery_size = len(matcher.gallery_paths) if matcher.gallery_paths else 0
+    else:
+        gallery_size = 0
+    
     return {
         "status": "healthy",
         "message": "API 서버가 정상 작동 중입니다",
         "index_built": matcher.index_built if matcher else False,
-        "gallery_size": len(matcher.gallery_paths) if matcher and matcher.index_built else 0,
+        "gallery_size": gallery_size,
         "matcher_initialized": matcher is not None,
-        "detector_initialized": detector is not None
+        "detector_initialized": detector is not None,
+        "matcher_version": "v2" if is_v2 else "v1"
     }
 
 # ====================
