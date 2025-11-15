@@ -106,15 +106,16 @@
 ├── [ 6.2K]  save_db_schema.sh
 ├── [  249]  save_tree.sh
 ├── [    6]  uploads
-└── [10.0M]  web
+└── [  10M]  web
     ├── [  324]  anomaly_outputs
     │   ├── [   82]  carpet_thread_017
     │   ├── [   82]  cast_def_0_619
     │   └── [   82]  leather_color_017
     ├── [  26K]  api_server.py
-    ├── [  33K]  database
+    ├── [  43K]  database
     │   ├── [ 1.7K]  connection.py
     │   ├── [  23K]  crud.py
+    │   ├── [  10K]  image_table_insert.py
     │   └── [ 8.4K]  models.py
     ├── [ 1.9K]  defect_mapping.json
     ├── [ 9.4M]  index_cache
@@ -211,4 +212,4 @@
         ├── [    0]  __init__.py
         └── [ 9.7K]  object_storage.py
 
-   68M used in 47 directories, 164 files
+   68M used in 47 directories, 165 files
