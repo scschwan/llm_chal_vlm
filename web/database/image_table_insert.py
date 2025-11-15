@@ -11,21 +11,33 @@ from typing import List, Dict
 # 프로젝트 루트 경로 추가
 sys.path.append('/home/dmillion/llm_chal_vlm')
 
-from web.database.connection import get_db
-
 # 환경변수 로드
 NCP_STORAGE_BASE_URL = os.getenv('NCP_STORAGE_BASE_URL', 'https://kr.object.ncloudstorage.com')
 NCP_BUCKET = os.getenv('NCP_BUCKET', 'dm-obs')
 
 
-def parse_defect_filename(filename: str) -> Dict[str, str]:
-    """
-    불량 이미지 파일명 파싱
+def get_db_session():
+    """DB 세션 생성"""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
     
-    패턴:
-    - {product}_{defect}_xxx.png
-    - {product}_{defect1}_{defect2}_xxx.png (metal_contamination 등)
-    """
+    # DB 연결 정보
+    DB_USER = os.getenv('DB_USER', 'dmillion')
+    DB_PASSWORD = os.getenv('DB_PASSWORD', 'dm250120@')
+    DB_HOST = os.getenv('DB_HOST', 'localhost')
+    DB_PORT = os.getenv('DB_PORT', '3306')
+    DB_NAME = os.getenv('DB_NAME', 'defect_detection')
+    
+    DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    
+    engine = create_engine(DATABASE_URL, echo=False)
+    SessionLocal = sessionmaker(bind=engine)
+    
+    return SessionLocal()
+
+
+def parse_defect_filename(filename: str) -> Dict[str, str]:
+    """불량 이미지 파일명 파싱"""
     stem = Path(filename).stem
     parts = stem.split('_')
     
@@ -46,7 +58,6 @@ def parse_defect_filename(filename: str) -> Dict[str, str]:
         else:
             break
     
-    # defect_code는 product 다음부터 sequence 앞까지
     if seq_index > 1:
         defect_parts = parts[1:seq_index]
         defect_code = '_'.join(defect_parts)
@@ -55,7 +66,6 @@ def parse_defect_filename(filename: str) -> Dict[str, str]:
         defect_code = parts[1]
         sequence = parts[2] if len(parts) > 2 else '000'
     
-    # 'ok'는 정상 이미지
     if defect_code == 'ok':
         return None
     
@@ -67,10 +77,7 @@ def parse_defect_filename(filename: str) -> Dict[str, str]:
 
 
 def parse_normal_filename(filename: str) -> Dict[str, str]:
-    """
-    정상 이미지 파일명 파싱
-    예: carpet_ok_027.png → {product: carpet, seq: 027}
-    """
+    """정상 이미지 파일명 파싱"""
     stem = Path(filename).stem
     parts = stem.split('_')
     
@@ -99,20 +106,11 @@ def get_product_id(db, product_code: str) -> int:
         Product.product_code == product_code
     ).first()
     
-    if product:
-        return product.product_id
-    else:
-        return None
+    return product.product_id if product else None
 
 
 def get_defect_type_id(db, product_id: int, defect_code: str) -> int:
-    """
-    불량 코드로 defect_type_id 조회
-    
-    매칭 전략:
-    1. 정확한 매칭 시도
-    2. 실패 시 첫 단어로 매칭 시도
-    """
+    """불량 코드로 defect_type_id 조회"""
     from web.database.models import DefectType
     
     # 1차: 정확한 매칭
@@ -124,7 +122,7 @@ def get_defect_type_id(db, product_id: int, defect_code: str) -> int:
     if defect_type:
         return defect_type.defect_type_id
     
-    # 2차: 첫 단어로 매칭 (metal_contamination → metal)
+    # 2차: 첫 단어로 매칭
     if '_' in defect_code:
         first_word = defect_code.split('_')[0]
         defect_type = db.query(DefectType).filter(
@@ -133,10 +131,8 @@ def get_defect_type_id(db, product_id: int, defect_code: str) -> int:
         ).first()
         
         if defect_type:
-            print(f"ℹ️  매칭: {defect_code} → {first_word}")
             return defect_type.defect_type_id
     
-    print(f"⚠️  불량 유형을 찾을 수 없음: product_id={product_id}, defect_code={defect_code}")
     return None
 
 
@@ -180,7 +176,6 @@ def scan_defect_images() -> List[Dict]:
             filename = img_path.name
             parsed = parse_defect_filename(filename)
             
-            # 정상 이미지는 건너뜀
             if parsed is None:
                 skipped += 1
                 continue
@@ -242,14 +237,13 @@ def scan_normal_images() -> List[Dict]:
 
 def sync_images_to_db():
     """이미지 → DB 동기화 메인 함수"""
-
-    skipped_products = set()
     
     print("=" * 60)
     print("Object Storage 이미지 → DB 동기화 시작")
     print("=" * 60)
     
-    db = next(get_db())
+    db = get_db_session()
+    skipped_products = set()
     
     try:
         # 1. 불량 이미지 스캔
@@ -302,6 +296,7 @@ def sync_images_to_db():
         for img in normal_images:
             product_id = get_product_id(db, img['product_code'])
             if not product_id:
+                skipped_products.add(img['product_code'])
                 normal_skip += 1
                 continue
             
@@ -329,7 +324,7 @@ def sync_images_to_db():
         print(f"정상 이미지: {normal_success}/{len(normal_images)} (스킵: {normal_skip})")
         print(f"총 성공: {defect_success + normal_success}")
         print(f"총 실패: {defect_fail + normal_fail}")
-        #print(f"총 스킵: {defect_skip + normal_skip}")
+        print(f"총 스킵: {defect_skip + normal_skip}")
         if skipped_products:
             print(f"스킵된 제품: {', '.join(sorted(skipped_products))}")
         print("=" * 60)
