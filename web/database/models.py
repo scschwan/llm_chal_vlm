@@ -1,8 +1,4 @@
-"""
-SQLAlchemy 모델 정의
-"""
-
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, JSON, Float,Boolean, BigInteger, DateTime, JSON
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, JSON, Float, Boolean, BigInteger, DateTime, JSON, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from .connection import Base
@@ -55,19 +51,18 @@ class Image(Base):
     __tablename__ = "images"
     
     image_id = Column(Integer, primary_key=True, autoincrement=True, comment="이미지 ID")
-    product_id = Column(Integer, nullable=False, comment="제품 ID")
+    product_id = Column(Integer, ForeignKey('products.product_id'), nullable=False, comment="제품 ID")
     image_type = Column(String(20), nullable=False, comment="이미지 유형")
-    defect_type_id = Column(Integer, comment="불량 유형 ID")
+    defect_type_id = Column(Integer, ForeignKey('defect_types.defect_type_id'), comment="불량 유형 ID")
     file_name = Column(String(255), nullable=False, comment="파일명")
     file_path = Column(String(500), nullable=False, comment="파일 경로")
     file_size = Column(BigInteger, comment="파일 크기")
     uploaded_at = Column(TIMESTAMP, server_default=func.now(), comment="업로드 일시")
-    storage_url = Column(String(500), comment="Object Storage URL")  # ✅ 추가
-
-    # ✅ Relationship 추가
-    product = relationship("Product", foreign_keys=[product_id], backref="images")
-    defect_type = relationship("DefectType", foreign_keys=[defect_type_id], backref="images")
-
+    storage_url = Column(String(500), comment="Object Storage URL")
+    
+    # ✅ Relationship (ForeignKey 명시)
+    product = relationship("Product", foreign_keys=[product_id])
+    defect_type = relationship("DefectType", foreign_keys=[defect_type_id])
 
 
 class ImagePreprocessing(Base):
@@ -151,7 +146,6 @@ class DeploymentLog(Base):
     result_data = Column(JSON, comment="결과 상세")
     deployed_by = Column(String(50), comment="배포 실행자")
 
-# 기존 코드 아래에 추가
 
 class PreprocessingConfig(Base):
     """전처리 설정 테이블"""
@@ -166,6 +160,7 @@ class PreprocessingConfig(Base):
     is_active = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
 
 class SystemConfig(Base):
     """시스템 전역 설정"""
