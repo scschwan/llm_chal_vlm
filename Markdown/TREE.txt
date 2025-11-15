@@ -46,7 +46,7 @@
 │   ├── [  692]  check_hyperclova.sh
 │   ├── [  30K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
-├── [  15M]  manual_store
+├── [  31M]  manual_store
 │   ├── [  19K]  carpet_manual.docx
 │   ├── [ 3.8M]  carpet_manual.pdf
 │   ├── [  612]  file_metadata.json
@@ -56,6 +56,15 @@
 │   ├── [ 2.2K]  index.pkl
 │   ├── [  19K]  leather_manual.docx
 │   ├── [ 3.8M]  leather_manual.pdf
+│   ├── [  15M]  origin
+│   │   ├── [  19K]  carpet_manual.docx
+│   │   ├── [ 3.8M]  carpet_manual.pdf
+│   │   ├── [  19K]  grid_manual.docx
+│   │   ├── [ 3.8M]  grid_manual.pdf
+│   │   ├── [  19K]  leather_manual.docx
+│   │   ├── [ 3.8M]  leather_manual.pdf
+│   │   ├── [  18K]  prod1_menual.docx
+│   │   └── [ 3.8M]  prod1_menual.pdf
 │   ├── [  18K]  prod1_menual.docx
 │   ├── [ 3.8M]  prod1_menual.pdf
 │   └── [  79K]  unified_index
@@ -115,7 +124,7 @@
     │   └── [   82]  leather_color_017
     ├── [  44K]  api_server.py
     ├── [  48K]  database
-    │   ├── [ 2.8K]  connection.py
+    │   ├── [ 2.9K]  connection.py
     │   ├── [  26K]  crud.py
     │   ├── [  10K]  image_table_insert.py
     │   └── [ 8.7K]  models.py
@@ -161,14 +170,14 @@
     │   └── [ 6.8K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 133K]  routers
-    │   ├── [  91K]  admin
+    ├── [ 138K]  routers
+    │   ├── [  96K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [ 8.0K]  defect_type.py
     │   │   ├── [  26K]  deployment.py
     │   │   ├── [  18K]  image.py
     │   │   ├── [  488]  __init__.py
-    │   │   ├── [ 6.0K]  manual.py
+    │   │   ├── [  11K]  manual.py
     │   │   ├── [ 9.7K]  model.py
     │   │   ├── [ 9.5K]  preprocessing.py
     │   │   └── [ 5.9K]  product.py
@@ -219,10 +228,10 @@
     │       ├── [  45K]  matching.js
     │       ├── [  15K]  search.js
     │       └── [  11K]  upload.js
-    ├── [    6]  uploads
+    ├── [   33]  uploads
     └── [  11K]  utils
         ├── [ 1.6K]  auth.py
         ├── [    0]  __init__.py
         └── [ 9.7K]  object_storage.py
 
-   75M used in 50 directories, 175 files
+   91M used in 51 directories, 183 files
