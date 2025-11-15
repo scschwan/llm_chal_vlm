@@ -207,7 +207,7 @@
     │   ├── [ 6.4M]  defect
     │   │   ├── [ 2.8M]  embeddings.pt
     │   │   ├── [ 2.8M]  faiss_index.bin
-    │   │   └── [ 710K]  metadata.json
+    │   │   └── [ 709K]  metadata.json
     │   └── [ 499K]  normal
     │       ├── [ 224K]  embeddings.pt
     │       ├── [ 222K]  faiss_index.bin
