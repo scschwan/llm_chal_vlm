@@ -595,7 +595,7 @@ async def sync_normal_images():
             
             # storage_url에서 object_key 추출
             if storage_url.startswith('http'):
-                object_key = '/'.join(storage_url.split('/')[-2:])  # images/defect/xxx.jpg
+                object_key = '/'.join(storage_url.split('/')[-3:])  # images/defect/xxx.jpg
             else:
                 object_key = storage_url.lstrip('/')
             
