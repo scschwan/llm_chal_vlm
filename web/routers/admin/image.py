@@ -753,13 +753,14 @@ async def sync_defect_images():
             # storage_url에서 object_key 추출
             # storage_url 형식: https://kr.object.ncloudstorage.com/dm-obs/images/defect/xxx.jpg
             # 또는 images/defect/xxx.jpg
-            '''
+            
+            
             if storage_url.startswith('http'):
                 object_key = '/'.join(storage_url.split('/')[-3:])  # images/defect/xxx.jpg
             else:
                 object_key = storage_url.lstrip('/')
-            '''
-            object_key = storage_url
+            print(f"storage_url : {storage_url} -> object_key : {object_key} ")
+            #object_key = storage_url
             print(f"[SYNC-DEFECT] 다운로드 중: {object_key} -> {local_path}")
             
             try:
