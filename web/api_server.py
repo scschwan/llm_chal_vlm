@@ -673,6 +673,15 @@ async def serve_manual():
         raise HTTPException(404, "매뉴얼 페이지가 아직 구현되지 않았습니다")
     return FileResponse(html_path)
 
+# v2 테스트용 페이지 
+@app.get("/search_v2_test.html")
+async def serve_search_v2_test():
+    """V2 유사도 검색 테스트 페이지"""
+    html_path = PAGES_DIR / "search_v2_test.html"
+    if not html_path.exists():
+        raise HTTPException(404, "유사도 검색 V2 페이지가 아직 구현되지 않았습니다")
+    return FileResponse(html_path)
+
 
 # 4. 관리자 페이지 서빙 엔드포인트 추가
 

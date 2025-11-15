@@ -603,3 +603,200 @@ async def build_patchcore_memory_bank(background_tasks: BackgroundTasks):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+# ========================================
+# V2: DB 기반 인덱스 재구축
+# ========================================
+
+async def clip_rebuild_v2_task(
+    index_type: str,
+    task_id: str
+):
+    """V2 CLIP 재구축 백그라운드 작업 (DB 기반)"""
+    deploy_id = None
+    try:
+        deployment_tasks[task_id] = {
+            'status': 'running',
+            'progress': 0,
+            'message': '시작',
+            'start_time': datetime.now().isoformat(),
+        }
+        
+        # DB 로그 생성
+        deploy_id = create_deployment_log_record(
+            deploy_type=f'clip_v2_{index_type}',
+            product_id=None,
+            status='running'
+        )
+        deployment_tasks[task_id]['log_id'] = deploy_id
+        
+        # DB 세션 가져오기
+        from web.database.connection import get_db
+        from modules.similarity_matcher_v2 import create_matcher_v2
+        
+        db = next(get_db())
+        
+        deployment_tasks[task_id]['progress'] = 10
+        deployment_tasks[task_id]['message'] = 'DB에서 메타데이터 조회 중...'
+        
+        # V2 매처 생성
+        matcher = create_matcher_v2(
+            model_id="ViT-B-32/openai",
+            device="auto",
+            use_fp16=False,
+            batch_size=32,
+            num_workers=4,
+            verbose=True
+        )
+        
+        deployment_tasks[task_id]['progress'] = 30
+        deployment_tasks[task_id]['message'] = f'{index_type} 인덱스 구축 중...'
+        
+        # 인덱스 구축 (비동기 실행)
+        info = await asyncio.get_event_loop().run_in_executor(
+            None,
+            matcher.build_index_from_db,
+            db,
+            index_type
+        )
+        
+        deployment_tasks[task_id]['progress'] = 80
+        deployment_tasks[task_id]['message'] = '인덱스 저장 중...'
+        
+        # 인덱스 저장
+        save_dir = Path(f"/home/dmillion/llm_chal_vlm/web/index_cache_v2/{index_type}")
+        save_dir.mkdir(parents=True, exist_ok=True)
+        
+        await asyncio.get_event_loop().run_in_executor(
+            None,
+            matcher.save_index,
+            str(save_dir)
+        )
+        
+        deployment_tasks[task_id]['progress'] = 100
+        deployment_tasks[task_id]['status'] = 'success'
+        deployment_tasks[task_id]['message'] = '완료'
+        deployment_tasks[task_id]['end_time'] = datetime.now().isoformat()
+        
+        result_data = {
+            'total_images': info['num_images'],
+            'index_type': index_type,
+            'index_path': str(save_dir),
+            'embedding_dim': info['embedding_dim'],
+            'version': 'v2'
+        }
+        deployment_tasks[task_id]['result'] = result_data
+        
+        # DB 업데이트
+        update_deployment_log_status(
+            deploy_id,
+            status='completed',
+            result_data=result_data
+        )
+        
+    except Exception as e:
+        error_msg = f"{str(e)}\n{traceback.format_exc()}"
+        deployment_tasks[task_id]['status'] = 'failed'
+        deployment_tasks[task_id]['error'] = error_msg
+        deployment_tasks[task_id]['end_time'] = datetime.now().isoformat()
+        
+        if deploy_id:
+            update_deployment_log_status(
+                deploy_id,
+                status='failed',
+                error_message=error_msg
+            )
+
+
+@router.post("/v2/clip/normal", response_model=DeploymentResponse)
+async def rebuild_clip_v2_normal(background_tasks: BackgroundTasks):
+    """V2 정상 이미지 CLIP 인덱스 재구축 (DB 기반)"""
+    try:
+        import uuid
+        task_id = str(uuid.uuid4())
+        
+        # 백그라운드 작업 시작
+        background_tasks.add_task(
+            clip_rebuild_v2_task,
+            index_type='normal',
+            task_id=task_id
+        )
+        
+        return DeploymentResponse(
+            task_id=task_id,
+            status='started',
+            message='V2 정상 이미지 인덱스 재구축을 시작했습니다.'
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/v2/clip/defect", response_model=DeploymentResponse)
+async def rebuild_clip_v2_defect(background_tasks: BackgroundTasks):
+    """V2 불량 이미지 CLIP 인덱스 재구축 (DB 기반)"""
+    try:
+        import uuid
+        task_id = str(uuid.uuid4())
+        
+        # 백그라운드 작업 시작
+        background_tasks.add_task(
+            clip_rebuild_v2_task,
+            index_type='defect',
+            task_id=task_id
+        )
+        
+        return DeploymentResponse(
+            task_id=task_id,
+            status='started',
+            message='V2 불량 이미지 인덱스 재구축을 시작했습니다.'
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/v2/clip/all", response_model=DeploymentResponse)
+async def rebuild_clip_v2_all(background_tasks: BackgroundTasks):
+    """V2 전체 CLIP 인덱스 재구축 (정상 + 불량)"""
+    try:
+        import uuid
+        task_id = str(uuid.uuid4())
+        
+        # 정상 이미지 작업
+        normal_task_id = str(uuid.uuid4())
+        background_tasks.add_task(
+            clip_rebuild_v2_task,
+            index_type='normal',
+            task_id=normal_task_id
+        )
+        
+        # 불량 이미지 작업
+        defect_task_id = str(uuid.uuid4())
+        background_tasks.add_task(
+            clip_rebuild_v2_task,
+            index_type='defect',
+            task_id=defect_task_id
+        )
+        
+        # 메타 태스크 생성 (진행 상황 추적용)
+        deployment_tasks[task_id] = {
+            'status': 'running',
+            'progress': 0,
+            'message': '정상/불량 인덱스 재구축 시작',
+            'start_time': datetime.now().isoformat(),
+            'sub_tasks': {
+                'normal': normal_task_id,
+                'defect': defect_task_id
+            }
+        }
+        
+        return DeploymentResponse(
+            task_id=task_id,
+            status='started',
+            message='V2 전체 인덱스 재구축을 시작했습니다. (정상 + 불량)'
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
