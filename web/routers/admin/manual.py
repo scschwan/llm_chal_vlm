@@ -219,6 +219,7 @@ async def sync_manual():
     # Object Storage 설정
     
     OBS_BASE_URL=os.getenv('NCP_STORAGE_BASE_URL', 'https://kr.object.ncloudstorage.com')
+    BUCKET_NAME=os.getenv('NCP_BUCKET', 'dm-obs')
     MANUAL_STORE_PATH = project_root / "manual_store"
     MANUAL_STORE_PATH.mkdir(parents=True, exist_ok=True)
     
@@ -260,7 +261,7 @@ async def sync_manual():
             local_filename = f"{prod_name}_manual{file_ext}"
             local_path = MANUAL_STORE_PATH / local_filename
             
-            obs_url = f"{OBS_BASE_URL}{file_path}"
+            obs_url = f"{OBS_BASE_URL}/{BUCKET_NAME}{file_path}"
             print(f"[SYNC] 다운로드 중: {obs_url} -> {local_path}")
             
             try:
