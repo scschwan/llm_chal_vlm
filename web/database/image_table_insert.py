@@ -11,28 +11,29 @@ from typing import List, Dict
 # 프로젝트 루트 경로 추가
 sys.path.append('/home/dmillion/llm_chal_vlm')
 
+
+# ✅ 환경변수 확인 및 출력
+print(f"DB_HOST: {os.getenv('DB_HOST', 'NOT_SET')}")
+print(f"DB_USER: {os.getenv('DB_USER', 'NOT_SET')}")
+print(f"DB_NAME: {os.getenv('DB_NAME', 'NOT_SET')}")
+
+os.environ['DB_HOST'] = 'localhost'
+os.environ['DB_USER'] = 'dmillion'
+os.environ['DB_PASSWORD'] = 'dm250120@'
+os.environ['DB_NAME'] = 'defect_detection_db'
+
+
+# ✅ 기존 connection.py 사용
+from web.database.connection import SessionLocal
+from web.database.models import Product, DefectType, Image
+
 # 환경변수 로드
 NCP_STORAGE_BASE_URL = os.getenv('NCP_STORAGE_BASE_URL', 'https://kr.object.ncloudstorage.com')
 NCP_BUCKET = os.getenv('NCP_BUCKET', 'dm-obs')
 
 
 def get_db_session():
-    """DB 세션 생성"""
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    
-    # DB 연결 정보
-    DB_USER = os.getenv('DB_USER', 'dmillion')
-    DB_PASSWORD = os.getenv('DB_PASSWORD', 'dm250120@')
-    DB_HOST = os.getenv('DB_HOST', 'localhost')
-    DB_PORT = os.getenv('DB_PORT', '3306')
-    DB_NAME = os.getenv('DB_NAME', 'defect_detection_db')
-    
-    DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    
-    engine = create_engine(DATABASE_URL, echo=False)
-    SessionLocal = sessionmaker(bind=engine)
-    
+    """DB 세션 생성 (기존 connection.py 활용)"""
     return SessionLocal()
 
 
@@ -50,7 +51,6 @@ def parse_defect_filename(filename: str) -> Dict[str, str]:
     
     product_code = parts[0]
     
-    # 마지막부터 역순으로 숫자/회전 패턴 찾기
     seq_index = -1
     for i in range(len(parts) - 1, 0, -1):
         if parts[i].isdigit() or parts[i].startswith('r') or parts[i].startswith('fh'):
@@ -100,8 +100,6 @@ def parse_normal_filename(filename: str) -> Dict[str, str]:
 
 def get_product_id(db, product_code: str) -> int:
     """제품 코드로 product_id 조회"""
-    from web.database.models import Product
-    
     product = db.query(Product).filter(
         Product.product_code == product_code
     ).first()
@@ -111,8 +109,6 @@ def get_product_id(db, product_code: str) -> int:
 
 def get_defect_type_id(db, product_id: int, defect_code: str) -> int:
     """불량 코드로 defect_type_id 조회"""
-    from web.database.models import DefectType
-    
     # 1차: 정확한 매칭
     defect_type = db.query(DefectType).filter(
         DefectType.product_id == product_id,
@@ -138,8 +134,6 @@ def get_defect_type_id(db, product_id: int, defect_code: str) -> int:
 
 def insert_image(db, image_data: Dict) -> bool:
     """이미지 DB 삽입"""
-    from web.database.models import Image
-    
     try:
         image = Image(
             product_id=image_data['product_id'],
