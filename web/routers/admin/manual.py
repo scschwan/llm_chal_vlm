@@ -252,6 +252,7 @@ async def sync_manual():
                 m.file_name
             FROM manuals m 
             WHERE m.vector_indexed = 0
+            AND  m.use_yn = 1
         """)
         
         result = db.execute(query)
