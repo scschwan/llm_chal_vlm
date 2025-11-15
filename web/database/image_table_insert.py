@@ -7,33 +7,15 @@ import os
 import sys
 from pathlib import Path
 from typing import List, Dict
-import pymysql
 
 # 프로젝트 루트 경로 추가
 sys.path.append('/home/dmillion/llm_chal_vlm')
 
-# 환경변수 로드
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = int(os.getenv("DB_PORT", "3306"))
-DB_USER = os.getenv("DB_USER", "dmillion")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "dm250120@")
-DB_NAME = os.getenv("DB_NAME", "defect_detection_db")
+from web.database.connection import get_db
 
+# 환경변수 로드
 NCP_STORAGE_BASE_URL = os.getenv('NCP_STORAGE_BASE_URL', 'https://kr.object.ncloudstorage.com')
 NCP_BUCKET = os.getenv('NCP_BUCKET', 'dm-obs')
-
-
-def get_db_connection():
-    """DB 연결 생성 (pymysql 직접 사용)"""
-    return pymysql.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        database=DB_NAME,
-        charset='utf8mb4',
-        cursorclass=pymysql.cursors.DictCursor
-    )
 
 
 def parse_defect_filename(filename: str) -> Dict[str, str]:
@@ -43,8 +25,6 @@ def parse_defect_filename(filename: str) -> Dict[str, str]:
     패턴:
     - {product}_{defect}_xxx.png
     - {product}_{defect1}_{defect2}_xxx.png (metal_contamination 등)
-    
-    마지막 숫자 부분을 찾아서 그 앞까지를 defect_code로 간주
     """
     stem = Path(filename).stem
     parts = stem.split('_')
@@ -58,17 +38,12 @@ def parse_defect_filename(filename: str) -> Dict[str, str]:
     
     product_code = parts[0]
     
-    # ✅ 마지막부터 역순으로 숫자 패턴 찾기
-    # 예: grid_metal_contamination_008_r180 → sequence는 008 또는 r180
-    # 첫 번째 숫자 패턴(또는 회전 패턴)을 찾을 때까지 역순 탐색
-    
+    # 마지막부터 역순으로 숫자/회전 패턴 찾기
     seq_index = -1
     for i in range(len(parts) - 1, 0, -1):
-        # 숫자로 시작하거나 r로 시작(회전)하면 sequence 부분
         if parts[i].isdigit() or parts[i].startswith('r') or parts[i].startswith('fh'):
             seq_index = i
         else:
-            # 숫자 아닌 부분을 만나면 중단
             break
     
     # defect_code는 product 다음부터 sequence 앞까지
@@ -77,11 +52,10 @@ def parse_defect_filename(filename: str) -> Dict[str, str]:
         defect_code = '_'.join(defect_parts)
         sequence = parts[seq_index] if seq_index < len(parts) else '000'
     else:
-        # 패턴을 못 찾으면 기본 로직
         defect_code = parts[1]
         sequence = parts[2] if len(parts) > 2 else '000'
     
-    # ✅ 'ok'는 정상 이미지 → None 반환
+    # 'ok'는 정상 이미지
     if defect_code == 'ok':
         return None
     
@@ -117,16 +91,17 @@ def parse_normal_filename(filename: str) -> Dict[str, str]:
         }
 
 
-def get_product_id(cursor, product_code: str) -> int:
+def get_product_id(db, product_code: str) -> int:
     """제품 코드로 product_id 조회"""
-    query = "SELECT product_id FROM products WHERE product_code = %s"
-    cursor.execute(query, (product_code,))
-    result = cursor.fetchone()
+    from web.database.models import Product
     
-    if result:
-        return result['product_id']
+    product = db.query(Product).filter(
+        Product.product_code == product_code
+    ).first()
+    
+    if product:
+        return product.product_id
     else:
-        print(f"⚠️  제품을 찾을 수 없음: {product_code}")
         return None
 
 
@@ -135,12 +110,12 @@ def get_defect_type_id(db, product_id: int, defect_code: str) -> int:
     불량 코드로 defect_type_id 조회
     
     매칭 전략:
-    1. 정확한 매칭 시도 (metal_contamination)
-    2. 실패 시 첫 단어로 매칭 시도 (metal)
+    1. 정확한 매칭 시도
+    2. 실패 시 첫 단어로 매칭 시도
     """
     from web.database.models import DefectType
     
-    # ✅ 1차: 정확한 매칭
+    # 1차: 정확한 매칭
     defect_type = db.query(DefectType).filter(
         DefectType.product_id == product_id,
         DefectType.defect_code == defect_code
@@ -149,7 +124,7 @@ def get_defect_type_id(db, product_id: int, defect_code: str) -> int:
     if defect_type:
         return defect_type.defect_type_id
     
-    # ✅ 2차: 첫 단어로 매칭 (metal_contamination → metal)
+    # 2차: 첫 단어로 매칭 (metal_contamination → metal)
     if '_' in defect_code:
         first_word = defect_code.split('_')[0]
         defect_type = db.query(DefectType).filter(
@@ -165,43 +140,27 @@ def get_defect_type_id(db, product_id: int, defect_code: str) -> int:
     return None
 
 
-def check_duplicate(cursor, file_name: str) -> bool:
-    """중복 체크"""
-    query = "SELECT COUNT(*) as cnt FROM images WHERE file_name = %s"
-    cursor.execute(query, (file_name,))
-    result = cursor.fetchone()
-    return result['cnt'] > 0
-
-
-def insert_image(cursor, conn, image_data: Dict) -> bool:
+def insert_image(db, image_data: Dict) -> bool:
     """이미지 DB 삽입"""
+    from web.database.models import Image
+    
     try:
-        # 중복 체크
-        if check_duplicate(cursor, image_data['file_name']):
-            print(f"⏭️  이미 존재: {image_data['file_name']}")
-            return False
+        image = Image(
+            product_id=image_data['product_id'],
+            image_type=image_data['image_type'],
+            defect_type_id=image_data.get('defect_type_id'),
+            file_name=image_data['file_name'],
+            file_path=image_data['file_path'],
+            storage_url=image_data['storage_url']
+        )
         
-        query = """
-            INSERT INTO images 
-            (product_id, image_type, defect_type_id, file_name, file_path, storage_url)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """
-        
-        cursor.execute(query, (
-            image_data['product_id'],
-            image_data['image_type'],
-            image_data.get('defect_type_id'),
-            image_data['file_name'],
-            image_data['file_path'],
-            image_data['storage_url']
-        ))
-        
-        conn.commit()
+        db.add(image)
+        db.commit()
         return True
         
     except Exception as e:
         print(f"❌ DB 삽입 실패: {image_data['file_name']} - {e}")
-        conn.rollback()
+        db.rollback()
         return False
 
 
@@ -214,23 +173,32 @@ def scan_defect_images() -> List[Dict]:
         return []
     
     images = []
+    skipped = 0
     
     for ext in ['*.jpg', '*.jpeg', '*.png']:
         for img_path in defect_dir.glob(ext):
             filename = img_path.name
             parsed = parse_defect_filename(filename)
-            if parsed != None :
-                storage_url = f"{NCP_STORAGE_BASE_URL}/{NCP_BUCKET}/def_split/{filename}"
-                
-                images.append({
-                    'file_name': filename,
-                    'file_path': str(img_path),
-                    'storage_url': storage_url,
-                    'product_code': parsed['product_code'],
-                    'defect_code': parsed['defect_code'],
-                    'image_type': 'defect'
-                })
-        
+            
+            # 정상 이미지는 건너뜀
+            if parsed is None:
+                skipped += 1
+                continue
+            
+            storage_url = f"{NCP_STORAGE_BASE_URL}/{NCP_BUCKET}/def_split/{filename}"
+            
+            images.append({
+                'file_name': filename,
+                'file_path': str(img_path),
+                'storage_url': storage_url,
+                'product_code': parsed['product_code'],
+                'defect_code': parsed['defect_code'],
+                'image_type': 'defect'
+            })
+    
+    if skipped > 0:
+        print(f"ℹ️  정상 이미지 {skipped}개 건너뜀")
+    
     return images
 
 
@@ -244,7 +212,6 @@ def scan_normal_images() -> List[Dict]:
     
     images = []
     
-    # 각 제품 폴더 순회
     for product_dir in base_dir.iterdir():
         if not product_dir.is_dir():
             continue
@@ -260,7 +227,6 @@ def scan_normal_images() -> List[Dict]:
                 filename = img_path.name
                 parsed = parse_normal_filename(filename)
                 
-                # Object Storage 경로: ok_image/{product}/{filename}
                 storage_url = f"{NCP_STORAGE_BASE_URL}/{NCP_BUCKET}/ok_image/{product_code}/{filename}"
                 
                 images.append({
@@ -276,14 +242,14 @@ def scan_normal_images() -> List[Dict]:
 
 def sync_images_to_db():
     """이미지 → DB 동기화 메인 함수"""
+
+    skipped_products = set()
     
     print("=" * 60)
     print("Object Storage 이미지 → DB 동기화 시작")
     print("=" * 60)
     
-    # DB 연결
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    db = next(get_db())
     
     try:
         # 1. 불량 이미지 스캔
@@ -299,16 +265,17 @@ def sync_images_to_db():
         # 3. 불량 이미지 DB 삽입
         print("\n[3/4] 불량 이미지 DB 삽입 중...")
         defect_success = 0
-        defect_skip = 0
         defect_fail = 0
+        defect_skip = 0
         
         for img in defect_images:
-            product_id = get_product_id(cursor, img['product_code'])
+            product_id = get_product_id(db, img['product_code'])
             if not product_id:
-                defect_fail += 1
+                skipped_products.add(img['product_code'])
+                defect_skip += 1
                 continue
             
-            defect_type_id = get_defect_type_id(cursor, product_id, img['defect_code'])
+            defect_type_id = get_defect_type_id(db, product_id, img['defect_code'])
             
             image_data = {
                 'product_id': product_id,
@@ -319,26 +286,23 @@ def sync_images_to_db():
                 'storage_url': img['storage_url']
             }
             
-            result = insert_image(cursor, conn, image_data)
-            if result:
+            if insert_image(db, image_data):
                 defect_success += 1
-            elif result is False:
-                defect_skip += 1
             else:
                 defect_fail += 1
         
-        print(f"✅ 불량 이미지: {defect_success}개 삽입, {defect_skip}개 스킵, {defect_fail}개 실패")
+        print(f"✅ 불량 이미지 삽입 완료: {defect_success}개 성공, {defect_fail}개 실패, {defect_skip}개 스킵")
         
         # 4. 정상 이미지 DB 삽입
         print("\n[4/4] 정상 이미지 DB 삽입 중...")
         normal_success = 0
-        normal_skip = 0
         normal_fail = 0
+        normal_skip = 0
         
         for img in normal_images:
-            product_id = get_product_id(cursor, img['product_code'])
+            product_id = get_product_id(db, img['product_code'])
             if not product_id:
-                normal_fail += 1
+                normal_skip += 1
                 continue
             
             image_data = {
@@ -350,25 +314,24 @@ def sync_images_to_db():
                 'storage_url': img['storage_url']
             }
             
-            result = insert_image(cursor, conn, image_data)
-            if result:
+            if insert_image(db, image_data):
                 normal_success += 1
-            elif result is False:
-                normal_skip += 1
             else:
                 normal_fail += 1
         
-        print(f"✅ 정상 이미지: {normal_success}개 삽입, {normal_skip}개 스킵, {normal_fail}개 실패")
+        print(f"✅ 정상 이미지 삽입 완료: {normal_success}개 성공, {normal_fail}개 실패, {normal_skip}개 스킵")
         
         # 최종 결과
         print("\n" + "=" * 60)
         print("동기화 완료")
         print("=" * 60)
-        print(f"불량 이미지: {defect_success}개 삽입")
-        print(f"정상 이미지: {normal_success}개 삽입")
-        print(f"총 삽입: {defect_success + normal_success}개")
-        print(f"총 스킵: {defect_skip + normal_skip}개")
-        print(f"총 실패: {defect_fail + normal_fail}개")
+        print(f"불량 이미지: {defect_success}/{len(defect_images)} (스킵: {defect_skip})")
+        print(f"정상 이미지: {normal_success}/{len(normal_images)} (스킵: {normal_skip})")
+        print(f"총 성공: {defect_success + normal_success}")
+        print(f"총 실패: {defect_fail + normal_fail}")
+        #print(f"총 스킵: {defect_skip + normal_skip}")
+        if skipped_products:
+            print(f"스킵된 제품: {', '.join(sorted(skipped_products))}")
         print("=" * 60)
         
     except Exception as e:
@@ -377,8 +340,7 @@ def sync_images_to_db():
         traceback.print_exc()
     
     finally:
-        cursor.close()
-        conn.close()
+        db.close()
 
 
 if __name__ == "__main__":
