@@ -208,9 +208,9 @@
     │   │   ├── [ 2.8M]  embeddings.pt
     │   │   ├── [ 2.8M]  faiss_index.bin
     │   │   └── [ 709K]  metadata.json
-    │   └── [ 499K]  normal
-    │       ├── [ 224K]  embeddings.pt
-    │       ├── [ 222K]  faiss_index.bin
+    │   └── [ 494K]  normal
+    │       ├── [ 222K]  embeddings.pt
+    │       ├── [ 220K]  faiss_index.bin
     │       └── [  53K]  metadata.json
     ├── [  14K]  matching.html
     ├── [ 113K]  pages
@@ -240,7 +240,7 @@
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
     │   │   ├── [  26K]  deployment.py
-    │   │   ├── [  28K]  image.py
+    │   │   ├── [  29K]  image.py
     │   │   ├── [  488]  __init__.py
     │   │   ├── [  11K]  manual.py
     │   │   ├── [ 9.7K]  model.py
