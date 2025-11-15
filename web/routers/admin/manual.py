@@ -210,8 +210,7 @@ async def sync_manual():
     비동기화된 메뉴얼 파일 Object Storage에서 다운로드 후 RAG 재수행
     """
     import requests
-    from pathlib import Path
-    import sys
+    from sqlalchemy import text
     
     # 프로젝트 루트 경로
     project_root = Path(__file__).parent.parent.parent
@@ -229,8 +228,8 @@ async def sync_manual():
     db = next(get_db())
     
     try:
-        # 1. 비동기화된 메뉴얼 조회
-        query = """
+        # 1. 비동기화된 메뉴얼 조회 (SQLAlchemy 방식)
+        query = text("""
             SELECT 
                 (SELECT p.product_code FROM products p WHERE p.product_id = m.product_id) AS prod_name,
                 m.manual_id,
@@ -238,10 +237,10 @@ async def sync_manual():
                 m.file_name
             FROM manuals m 
             WHERE m.vector_indexed = 0
-        """
-        cursor = db.cursor()
-        cursor.execute(query)
-        unindexed_manuals = cursor.fetchall()
+        """)
+        
+        result = db.execute(query)
+        unindexed_manuals = result.fetchall()
         
         if not unindexed_manuals:
             print("[SYNC] 동기화할 메뉴얼이 없습니다.")
@@ -293,9 +292,9 @@ async def sync_manual():
             rag_manager = create_rag_manager(
                 manual_dir=MANUAL_STORE_PATH,
                 vector_store_path=MANUAL_STORE_PATH,
-                defect_mapping_path=mapping_file,  # ✅ 추가
+                defect_mapping_path=mapping_file,
                 device="cuda" if torch.cuda.is_available() else "cpu",
-                force_rebuild=True,  # 동기화이므로 강제 재구축
+                force_rebuild=True,
                 verbose=True
             )
             
@@ -309,12 +308,15 @@ async def sync_manual():
             
             for manual in unindexed_manuals:
                 manual_id = manual[1]
-                update_query = """
+                update_query = text("""
                     UPDATE manuals 
-                    SET vector_indexed = 1, indexed_at = %s 
-                    WHERE manual_id = %s
-                """
-                cursor.execute(update_query, (datetime.now(), manual_id))
+                    SET vector_indexed = 1, indexed_at = :indexed_at 
+                    WHERE manual_id = :manual_id
+                """)
+                db.execute(update_query, {
+                    "indexed_at": datetime.now(),
+                    "manual_id": manual_id
+                })
             
             db.commit()
             print(f"[SYNC] DB 업데이트 완료")
@@ -332,5 +334,4 @@ async def sync_manual():
         db.rollback()
         
     finally:
-        cursor.close()
         db.close()
