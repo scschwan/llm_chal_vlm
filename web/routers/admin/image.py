@@ -595,9 +595,11 @@ async def sync_normal_images():
             
             # storage_url에서 object_key 추출
             if storage_url.startswith('http'):
-                object_key = '/'.join(storage_url.split('/')[-3:])
+                object_key = '/'.join(storage_url.split('/')[-4:])  # images/defect/xxx.jpg
             else:
                 object_key = storage_url.lstrip('/')
+            
+            print(f"storage_url : {storage_url} -> object_key : {object_key} ")
             
             # 1) DEFECT_PATH에 저장
             defect_local_path = defect_path / file_name
@@ -756,7 +758,7 @@ async def sync_defect_images():
             
             
             if storage_url.startswith('http'):
-                object_key = '/'.join(storage_url.split('/')[-3:])  # images/defect/xxx.jpg
+                object_key = '/'.join(storage_url.split('/')[-4:])  # images/defect/xxx.jpg
             else:
                 object_key = storage_url.lstrip('/')
             print(f"storage_url : {storage_url} -> object_key : {object_key} ")
