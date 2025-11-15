@@ -109,12 +109,12 @@
 ├── [  249]  save_tree.sh
 ├── [  335]  settings.config
 ├── [    6]  uploads
-└── [  10M]  web
+└── [  17M]  web
     ├── [  324]  anomaly_outputs
     │   ├── [   82]  carpet_thread_017
     │   ├── [   82]  cast_def_0_619
     │   └── [   82]  leather_color_017
-    ├── [  32K]  api_server.py
+    ├── [  33K]  api_server.py
     ├── [  47K]  database
     │   ├── [ 1.8K]  connection.py
     │   ├── [  26K]  crud.py
@@ -130,9 +130,15 @@
     │   └── [ 605K]  normal
     │       ├── [ 296K]  faiss_index.bin
     │       └── [ 309K]  index_data.pt
-    ├── [   46]  index_cache_v2
-    │   ├── [    6]  defect
-    │   └── [    6]  normal
+    ├── [ 6.8M]  index_cache_v2
+    │   ├── [ 6.4M]  defect
+    │   │   ├── [ 2.8M]  embeddings.pt
+    │   │   ├── [ 2.8M]  faiss_index.bin
+    │   │   └── [ 710K]  metadata.json
+    │   └── [ 499K]  normal
+    │       ├── [ 224K]  embeddings.pt
+    │       ├── [ 222K]  faiss_index.bin
+    │       └── [  53K]  metadata.json
     ├── [  14K]  matching.html
     ├── [  94K]  pages
     │   ├── [  44K]  admin
@@ -219,4 +225,4 @@
         ├── [    0]  __init__.py
         └── [ 9.7K]  object_storage.py
 
-   68M used in 50 directories, 169 files
+   75M used in 50 directories, 175 files
