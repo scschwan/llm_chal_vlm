@@ -192,7 +192,7 @@
     │   ├── [  26K]  crud.py
     │   ├── [  10K]  image_table_insert.py
     │   └── [ 8.7K]  models.py
-    ├── [ 1.9K]  defect_mapping.json
+    ├── [ 1.8K]  defect_mapping.json
     ├── [ 1.9K]  defect_mapping_origin.json
     ├── [ 9.4M]  index_cache
     │   ├── [ 8.3M]  defect
