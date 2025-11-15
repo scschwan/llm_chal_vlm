@@ -237,7 +237,7 @@ async def refresh_mapping():
     
     # 프로젝트 루트 경로
     project_root = Path(__file__).parent.parent.parent
-    mapping_file_path = project_root / "web" / "defect_mapping.json"
+    mapping_file_path = project_root / "defect_mapping.json"
     
     # DB 연결
     db = next(get_db())
