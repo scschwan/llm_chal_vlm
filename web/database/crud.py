@@ -356,9 +356,9 @@ def create_deployment_log(
     product_id: int = None
 ) -> int:
     """배포 로그 생성"""
-    from web.database.connection import get_db_connection
+    from web.database.connection import get_db
     
-    conn = get_db_connection()
+    conn = get_db()
     cursor = conn.cursor()
     
     try:
@@ -389,9 +389,9 @@ def update_deployment_status(
     error_message: str = None
 ):
     """배포 상태 업데이트"""
-    from web.database.connection import get_db_connection
+    from web.database.connection import get_db
     
-    conn = get_db_connection()
+    conn = get_db()
     cursor = conn.cursor()
     
     try:
@@ -428,9 +428,9 @@ def get_deployment_logs(
     deployment_type: str = None
 ) -> list:
     """배포 이력 조회"""
-    from web.database.connection import get_db_connection
+    from web.database.connection import get_db
     
-    conn = get_db_connection()
+    conn = get_db()
     cursor = conn.cursor(dictionary=True)
     
     try:
@@ -488,9 +488,9 @@ def create_preprocessing_config(
     augmentation: dict = None
 ) -> int:
     """전처리 설정 생성"""
-    from web.database.connection import get_db_connection
+    from web.database.connection import get_db
     
-    conn = get_db_connection()
+    conn = get_db()
     cursor = conn.cursor()
     
     try:
@@ -518,9 +518,9 @@ def create_preprocessing_config(
 
 def get_preprocessing_configs() -> list:
     """전체 전처리 설정 조회"""
-    from web.database.connection import get_db_connection
+    from web.database.connection import get_db
     
-    conn = get_db_connection()
+    conn = get_db()
     cursor = conn.cursor(dictionary=True)
     
     try:
@@ -552,9 +552,9 @@ def get_preprocessing_configs() -> list:
 
 def get_preprocessing_config_by_id(config_id: int) -> dict:
     """ID로 전처리 설정 조회"""
-    from web.database.connection import get_db_connection
+    from web.database.connection import get_db
     
-    conn = get_db_connection()
+    conn = get_db()
     cursor = conn.cursor(dictionary=True)
     
     try:
@@ -581,9 +581,9 @@ def get_preprocessing_config_by_id(config_id: int) -> dict:
 
 def update_preprocessing_config(config_id: int, **kwargs):
     """전처리 설정 수정"""
-    from web.database.connection import get_db_connection
+    from web.database.connection import get_db
     
-    conn = get_db_connection()
+    conn = get_db()
     cursor = conn.cursor()
     
     try:
@@ -631,9 +631,9 @@ def update_preprocessing_config(config_id: int, **kwargs):
 
 def delete_preprocessing_config(config_id: int):
     """전처리 설정 삭제"""
-    from web.database.connection import get_db_connection
+    from web.database.connection import get_db
     
-    conn = get_db_connection()
+    conn = get_db()
     cursor = conn.cursor()
     
     try:
@@ -651,9 +651,9 @@ def delete_preprocessing_config(config_id: int):
 
 def get_active_preprocessing_config() -> dict:
     """활성화된 전처리 설정 조회"""
-    from web.database.connection import get_db_connection
+    from web.database.connection import get_db
     
-    conn = get_db_connection()
+    conn = get_db()
     cursor = conn.cursor(dictionary=True)
     
     try:
@@ -680,9 +680,9 @@ def get_active_preprocessing_config() -> dict:
 
 def set_active_preprocessing_config(config_id: int):
     """전처리 설정 활성화 (다른 설정은 비활성화)"""
-    from web.database.connection import get_db_connection
+    from web.database.connection import get_db
     
-    conn = get_db_connection()
+    conn = get_db()
     cursor = conn.cursor()
     
     try:

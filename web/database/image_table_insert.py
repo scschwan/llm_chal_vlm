@@ -7,16 +7,33 @@ import os
 import sys
 from pathlib import Path
 from typing import List, Dict
-import re
+import pymysql
 
 # 프로젝트 루트 경로 추가
 sys.path.append('/home/dmillion/llm_chal_vlm')
 
-from database.connection import get_db_connection
-
 # 환경변수 로드
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = int(os.getenv("DB_PORT", "3306"))
+DB_USER = os.getenv("DB_USER", "dmillion")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "dm250120@")
+DB_NAME = os.getenv("DB_NAME", "defect_detection_db")
+
 NCP_STORAGE_BASE_URL = os.getenv('NCP_STORAGE_BASE_URL', 'https://kr.object.ncloudstorage.com')
 NCP_BUCKET = os.getenv('NCP_BUCKET', 'dm-obs')
+
+
+def get_db_connection():
+    """DB 연결 생성 (pymysql 직접 사용)"""
+    return pymysql.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=DB_NAME,
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
 
 
 def parse_defect_filename(filename: str) -> Dict[str, str]:
@@ -72,48 +89,52 @@ def parse_normal_filename(filename: str) -> Dict[str, str]:
         }
 
 
-def get_product_id(conn, product_code: str) -> int:
+def get_product_id(cursor, product_code: str) -> int:
     """제품 코드로 product_id 조회"""
-    cursor = conn.cursor()
-    try:
-        query = "SELECT product_id FROM products WHERE product_code = %s"
-        cursor.execute(query, (product_code,))
-        result = cursor.fetchone()
-        
-        if result:
-            return result[0]
-        else:
-            print(f"⚠️  제품을 찾을 수 없음: {product_code}")
-            return None
-    finally:
-        cursor.close()
+    query = "SELECT product_id FROM products WHERE product_code = %s"
+    cursor.execute(query, (product_code,))
+    result = cursor.fetchone()
+    
+    if result:
+        return result['product_id']
+    else:
+        print(f"⚠️  제품을 찾을 수 없음: {product_code}")
+        return None
 
 
-def get_defect_type_id(conn, product_id: int, defect_code: str) -> int:
+def get_defect_type_id(cursor, product_id: int, defect_code: str) -> int:
     """불량 코드로 defect_type_id 조회"""
-    cursor = conn.cursor()
-    try:
-        query = """
-            SELECT defect_type_id 
-            FROM defect_types 
-            WHERE product_id = %s AND defect_code = %s
-        """
-        cursor.execute(query, (product_id, defect_code))
-        result = cursor.fetchone()
-        
-        if result:
-            return result[0]
-        else:
-            print(f"⚠️  불량 유형을 찾을 수 없음: product_id={product_id}, defect_code={defect_code}")
-            return None
-    finally:
-        cursor.close()
+    query = """
+        SELECT defect_type_id 
+        FROM defect_types 
+        WHERE product_id = %s AND defect_code = %s
+    """
+    cursor.execute(query, (product_id, defect_code))
+    result = cursor.fetchone()
+    
+    if result:
+        return result['defect_type_id']
+    else:
+        print(f"⚠️  불량 유형을 찾을 수 없음: product_id={product_id}, defect_code={defect_code}")
+        return None
 
 
-def insert_image(conn, image_data: Dict) -> bool:
+def check_duplicate(cursor, file_name: str) -> bool:
+    """중복 체크"""
+    query = "SELECT COUNT(*) as cnt FROM images WHERE file_name = %s"
+    cursor.execute(query, (file_name,))
+    result = cursor.fetchone()
+    return result['cnt'] > 0
+
+
+def insert_image(cursor, conn, image_data: Dict) -> bool:
     """이미지 DB 삽입"""
-    cursor = conn.cursor()
     try:
+        # 중복 체크
+        if check_duplicate(cursor, image_data['file_name']):
+            print(f"⏭️  이미 존재: {image_data['file_name']}")
+            return False
+        
         query = """
             INSERT INTO images 
             (product_id, image_type, defect_type_id, file_name, file_path, storage_url)
@@ -136,8 +157,6 @@ def insert_image(conn, image_data: Dict) -> bool:
         print(f"❌ DB 삽입 실패: {image_data['file_name']} - {e}")
         conn.rollback()
         return False
-    finally:
-        cursor.close()
 
 
 def scan_defect_images() -> List[Dict]:
@@ -218,6 +237,7 @@ def sync_images_to_db():
     
     # DB 연결
     conn = get_db_connection()
+    cursor = conn.cursor()
     
     try:
         # 1. 불량 이미지 스캔
@@ -233,15 +253,16 @@ def sync_images_to_db():
         # 3. 불량 이미지 DB 삽입
         print("\n[3/4] 불량 이미지 DB 삽입 중...")
         defect_success = 0
+        defect_skip = 0
         defect_fail = 0
         
         for img in defect_images:
-            product_id = get_product_id(conn, img['product_code'])
+            product_id = get_product_id(cursor, img['product_code'])
             if not product_id:
                 defect_fail += 1
                 continue
             
-            defect_type_id = get_defect_type_id(conn, product_id, img['defect_code'])
+            defect_type_id = get_defect_type_id(cursor, product_id, img['defect_code'])
             
             image_data = {
                 'product_id': product_id,
@@ -252,20 +273,24 @@ def sync_images_to_db():
                 'storage_url': img['storage_url']
             }
             
-            if insert_image(conn, image_data):
+            result = insert_image(cursor, conn, image_data)
+            if result:
                 defect_success += 1
+            elif result is False:
+                defect_skip += 1
             else:
                 defect_fail += 1
         
-        print(f"✅ 불량 이미지 삽입 완료: {defect_success}개 성공, {defect_fail}개 실패")
+        print(f"✅ 불량 이미지: {defect_success}개 삽입, {defect_skip}개 스킵, {defect_fail}개 실패")
         
         # 4. 정상 이미지 DB 삽입
         print("\n[4/4] 정상 이미지 DB 삽입 중...")
         normal_success = 0
+        normal_skip = 0
         normal_fail = 0
         
         for img in normal_images:
-            product_id = get_product_id(conn, img['product_code'])
+            product_id = get_product_id(cursor, img['product_code'])
             if not product_id:
                 normal_fail += 1
                 continue
@@ -279,21 +304,25 @@ def sync_images_to_db():
                 'storage_url': img['storage_url']
             }
             
-            if insert_image(conn, image_data):
+            result = insert_image(cursor, conn, image_data)
+            if result:
                 normal_success += 1
+            elif result is False:
+                normal_skip += 1
             else:
                 normal_fail += 1
         
-        print(f"✅ 정상 이미지 삽입 완료: {normal_success}개 성공, {normal_fail}개 실패")
+        print(f"✅ 정상 이미지: {normal_success}개 삽입, {normal_skip}개 스킵, {normal_fail}개 실패")
         
         # 최종 결과
         print("\n" + "=" * 60)
         print("동기화 완료")
         print("=" * 60)
-        print(f"불량 이미지: {defect_success}/{len(defect_images)}")
-        print(f"정상 이미지: {normal_success}/{len(normal_images)}")
-        print(f"총 성공: {defect_success + normal_success}")
-        print(f"총 실패: {defect_fail + normal_fail}")
+        print(f"불량 이미지: {defect_success}개 삽입")
+        print(f"정상 이미지: {normal_success}개 삽입")
+        print(f"총 삽입: {defect_success + normal_success}개")
+        print(f"총 스킵: {defect_skip + normal_skip}개")
+        print(f"총 실패: {defect_fail + normal_fail}개")
         print("=" * 60)
         
     except Exception as e:
@@ -302,6 +331,7 @@ def sync_images_to_db():
         traceback.print_exc()
     
     finally:
+        cursor.close()
         conn.close()
 
 
