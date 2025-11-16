@@ -803,7 +803,8 @@ def fetch_image_metadata_for_index(
     ).outerjoin(
         DefectType, Image.defect_type_id == DefectType.defect_type_id
     ).filter(
-        Image.image_type == image_type
+        Image.image_type == image_type,
+        Image.file_path.isnot(None)  # ✅ 추가: NULL 제외
     ).order_by(
         Image.image_id
     )
