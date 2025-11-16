@@ -309,7 +309,12 @@ async def lifespan(app: FastAPI):
 
 
     init_upload_router(UPLOAD_DIR)
-    init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR)  # ✅ INDEX_DIR 추가
+    #init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR)  # ✅ INDEX_DIR 추가
+    if USE_INDEX_V2:
+        init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR_V2)
+    else:
+        init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR)
+
     init_manual_router(
         vlm_components.get("mapper"),
         vlm_components.get("rag"),

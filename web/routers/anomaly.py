@@ -61,68 +61,118 @@ class AnomalyDetectRequest(BaseModel):
 _current_index_type = None  # "defect" or "normal"
 
 async def switch_to_normal_index():
-    """정상 이미지 인덱스로 전환 (캐싱 개선)"""
+    """정상 이미지 인덱스로 전환 (V2 DB 기반)"""
     global _current_index_type
     
     matcher = get_matcher()
-    INDEX_DIR = get_index_dir()
-    project_root = get_project_root()
+    INDEX_DIR = get_index_dir()  # V2라면 INDEX_DIR_V2가 들어옴
     
     if matcher is None:
         raise HTTPException(500, "매처가 초기화되지 않았습니다")
     
+    # V2인지 확인
+    is_v2 = hasattr(matcher, 'gallery_metadata')
+    
     # ✅ 이미 정상 인덱스가 로드되어 있으면 스킵
-    if _current_index_type == "normal":
+    if _current_index_type == "normal" and matcher.index_built:
         print(f"[ANOMALY] 이미 정상 인덱스가 로드되어 있음 (스킵)")
+        
+        if is_v2:
+            gallery_count = len(matcher.gallery_metadata)
+        else:
+            gallery_count = len(matcher.gallery_paths) if matcher.gallery_paths else 0
+        
         return {
             "status": "success",
             "index_type": "normal",
-            "gallery_count": len(matcher.gallery_paths) if matcher.gallery_paths else 0,
-            "cached": True  # 캐시 사용 플래그
+            "gallery_count": gallery_count,
+            "cached": True
         }
     
     normal_index_path = INDEX_DIR / "normal"
     
     try:
-        # 저장된 정상 인덱스 로드
-        if (normal_index_path / "index_data.pt").exists():
-            print(f"[ANOMALY] 정상 이미지 인덱스 로드: {normal_index_path}")
-            matcher.load_index(str(normal_index_path))
-            _current_index_type = "normal"  # ✅ 상태 업데이트
-            print(f"[ANOMALY] 정상 인덱스 로드 완료: {len(matcher.gallery_paths)}개 이미지")
-            return {
-                "status": "success",
-                "index_type": "normal",
-                "gallery_count": len(matcher.gallery_paths) if matcher.gallery_paths else 0
-            }
+        if is_v2:
+            # ========== V2: DB 기반 인덱스 ==========
+            # 저장된 정상 인덱스 로드
+            if (normal_index_path / "metadata.json").exists():
+                print(f"[ANOMALY V2] 정상 이미지 인덱스 로드: {normal_index_path}")
+                matcher.load_index(str(normal_index_path))
+                _current_index_type = "normal"
+                print(f"[ANOMALY V2] 정상 인덱스 로드 완료: {len(matcher.gallery_metadata)}개 이미지")
+                return {
+                    "status": "success",
+                    "index_type": "normal",
+                    "gallery_count": len(matcher.gallery_metadata)
+                }
+            else:
+                # ✅ 인덱스가 없으면 DB에서 구축
+                from web.database.connection import get_db
+                
+                print(f"[ANOMALY V2] 정상 이미지 인덱스 구축 중 (DB 기반)...")
+                
+                # DB 세션 생성
+                db = next(get_db())
+                
+                try:
+                    # DB에서 normal 타입 이미지로 인덱스 구축
+                    info = matcher.build_index_from_db(db, image_type="normal")
+                    
+                    # 인덱스 저장
+                    normal_index_path.mkdir(parents=True, exist_ok=True)
+                    matcher.save_index(str(normal_index_path))
+                    _current_index_type = "normal"
+                    
+                    print(f"[ANOMALY V2] 정상 인덱스 구축 완료: {info['num_images']}개 이미지")
+                    return {
+                        "status": "success",
+                        "index_type": "normal",
+                        "gallery_count": info["num_images"]
+                    }
+                finally:
+                    db.close()
+        
         else:
-            # 인덱스가 없으면 새로 구축 (최초 1회만)
-            normal_base_dir = project_root / "data" / "patchCore"
-            
-            if not normal_base_dir.exists():
-                raise FileNotFoundError(f"정상 이미지 디렉토리가 없습니다: {normal_base_dir}")
-            
-            print(f"[ANOMALY] 정상 이미지 인덱스 구축 중: {normal_base_dir}")
-            info = matcher.build_index(str(normal_base_dir))
-            
-            # 인덱스 저장
-            normal_index_path.mkdir(parents=True, exist_ok=True)
-            matcher.save_index(str(normal_index_path))
-            _current_index_type = "normal"  # ✅ 상태 업데이트
-            
-            print(f"[ANOMALY] 정상 인덱스 구축 완료: {info['num_images']}개 이미지")
-            return {
-                "status": "success",
-                "index_type": "normal",
-                "gallery_count": info["num_images"]
-            }
+            # ========== V1: 파일 기반 인덱스 ==========
+            # 저장된 정상 인덱스 로드
+            if (normal_index_path / "index_data.pt").exists():
+                print(f"[ANOMALY V1] 정상 이미지 인덱스 로드: {normal_index_path}")
+                matcher.load_index(str(normal_index_path))
+                _current_index_type = "normal"
+                print(f"[ANOMALY V1] 정상 인덱스 로드 완료: {len(matcher.gallery_paths)}개 이미지")
+                return {
+                    "status": "success",
+                    "index_type": "normal",
+                    "gallery_count": len(matcher.gallery_paths) if matcher.gallery_paths else 0
+                }
+            else:
+                # 인덱스가 없으면 새로 구축
+                project_root = get_project_root()
+                normal_base_dir = project_root / "data" / "patchCore"
+                
+                if not normal_base_dir.exists():
+                    raise FileNotFoundError(f"정상 이미지 디렉토리가 없습니다: {normal_base_dir}")
+                
+                print(f"[ANOMALY V1] 정상 이미지 인덱스 구축 중: {normal_base_dir}")
+                info = matcher.build_index(str(normal_base_dir))
+                
+                # 인덱스 저장
+                normal_index_path.mkdir(parents=True, exist_ok=True)
+                matcher.save_index(str(normal_index_path))
+                _current_index_type = "normal"
+                
+                print(f"[ANOMALY V1] 정상 인덱스 구축 완료: {info['num_images']}개 이미지")
+                return {
+                    "status": "success",
+                    "index_type": "normal",
+                    "gallery_count": info["num_images"]
+                }
     
     except Exception as e:
         print(f"[ANOMALY] 정상 인덱스 로드 실패: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(500, f"정상 인덱스 로드 실패: {str(e)}")
-
 
 @router.post("/detect")
 async def detect_anomaly(request: AnomalyDetectRequest):
