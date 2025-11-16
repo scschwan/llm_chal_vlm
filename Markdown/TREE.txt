@@ -33,11 +33,13 @@
 │       │   ├── [ 7.8M]  memory_bank.pt
 │       │   ├── [ 4.0K]  ok
 │       │   └── [   63]  tau.json
-│       └── [ 3.3M]  prod3
-│           ├── [  154]  bank_config.json
-│           ├── [ 3.3M]  memory_bank.pt
-│           ├── [ 4.0K]  ok
-│           └── [   64]  tau.json
+│       ├── [ 3.3M]  prod3
+│       │   ├── [  154]  bank_config.json
+│       │   ├── [ 3.3M]  memory_bank.pt
+│       │   ├── [ 4.0K]  ok
+│       │   └── [   64]  tau.json
+│       └── [  162]  test6
+│           └── [  146]  ok
 ├── [  33K]  docs
 │   ├── [  14K]  API_명세서.md
 │   └── [  18K]  API_명세서.xlsx
@@ -46,10 +48,10 @@
 │   ├── [  692]  check_hyperclova.sh
 │   ├── [  30K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
-├── [  31M]  manual_store
+├── [  38M]  manual_store
 │   ├── [  19K]  carpet_manual.docx
 │   ├── [ 3.8M]  carpet_manual.pdf
-│   ├── [  916]  file_metadata.json
+│   ├── [ 1.6K]  file_metadata.json
 │   ├── [  19K]  grid_manual.docx
 │   ├── [ 3.8M]  grid_manual.pdf
 │   ├── [ 9.0K]  index.faiss
@@ -67,9 +69,16 @@
 │   │   └── [ 3.8M]  prod1_menual.pdf
 │   ├── [  18K]  prod1_menual.docx
 │   ├── [ 3.8M]  prod1_menual.pdf
-│   └── [ 156K]  unified_index
-│       ├── [ 135K]  index.faiss
-│       └── [  21K]  index.pkl
+│   ├── [ 671K]  test1_manual.pdf
+│   ├── [ 671K]  test2_manual.pdf
+│   ├── [ 671K]  Test3_manual.pdf
+│   ├── [ 671K]  test4_manual.pdf
+│   ├── [ 671K]  test5_manual.pdf
+│   ├── [ 671K]  test6_manual.pdf
+│   ├── [ 671K]  test7_manual.pdf
+│   └── [ 3.0M]  unified_index
+│       ├── [ 2.5M]  index.faiss
+│       └── [ 483K]  index.pkl
 ├── [ 256K]  Markdown
 │   ├── [  86K]  admin_development_scope_v3.md
 │   ├── [  25K]  database_schema.md
@@ -196,7 +205,7 @@
     │   ├── [  26K]  crud.py
     │   ├── [  10K]  image_table_insert.py
     │   └── [ 8.4K]  models.py
-    ├── [ 1.9K]  defect_mapping.json
+    ├── [ 2.6K]  defect_mapping.json
     ├── [ 1.9K]  defect_mapping_origin.json
     ├── [ 9.4M]  index_cache
     │   ├── [ 8.3M]  defect
@@ -257,7 +266,7 @@
     │   ├── [ 6.9K]  search.py
     │   ├── [ 9.4K]  search_v2.py
     │   └── [ 4.2K]  upload.py
-    ├── [ 308K]  static
+    ├── [ 307K]  static
     │   ├── [ 166K]  admin
     │   │   ├── [  61K]  css
     │   │   │   ├── [ 4.5K]  admin_defect_type.css
@@ -290,13 +299,13 @@
     │   │   ├── [  13K]  matching.css
     │   │   ├── [ 8.0K]  search.css
     │   │   └── [ 3.3K]  upload.css
-    │   └── [ 104K]  js
+    │   └── [ 103K]  js
     │       ├── [  12K]  anomaly.js
     │       ├── [ 3.9K]  common.js
     │       ├── [  15K]  manual.js
     │       ├── [  45K]  matching.js
     │       ├── [  17K]  search.js
-    │       └── [  10K]  upload.js
+    │       └── [ 9.6K]  upload.js
     ├── [    6]  uploads
     └── [  16K]  utils
         ├── [ 1.6K]  auth.py
@@ -304,4 +313,4 @@
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  318M used in 76 directories, 228 files
+  325M used in 78 directories, 235 files
