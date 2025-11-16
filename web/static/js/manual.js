@@ -239,8 +239,10 @@ async function generateManual() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                product: anomalyResultData.product,
-                defect: anomalyResultData.defect,
+                //product: anomalyResultData.product,
+                //defect: anomalyResultData.defect,
+                product: anomalyResultData.product_code,
+                defect: anomalyResultData.defect_code,
                 anomaly_score: anomalyResultData.image_score,
                 is_anomaly: anomalyResultData.is_anomaly,
                 model_type: selectedModel,
