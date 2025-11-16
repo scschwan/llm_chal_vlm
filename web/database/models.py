@@ -105,11 +105,7 @@ class ResponseHistory(Base):
     defect_code = Column(String(50), nullable=False, comment="불량 코드")
     similarity_score = Column(Float, comment="유사도 점수")
     anomaly_score = Column(Float, comment="이상 점수")
-    confidence_score = Column(Float, comment="신뢰도 점수")
     test_image_path = Column(String(500), comment="검사 이미지 경로")
-    reference_image_path = Column(String(500), comment="기준 이미지 경로")
-    heatmap_path = Column(String(500), comment="히트맵 이미지 경로")
-    overlay_path = Column(String(500), comment="오버레이 이미지 경로")
     model_type = Column(String(50), comment="LLM 모델 타입")
     guide_content = Column(Text, comment="LLM 생성 대응 매뉴얼")
     guide_generated_at = Column(DateTime, comment="가이드 생성 일시")
@@ -117,6 +113,7 @@ class ResponseHistory(Base):
     feedback_text = Column(Text, comment="피드백 내용")
     feedback_at = Column(DateTime, comment="피드백 작성 일시")
     processing_time = Column(Float, comment="처리 시간")
+    feedback_user = Column(Text, comment="작업자명")
 
 
 class ModelParams(Base):

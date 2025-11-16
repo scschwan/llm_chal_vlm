@@ -35,6 +35,25 @@ from modules.anomaly_detector import AnomalyDetector, create_detector
 from modules.vlm import RAGManager, DefectMapper, PromptBuilder
 
 
+# ====================
+# 전역 변수
+# ====================
+# 전역 변수 추가 (기존 변수들 아래에)
+
+
+#matcher: Optional[TopKSimilarityMatcher] = None
+matcher_defect: Optional[TopKSimilarityMatcher] = None  # 유사도 매칭용 (불량 인덱스)
+matcher_normal: Optional[TopKSimilarityMatcher] = None  # 이상 검출용 (정상 인덱스)
+detector: Optional[AnomalyDetector] = None
+current_index_type: Optional[str] = None
+config = None
+
+vlm_components = {
+    "rag": None,
+    "vlm": None,
+    "mapper": None,
+    "prompt_builder": PromptBuilder()
+}
 
 # ====================
 # FastAPI 앱 생성
@@ -56,7 +75,7 @@ async def lifespan(app: FastAPI):
     test_connection()
     
     """서버 시작 시 초기화"""
-    global matcher, detector, current_index_type ,config
+    global matcher_defect,matcher_normal, detector, current_index_type ,config
 
     # ==================== 설정 파일 로드 ====================
     config_file = project_root / "settings.config"
@@ -116,17 +135,10 @@ async def lifespan(app: FastAPI):
         from modules.similarity_matcher_v2 import create_matcher_v2
         from web.database.connection import get_db
         
-        # V2 매처 생성
-        matcher = create_matcher_v2(
-            model_id=f"{CLIP_MODEL}/{CLIP_PRETRAINED}",
-            device="auto",
-            use_fp16=CLIP_USE_FP16,
-            batch_size=CLIP_BATCH_SIZE,
-            num_workers=CLIP_NUM_WORKERS,
-            verbose=True
-        )
+       
         
         # V2 인덱스 디렉토리
+         # V2 인덱스 디렉토리
         INDEX_DIR_V2 = WEB_DIR / "index_cache_v2"
         INDEX_DIR_V2.mkdir(parents=True, exist_ok=True)
         
@@ -142,9 +154,18 @@ async def lifespan(app: FastAPI):
             
             # 1. 정상 이미지 인덱스 구축
             print(f"\n[1/2] 정상 이미지 인덱스 구축 (DB 기반)...")
+             # V2 매처 생성
+            matcher_normal = create_matcher_v2(
+                model_id=f"{CLIP_MODEL}/{CLIP_PRETRAINED}",
+                device="auto",
+                use_fp16=CLIP_USE_FP16,
+                batch_size=CLIP_BATCH_SIZE,
+                num_workers=CLIP_NUM_WORKERS,
+                verbose=True
+            )
             try:
-                info = matcher.build_index_from_db(db, image_type='normal')
-                matcher.save_index(str(normal_index_v2))
+                info = matcher_normal.build_index_from_db(db, image_type='normal')
+                matcher_normal.save_index(str(normal_index_v2))
                 print(f"      ✅ 완료: {info['num_images']}개 이미지")
             except Exception as e:
                 print(f"      ⚠️  실패: {e}")
@@ -157,23 +178,31 @@ async def lifespan(app: FastAPI):
             # 2. 불량 이미지 인덱스 구축
             print(f"\n[2/2] 불량 이미지 인덱스 구축 (DB 기반)...")
             try:
-                info = matcher.build_index_from_db(db, image_type='defect')
-                matcher.save_index(str(defect_index_v2))
+                matcher_defect = create_matcher_v2(
+                    model_id=f"{CLIP_MODEL}/{CLIP_PRETRAINED}",
+                    device="auto",
+                    use_fp16=CLIP_USE_FP16,
+                    batch_size=CLIP_BATCH_SIZE,
+                    num_workers=CLIP_NUM_WORKERS,
+                    verbose=True
+                )
+                info = matcher_defect.build_index_from_db(db, image_type='defect')
+                matcher_defect.save_index(str(defect_index_v2))
                 print(f"      ✅ 완료: {info['num_images']}개 이미지")
             except Exception as e:
                 print(f"      ⚠️  실패: {e}")
                 # 저장된 인덱스 로드 시도
                 if (defect_index_v2 / "metadata.json").exists():
                     print(f"      → 저장된 인덱스 로드 시도...")
-                    matcher.load_index(str(defect_index_v2))
+                    matcher_defect.load_index(str(defect_index_v2))
                     print(f"      ✅ 저장된 인덱스 로드 완료")
             
             # 3. 기본 인덱스를 불량 이미지로 설정
             print("\n🔄 기본 인덱스 설정 (불량 이미지)...")
             if (defect_index_v2 / "metadata.json").exists():
-                matcher.load_index(str(defect_index_v2))
+                matcher_defect.load_index(str(defect_index_v2))
                 current_index_type = "defect"
-                print(f"✅ 불량 이미지 인덱스 로드 완료: {len(matcher.gallery_metadata)}개")
+                print(f"✅ 불량 이미지 인덱스 로드 완료: {len(matcher_defect.gallery_metadata)}개")
             
         except Exception as e:
             print(f"\n❌ V2 인덱스 구축 실패: {e}")
@@ -182,7 +211,7 @@ async def lifespan(app: FastAPI):
         
         # V2 라우터 초기화
         from routers.search_v2 import init_search_v2_router
-        init_search_v2_router(matcher, INDEX_DIR_V2, project_root)
+        init_search_v2_router(matcher_defect, INDEX_DIR_V2, project_root)
         
         print("\n" + "=" * 70)
         print("V2 인덱스 구축 완료")
@@ -311,7 +340,7 @@ async def lifespan(app: FastAPI):
     init_upload_router(UPLOAD_DIR)
     #init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR)  # ✅ INDEX_DIR 추가
     if USE_INDEX_V2:
-        init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR_V2)
+        init_anomaly_router(detector, matcher_normal, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR_V2)
     else:
         init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR)
 
@@ -389,24 +418,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ====================
-# 전역 변수
-# ====================
-# 전역 변수 추가 (기존 변수들 아래에)
-similarity_matcher_v2 = None
-
-
-matcher: Optional[TopKSimilarityMatcher] = None
-detector: Optional[AnomalyDetector] = None
-current_index_type: Optional[str] = None
-config = None
-
-vlm_components = {
-    "rag": None,
-    "vlm": None,
-    "mapper": None,
-    "prompt_builder": PromptBuilder()
-}
 
 
 

@@ -106,9 +106,14 @@ function restoreSessionData() {
     
     // 유사도 매칭 결과
     const searchResults = SessionData.get('searchResults');
+    const selectedMatch = SessionData.get('selectedMatch');  // ✅ 추가
+
     if (searchResults && searchResults.top1) {
         selectedMatchData = searchResults.top1;
+    } else if (selectedMatch) {  // ✅ 추가
+        selectedMatchData = selectedMatch;
     }
+    
     
     // 데이터 검증
     if (!uploadedImageData) {
@@ -135,6 +140,8 @@ function restoreSessionData() {
     console.log('  TOP-1 불량 이미지:', selectedMatchData.local_path || selectedMatchData.image_path);
     console.log('  제품:', selectedMatchData.product_name || selectedMatchData.product_code);
     console.log('  불량:', selectedMatchData.defect_name || selectedMatchData.defect_code);
+    console.log('  search_id:', selectedMatchData.search_id);  // ✅ 추가
+    console.log('  similarity:', selectedMatchData.top1_similarity || selectedMatchData.similarity);  // ✅ 추가
 }
 
 /**
@@ -147,6 +154,11 @@ async function performDetection() {
     // V2 API 응답 구조에서 필요한 값 추출
     const productCode = selectedMatchData.product_code || selectedMatchData.product;
     const defectImagePath = selectedMatchData.local_path || selectedMatchData.image_path;
+    const defectCode = selectedMatchData.defect_code || selectedMatchData.defect;
+
+     // ✅ search_id와 similarity 추출
+    const searchId = selectedMatchData.search_id;
+    const similarity = selectedMatchData.top1_similarity || selectedMatchData.similarity;
     
     try {
         // UI 상태 변경
@@ -164,7 +176,10 @@ async function performDetection() {
                 test_image_path: uploadedImageData.file_path,
                 product_name: productCode,
                 // ✅ TOP-1 불량 이미지는 표시용으로만 전달
-                top1_defect_image: defectImagePath
+                top1_defect_image: defectImagePath,
+                defect_name: defectCode,
+                search_id: searchId,           // ✅ 추가
+                similarity_score: similarity   // ✅ 추가
             })
         });
         
@@ -177,6 +192,7 @@ async function performDetection() {
         
         const data = await response.json();
         console.log('[ANOMALY] 검출 완료:', data);
+        console.log('[ANOMALY] response_id:', data.response_id);  // ✅ 추가
         console.log('[ANOMALY] 정상 기준 이미지:', data.reference_normal_path);
         
         // 결과 저장
@@ -195,7 +211,9 @@ async function performDetection() {
             defect_code: selectedMatchData.defect_code,
             defect_name: selectedMatchData.defect_name,
             similarity: selectedMatchData.similarity_score,
-            top1_defect_image: defectImagePath  // ✅ TOP-1 불량 이미지 저장
+            top1_defect_image: defectImagePath,  // ✅ TOP-1 불량 이미지 저장
+            search_id: searchId,           // ✅ 추가
+            response_id: data.response_id  // ✅ 추가
         });
         
         showNotification('이상 검출 완료', 'success');
@@ -236,6 +254,8 @@ function displayResults(data) {
     overlayImage.src = data.overlay_url;
     maskImage.src = data.mask_url;
     comparisonImage.src = data.comparison_url;
+
+    
     
     // 상세 정보 (V2 구조 반영)
     productName.textContent = selectedMatchData.product_name || selectedMatchData.product_code || '-';
@@ -275,6 +295,13 @@ function goToNextPage() {
         return;
     }
     
+    // ✅ response_id 확인
+    const anomalyResult = SessionData.get('anomalyResult');
     console.log('[ANOMALY] 대응 매뉴얼 페이지로 이동');
+    console.log('[ANOMALY] 전달 데이터:', {
+        response_id: anomalyResult?.response_id,
+        search_id: anomalyResult?.search_id
+    });
+    
     window.location.href = '/manual.html';
 }

@@ -6,6 +6,11 @@ from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 from typing import Optional
+from web.database.models import ResponseHistory
+import json
+from sqlalchemy.orm import Session
+from web.database.connection import get_db
+from datetime import datetime
 
 router = APIRouter(prefix="/anomaly", tags=["anomaly"])
 
@@ -54,6 +59,9 @@ class AnomalyDetectRequest(BaseModel):
     product_name: str = Field(..., description="제품명")
     # ✅ TOP-1 불량 이미지는 표시용으로만 사용
     top1_defect_image: Optional[str] = Field(None, description="TOP-1 불량 이미지 (표시용)")
+    defect_name: str = Field(None, description="불량명")
+    search_id: Optional[int] = Field(None, description="검색 이력 ID")
+    similarity_score: Optional[float] = Field(None, description="유사도 점수")
 
 # ===== 개선된 anomaly.py =====
 
@@ -107,7 +115,7 @@ async def switch_to_normal_index():
                 }
             else:
                 # ✅ 인덱스가 없으면 DB에서 구축
-                from web.database.connection import get_db
+                
                 
                 print(f"[ANOMALY V2] 정상 이미지 인덱스 구축 중 (DB 기반)...")
                 
@@ -187,6 +195,7 @@ async def detect_anomaly(request: AnomalyDetectRequest):
     """
     detector = get_detector()
     matcher = get_matcher()
+
     anomaly_output_dir = get_anomaly_output_dir()
     project_root = get_project_root()
     
@@ -212,7 +221,7 @@ async def detect_anomaly(request: AnomalyDetectRequest):
         print(f"[ANOMALY] 제품명: {request.product_name}")
         
         # ✅ 정상 이미지 인덱스로 전환
-        await switch_to_normal_index()
+        #await switch_to_normal_index()
         
         # 출력 디렉토리 생성
         output_dir = anomaly_output_dir / test_path.stem
@@ -225,11 +234,54 @@ async def detect_anomaly(request: AnomalyDetectRequest):
             similarity_matcher=matcher,
             output_dir=str(output_dir)
         )
+
+        # TOP-1 유사 이미지 찾기 (정상 이미지에서)
+        top1_match = None
+        if matcher and matcher.index_built:
+            try:
+                print(f"[ANOMALY] 정상 이미지에서 유사 이미지 검색 중...")
+                search_result = matcher.search(str(test_path), top_k=1)
+                
+                if search_result.results and len(search_result.results) > 0:
+                    top1_match = search_result.results[0]
+                    print(f"[ANOMALY] TOP-1 정상 이미지: {top1_match['file_name']}")
+            except Exception as e:
+                print(f"[ANOMALY] 유사 이미지 검색 실패: {e}")
         
         print(f"[ANOMALY] 이상 검출 완료: score={result['image_score']:.4f}")
         print(f"[ANOMALY] 정상 기준 이미지: {result.get('reference_image_path', 'N/A')}")
+
+        # ========== DB 저장 ==========
+        db: Session = next(get_db())
+        response_id = None
+        
+        try:
+            # response_history 테이블에 저장
+            response_history = ResponseHistory(
+                executed_at=datetime.now(),
+                search_id=request.search_id,  # 이전 페이지에서 전달받은 값
+                product_code=request.product_name,  # 한글 제품명
+                defect_code=request.defect_name,    # 한글 불량명
+                similarity_score=request.similarity_score,  # 이전 페이지에서 전달받은 값
+                anomaly_score=result['image_score'],
+                test_image_path=str(test_path)
+            )
+            
+            db.add(response_history)
+            db.commit()
+            db.refresh(response_history)
+            
+            response_id = response_history.response_id
+            print(f"[ANOMALY] DB 저장 완료: response_id={response_id}")
+        
+        except Exception as e:
+            print(f"[ANOMALY] DB 저장 실패: {e}")
+            db.rollback()
+        finally:
+            db.close()
         
         # 결과 반환
+        '''
         return JSONResponse(content={
             "status": "success",
             "product_name": result["product_name"],
@@ -243,8 +295,31 @@ async def detect_anomaly(request: AnomalyDetectRequest):
             "top1_defect_path": request.top1_defect_image,
             "mask_url": f"/anomaly/image/{test_path.stem}/mask.png",
             "overlay_url": f"/anomaly/image/{test_path.stem}/overlay.png",
-            "comparison_url": f"/anomaly/image/{test_path.stem}/comparison.png"
+            "comparison_url": f"/anomaly/image/{test_path.stem}/comparison.png",
+            "response_id": response_id  # 추가
         })
+        '''
+        response_data  = {
+            "status": "success",
+            "product": request.product_name,
+            "test_image": str(test_path),
+            "anomaly_score": result['image_score'],
+            "is_anomaly": result['is_anomaly'],
+            "threshold": result.get('threshold', 0.5),
+            "overlay_url": result.get('overlay_url', ''),
+            "heatmap_url": result.get('heatmap_url', ''),
+            "top1_defect_path": request.top1_defect_image,
+            "response_id": response_id  # 추가
+        }
+        # TOP-1 정상 이미지 정보 추가
+        if top1_match:
+            response_data.update({
+                "top1_normal_image": top1_match.get('local_path', ''),
+                "top1_similarity": top1_match.get('similarity_score', 0),
+                "top1_product": top1_match.get('product_name', ''),
+            })
+
+        return JSONResponse(content=response_data)
     
     except Exception as e:
         print(f"[ANOMALY] 이상 검출 실패: {e}")

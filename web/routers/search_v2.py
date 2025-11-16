@@ -12,6 +12,9 @@ from pydantic import BaseModel, Field
 from pathlib import Path
 from typing import Optional
 from sqlalchemy.orm import Session
+from web.database.connection import get_db
+from web.database.models import SearchHistory
+from datetime import datetime
 
 router = APIRouter(prefix="/v2/search", tags=["search_v2"])
 
@@ -111,6 +114,7 @@ async def ensure_index_loaded(index_type: str):
         traceback.print_exc()
         raise HTTPException(500, f"인덱스 로드 실패: {str(e)}")
 
+import json
 
 @router.post("/similarity")
 async def search_similar_images_v2(request: SearchRequestV2):
@@ -167,10 +171,49 @@ async def search_similar_images_v2(request: SearchRequestV2):
     try:
         print(f"[SEARCH V2] 유사도 검색 시작: {query_path.name}, top_k={request.top_k}")
         
+        start_time = datetime.now()
+        
         # 유사도 검색 수행 (메타데이터 포함)
         result = matcher.search(str(query_path), top_k=request.top_k)
-        
+
+        end_time = datetime.now()
+        processing_time = (end_time - start_time).total_seconds()
+
         print(f"[SEARCH V2] 검색 완료: {len(result.results)}개 결과")
+
+
+        # ========== DB 저장 ==========
+        db: Session = next(get_db())
+        search_id = None
+        top1_similarity = None
+        
+        try:
+            if result.results and len(result.results) > 0:
+                top1 = result.results[0]
+                top1_similarity = top1['similarity_score']
+                
+                # search_history 테이블에 저장
+                search_history = SearchHistory(
+                    searched_at=datetime.now(),
+                    uploaded_image_path=str(query_path),
+                    product_code=top1['product_name'],  # 한글 제품명
+                    defect_code=top1['defect_name'],    # 한글 불량명
+                    top_k_results=json.dumps(result.model_info, ensure_ascii=False),
+                    processing_time=processing_time
+                )
+                
+                db.add(search_history)
+                db.commit()
+                db.refresh(search_history)
+                
+                search_id = search_history.search_id
+                print(f"[SEARCH V2] DB 저장 완료: search_id={search_id}")
+        
+        except Exception as e:
+            print(f"[SEARCH V2] DB 저장 실패: {e}")
+            db.rollback()
+        finally:
+            db.close()
         
         return JSONResponse(content={
             "status": "success",
@@ -179,6 +222,8 @@ async def search_similar_images_v2(request: SearchRequestV2):
             "results": result.results,
             "total_gallery_size": result.total_gallery_size,
             "model_info": result.model_info,
+            "search_id": search_id,              # 추가
+            "top1_similarity": top1_similarity,   # 추가
             "version": "v2"
         })
     

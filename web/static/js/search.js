@@ -193,6 +193,8 @@ async function performSearch() {
         
         const data = await response.json();
         console.log('[SEARCH V2] 검색 완료:', data);
+        console.log('[SEARCH V2] search_id:', data.search_id);  // ✅ 추가
+        console.log('[SEARCH V2] top1_similarity:', data.top1_similarity);  // ✅ 추가
         
         // 결과 저장 (V2 응답 구조 사용)
         currentResults = data.results;
@@ -207,7 +209,9 @@ async function performSearch() {
         SessionData.set('searchResults', {
             results: data.results,
             query_image: data.query_image,
-            top1: data.results[0]
+            top1: data.results[0],
+            search_id: data.search_id,              // ✅ 추가
+            top1_similarity: data.top1_similarity   // ✅ 추가
         });
         
         showNotification('검색 완료', 'success');
@@ -395,10 +399,16 @@ function goToNextPage() {
         product_name: top1.product_name,
         defect_code: top1.defect_code,
         defect_name: top1.defect_name,
-        similarity: top1.similarity_score
+        similarity: top1.similarity_score,
+        search_id: searchResults?.search_id,           // ✅ 추가
+        top1_similarity: searchResults?.top1_similarity // ✅ 추가
     });
     
     console.log('[SEARCH V2] 이상 검출 페이지로 이동');
+    console.log('[SEARCH V2] 전달 데이터:', {
+        search_id: searchResults?.search_id,
+        similarity: searchResults?.top1_similarity
+    });
     window.location.href = '/anomaly.html';
 }
 

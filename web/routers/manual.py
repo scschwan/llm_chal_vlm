@@ -8,6 +8,12 @@ from pathlib import Path
 from typing import Optional
 import httpx
 import time
+from web.database.models import ResponseHistory
+import json
+from sqlalchemy.orm import Session
+from web.database.connection import get_db
+from datetime import datetime
+
 
 router = APIRouter(prefix="/manual", tags=["manual"])
 
@@ -49,6 +55,7 @@ class ManualGenerateRequest(BaseModel):
     is_anomaly: bool = Field(..., description="이상 판정 여부")
     model_type: str = Field("hyperclovax", description="모델 타입 (hyperclovax, exaone, llava)")
     image_path: Optional[str] = Field(None, description="이미지 경로 (VLM용)")
+    response_id: Optional[int] = Field(None, description="응답 이력 ID")
 
 
 @router.post("/generate")
@@ -75,6 +82,7 @@ async def generate_manual(request: ManualGenerateRequest):
         print(f"[MANUAL] 매뉴얼 생성 시작: {request.product}/{request.defect}")
         print(f"[MANUAL] 모델: {request.model_type}")
         
+
         # 1. 불량 정보 조회
         defect_info = mapper.get_defect_info(request.product, request.defect)
         
@@ -186,6 +194,32 @@ async def generate_manual(request: ManualGenerateRequest):
         # 4. 결과 반환
         processing_time = round(time.time() - t0, 2)
         
+         # ========== DB 업데이트 ==========
+        if request.response_id:
+            db: Session = next(get_db())
+            
+            try:
+                response_history = db.query(ResponseHistory).filter(
+                    ResponseHistory.response_id == request.response_id
+                ).first()
+                
+                if response_history:
+                    response_history.model_type = request.model_type
+                    response_history.guide_content = manual_context  # 생성된 메뉴얼 내용
+                    response_history.guide_generated_at = datetime.now()
+                    response_history.processing_time = processing_time
+                    
+                    db.commit()
+                    print(f"[MANUAL] DB 업데이트 완료: response_id={request.response_id}")
+                else:
+                    print(f"[MANUAL] response_id={request.response_id} 찾을 수 없음")
+            
+            except Exception as e:
+                print(f"[MANUAL] DB 업데이트 실패: {e}")
+                db.rollback()
+            finally:
+                db.close()
+
         return JSONResponse(content={
             "status": "success",
             "product": request.product,
@@ -197,7 +231,8 @@ async def generate_manual(request: ManualGenerateRequest):
             "anomaly_score": float(request.anomaly_score),
             "is_anomaly": bool(request.is_anomaly),
             "model_type": request.model_type,
-            "processing_time": processing_time
+            "processing_time": processing_time,
+            "response_id": request.response_id
         })
         
     except httpx.ConnectError:
@@ -371,3 +406,51 @@ async def generate_manual_session(request: ManualGenerateSessionRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(500, f"매뉴얼 생성 실패: {str(e)}")
+    
+
+class FeedbackRequest(BaseModel):
+    """작업자 피드백 요청"""
+    response_id: int = Field(..., description="응답 이력 ID")
+    feedback_user: str = Field(..., description="작업자명")
+    feedback_rating: int = Field(..., ge=1, le=5, description="피드백 점수 (1-5)")
+    feedback_text: str = Field(..., description="피드백 내용")
+
+@router.post("/feedback")
+async def submit_feedback(request: FeedbackRequest):
+    """
+    작업자 피드백 등록
+    """
+    db: Session = next(get_db())
+    
+    try:
+        response_history = db.query(ResponseHistory).filter(
+            ResponseHistory.response_id == request.response_id
+        ).first()
+        
+        if not response_history:
+            raise HTTPException(404, f"response_id={request.response_id}를 찾을 수 없습니다")
+        
+        # 피드백 정보 업데이트
+        response_history.feedback_user = request.feedback_user
+        response_history.feedback_rating = request.feedback_rating
+        response_history.feedback_text = request.feedback_text
+        response_history.feedback_at = datetime.now()
+        
+        db.commit()
+        
+        print(f"[FEEDBACK] 피드백 등록 완료: response_id={request.response_id}")
+        
+        return JSONResponse(content={
+            "status": "success",
+            "message": "피드백이 등록되었습니다",
+            "response_id": request.response_id
+        })
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[FEEDBACK] 피드백 등록 실패: {e}")
+        db.rollback()
+        raise HTTPException(500, f"피드백 등록 실패: {str(e)}")
+    finally:
+        db.close()

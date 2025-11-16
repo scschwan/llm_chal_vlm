@@ -154,6 +154,11 @@ function restoreSessionData() {
     }
     
     console.log('[MANUAL] 데이터 복원 완료');
+      // ✅ response_id 확인
+    console.log('[MANUAL] 데이터 복원 완료');
+    console.log('[MANUAL] response_id:', anomalyResultData.response_id);
+    console.log('[MANUAL] search_id:', anomalyResultData.search_id);
+
     displayImages();
 }
 
@@ -221,6 +226,7 @@ async function generateManual() {
     }
     
     console.log('[MANUAL] 매뉴얼 생성 시작:', selectedModel);
+    console.log('[MANUAL] response_id:', anomalyResultData.response_id);  // ✅ 추가
     
     try {
         // UI 상태 변경
@@ -246,7 +252,8 @@ async function generateManual() {
                 anomaly_score: anomalyResultData.image_score,
                 is_anomaly: anomalyResultData.is_anomaly,
                 model_type: selectedModel,
-                image_path: uploadedImageData.file_path
+                image_path: uploadedImageData.file_path,
+                response_id: anomalyResultData.response_id  // ✅ 추가
             })
         });
         
@@ -257,6 +264,7 @@ async function generateManual() {
         
         const data = await response.json();
         console.log('[MANUAL] 매뉴얼 생성 완료:', data);
+        console.log('[MANUAL] response_id 확인:', data.response_id);  // ✅ 추가
         
         // 결과 저장
         generatedManual = data;
@@ -422,47 +430,34 @@ async function submitAction() {
         submitBtn.disabled = true;
         submitBtn.textContent = '등록 중...';
         
-        // TODO: 실제 DB 저장 API 호출
-        // const response = await fetch(`${API_BASE_URL}/history/save`, {
-        //     method: 'POST',
-        //     headers: { 'Content-Type': 'application/json' },
-        //     body: JSON.stringify({
-        //         product_name: anomalyResultData.product,
-        //         defect_name: anomalyResultData.defect,
-        //         input_image_path: uploadedImageData.file_path,
-        //         top1_image_path: selectedMatchData.image_path,
-        //         model_used: selectedModel,
-        //         llm_response: generatedManual.llm_analysis,
-        //         processing_time: generatedManual.processing_time,
-        //         worker_name: worker,
-        //         action_taken: action,
-        //         feedback_score: selectedRating,
-        //         anomaly_score: anomalyResultData.image_score,
-        //         is_anomaly: anomalyResultData.is_anomaly
-        //     })
-        // });
+        // 피드백 등록 API 호출
+        const response = await fetch('/manual/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                response_id: generatedManual.response_id,
+                feedback_user: worker,
+                feedback_rating: selectedRating,
+                feedback_text: action
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || '피드백 등록 실패');
+        }
         
-        // 임시: 로컬 저장
-        const historyData = {
-            timestamp: new Date().toISOString(),
-            product_name: anomalyResultData.product,
-            defect_name: anomalyResultData.defect,
-            input_image: uploadedImageData.filename,
-            model_used: selectedModel,
-            worker_name: worker,
-            action_taken: action,
-            feedback_score: selectedRating,
-            anomaly_score: anomalyResultData.image_score,
-            is_anomaly: anomalyResultData.is_anomaly
-        };
-        
-        console.log('[MANUAL] 등록 데이터:', historyData);
+
         
         // 성공 시 완료 화면 표시
         workerInputSection.style.display = 'none';
         completionSection.style.display = 'block';
         
+        const data = await response.json();
+        console.log('[MANUAL] 등록 데이터:', data);
+
         showNotification('조치 내역이 등록되었습니다', 'success');
+        
         
         // 스크롤
         completionSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
