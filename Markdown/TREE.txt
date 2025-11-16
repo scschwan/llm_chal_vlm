@@ -207,11 +207,11 @@
     │   ├── [ 6.3M]  defect
     │   │   ├── [ 2.8M]  embeddings.pt
     │   │   ├── [ 2.8M]  faiss_index.bin
-    │   │   └── [ 635K]  metadata.json
-    │   └── [ 492K]  normal
+    │   │   └── [ 650K]  metadata.json
+    │   └── [ 494K]  normal
     │       ├── [ 224K]  embeddings.pt
     │       ├── [ 222K]  faiss_index.bin
-    │       └── [  47K]  metadata.json
+    │       └── [  49K]  metadata.json
     ├── [  14K]  matching.html
     ├── [ 112K]  pages
     │   ├── [  44K]  admin
@@ -253,7 +253,7 @@
     │   ├── [ 6.9K]  search.py
     │   ├── [ 7.8K]  search_v2.py
     │   └── [ 4.2K]  upload.py
-    ├── [ 303K]  static
+    ├── [ 304K]  static
     │   ├── [ 166K]  admin
     │   │   ├── [  61K]  css
     │   │   │   ├── [ 4.5K]  admin_defect_type.css
@@ -286,8 +286,8 @@
     │   │   ├── [  13K]  matching.css
     │   │   ├── [ 8.0K]  search.css
     │   │   └── [ 3.3K]  upload.css
-    │   └── [  99K]  js
-    │       ├── [ 9.0K]  anomaly.js
+    │   └── [ 100K]  js
+    │       ├── [ 9.8K]  anomaly.js
     │       ├── [ 3.6K]  common.js
     │       ├── [  15K]  manual.js
     │       ├── [  45K]  matching.js
