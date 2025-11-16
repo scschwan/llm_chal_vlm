@@ -39,9 +39,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[UPLOAD] 페이지 로드 시작');
     
     try {
-        // 1. 인증 확인
+        // 1. 인증 확인 - ✅ credentials 옵션 추가
         console.log('[UPLOAD] 인증 확인 중...');
-        const authResponse = await fetch('/api/auth/check');
+        const authResponse = await fetch('/api/auth/check', {
+            method: 'GET',
+            credentials: 'include'  // ✅ 추가: 쿠키 포함
+        });
         
         if (!authResponse.ok) {
             console.error('[UPLOAD] 인증 실패 - 로그인 페이지로 이동');
@@ -57,6 +60,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.location.href = '/login.html';
             return;
         }
+        
+        console.log('[UPLOAD] 인증 성공');
+        
+        // ... 나머지 코드는 동일
         
         console.log('[UPLOAD] 인증 성공');
         

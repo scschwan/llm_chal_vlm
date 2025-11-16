@@ -271,11 +271,13 @@
         loginBtn.textContent = '로그인 중...';
         
         try {
+           // 로그인 폼 제출 - line 236 근처
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',  // ✅ 추가: 쿠키 저장 허용
                 body: JSON.stringify({
                     username: username,
                     password: password

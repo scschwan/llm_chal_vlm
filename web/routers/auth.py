@@ -44,13 +44,15 @@ async def login(request: LoginRequest, response: Response):
     # 세션 생성
     session_token = create_session(request.username)
     
-    # 쿠키 설정 (8시간)
+    # ✅ 쿠키 설정 강화 (8시간)
     response.set_cookie(
         key="session_token",
         value=session_token,
         httponly=True,
         max_age=28800,  # 8시간
-        samesite="lax"
+        path="/",       # ✅ 추가: 모든 경로에서 쿠키 전달
+        samesite="lax",
+        secure=False    # ✅ 추가: HTTP 환경에서는 False (HTTPS에서는 True)
     )
     
     # 사용자 정보 반환
@@ -62,7 +64,7 @@ async def login(request: LoginRequest, response: Response):
         "message": "로그인 성공",
         "user_type": user["user_type"],
         "full_name": user["full_name"],
-        "is_new_login": True  # ✅ 추가
+        "is_new_login": True
     })
 
 
@@ -74,8 +76,8 @@ async def logout(response: Response, session_token: Optional[str] = Cookie(None)
     if session_token:
         delete_session(session_token)
     
-    # 쿠키 삭제
-    response.delete_cookie("session_token")
+    # ✅ 쿠키 삭제 강화
+    response.delete_cookie("session_token", path="/")  # ✅ path 추가
     
     return JSONResponse(content={
         "status": "success",
@@ -107,13 +109,19 @@ async def check_auth(session_token: Optional[str] = Cookie(None)):
     """
     인증 상태 확인
     """
+    print(f"[AUTH CHECK] session_token: {session_token}")  # ✅ 디버깅
+    
     if not session_token:
+        print("[AUTH CHECK] 세션 토큰 없음")  # ✅ 디버깅
         return JSONResponse(content={
             "authenticated": False
         })
     
     session = validate_session(session_token)
+    print(f"[AUTH CHECK] session: {session}")  # ✅ 디버깅
+    
     if not session:
+        print("[AUTH CHECK] 세션 검증 실패")  # ✅ 디버깅
         return JSONResponse(content={
             "authenticated": False
         })
@@ -122,5 +130,5 @@ async def check_auth(session_token: Optional[str] = Cookie(None)):
         "authenticated": True,
         "user_type": session["user_type"],
         "username": session["username"],
-        "full_name": session.get("full_name", "작업자")  # ✅ 추가
+        "full_name": session.get("full_name", "작업자")
     })
