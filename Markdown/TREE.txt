@@ -226,7 +226,7 @@
     │       ├── [ 232K]  faiss_index.bin
     │       └── [  51K]  metadata.json
     ├── [  14K]  matching.html
-    ├── [ 123K]  pages
+    ├── [ 121K]  pages
     │   ├── [  44K]  admin
     │   │   ├── [ 3.7K]  admin_defect_type.html
     │   │   ├── [ 3.4K]  admin_deploy_clip.html
@@ -242,7 +242,7 @@
     │   ├── [ 8.1K]  admin.html
     │   ├── [ 9.7K]  admin.html.bak
     │   ├── [ 6.3K]  anomaly.html
-    │   ├── [ 9.6K]  login.html
+    │   ├── [ 7.9K]  login.html
     │   ├── [ 7.3K]  manual.html
     │   ├── [ 9.5K]  search.html
     │   ├── [  19K]  search_v2_test.html
@@ -250,7 +250,7 @@
     │   └── [ 4.7K]  upload.html.bak
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 173K]  routers
+    ├── [ 172K]  routers
     │   ├── [ 112K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
@@ -262,13 +262,13 @@
     │   │   ├── [ 9.5K]  preprocessing.py
     │   │   └── [ 5.9K]  product.py
     │   ├── [  19K]  anomaly.py
-    │   ├── [ 4.1K]  auth.py
+    │   ├── [ 2.5K]  auth.py
     │   ├── [  291]  __init__.py
     │   ├── [  18K]  manual.py
     │   ├── [ 6.9K]  search.py
     │   ├── [ 9.4K]  search_v2.py
     │   └── [ 4.2K]  upload.py
-    ├── [ 351K]  static
+    ├── [ 350K]  static
     │   ├── [ 166K]  admin
     │   │   ├── [  61K]  css
     │   │   │   ├── [ 4.5K]  admin_defect_type.css
@@ -301,7 +301,7 @@
     │   │   ├── [  13K]  matching.css
     │   │   ├── [ 8.0K]  search.css
     │   │   └── [ 3.3K]  upload.css
-    │   └── [ 148K]  js
+    │   └── [ 146K]  js
     │       ├── [  12K]  anomaly.js
     │       ├── [  12K]  anomaly.js.bak
     │       ├── [ 3.9K]  common.js
@@ -310,10 +310,10 @@
     │       ├── [  45K]  matching.js
     │       ├── [  16K]  search.js
     │       ├── [  17K]  search.js.bak
-    │       └── [  11K]  upload.js
+    │       └── [ 9.8K]  upload.js
     ├── [    6]  uploads
-    └── [  16K]  utils
-        ├── [ 1.6K]  auth.py
+    └── [  17K]  utils
+        ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
