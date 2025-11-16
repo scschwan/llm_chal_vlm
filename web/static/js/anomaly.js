@@ -108,18 +108,32 @@ function restoreSessionData() {
     
     // 유사도 매칭 결과
     const searchResults = SessionData.get('searchResults');
-    const selectedMatch = SessionData.get('selectedMatch');  // ✅ 추가
+    const selectedMatch = SessionData.get('selectedMatch');
 
-    if (searchResults && searchResults.top1) {
-        selectedMatchData = searchResults.top1;
-        global_search_id = searchResults.search_id
-        global_top1_similarity = searchResults.top1_similarity
-    } else if (selectedMatch) {  // ✅ 추가
-        selectedMatchData = selectedMatch;
-        global_search_id = searchResults.search_id
-        global_top1_similarity = searchResults.top1_similarity
+    // ✅ searchResults에서 search_id, top1_similarity 먼저 추출
+    if (searchResults) {
+        global_search_id = searchResults.search_id;
+        global_top1_similarity = searchResults.top1_similarity;
+        
+        if (searchResults.top1) {
+            selectedMatchData = searchResults.top1;
+            // ✅ selectedMatchData에도 추가
+            selectedMatchData.search_id = searchResults.search_id;
+            selectedMatchData.top1_similarity = searchResults.top1_similarity;
+        }
     }
     
+    // ✅ selectedMatch가 있으면 우선 사용 (goToNextPage에서 저장한 데이터)
+    if (selectedMatch) {
+        selectedMatchData = selectedMatch;
+        // selectedMatch에는 이미 search_id, top1_similarity가 포함되어 있음
+        if (selectedMatch.search_id) {
+            global_search_id = selectedMatch.search_id;
+        }
+        if (selectedMatch.top1_similarity) {
+            global_top1_similarity = selectedMatch.top1_similarity;
+        }
+    }
     
     // 데이터 검증
     if (!uploadedImageData) {
@@ -139,19 +153,15 @@ function restoreSessionData() {
         }, 2000);
         return;
     }
-
-    
     
     console.log('[ANOMALY] 데이터 복원 완료');
     console.log('  입력 이미지:', uploadedImageData.filename);
-    // V2 API 응답 구조 대응
     console.log('  TOP-1 불량 이미지:', selectedMatchData.local_path || selectedMatchData.image_path);
     console.log('  제품:', selectedMatchData.product_name || selectedMatchData.product_code);
     console.log('  불량:', selectedMatchData.defect_name || selectedMatchData.defect_code);
-    console.log('  search_id:', selectedMatchData.search_id);  // ✅ 추가
-    console.log('  similarity:', selectedMatchData.top1_similarity || selectedMatchData.similarity);  // ✅ 추가
+    console.log('  search_id:', selectedMatchData.search_id || global_search_id);
+    console.log('  similarity:', selectedMatchData.top1_similarity || selectedMatchData.similarity || global_top1_similarity);
 }
-
 /**
  * 이상 검출 수행
  */
@@ -164,18 +174,11 @@ async function performDetection() {
     const defectImagePath = selectedMatchData.local_path || selectedMatchData.image_path;
     const defectCode = selectedMatchData.defect_code || selectedMatchData.defect;
 
-     // ✅ search_id와 similarity 추출
-    const searchId = selectedMatchData.search_id;
-    const similarity = selectedMatchData.top1_similarity || selectedMatchData.similarity;
-    if(searchId == undefined) {
-        searchId = global_search_id
-    }
-
-     if(searsimilaritychId == undefined) {
-        similarity = global_top1_similarity
-    }
-
-    console.log('[ANOMALY] searchId:', searchId);  // ✅ 추가
+    // ✅ search_id와 similarity 추출 (우선순위: selectedMatchData > global 변수)
+    let searchId = selectedMatchData.search_id || global_search_id;
+    let similarity = selectedMatchData.top1_similarity || selectedMatchData.similarity || global_top1_similarity;
+    
+    console.log('[ANOMALY] searchId:', searchId);
     console.log('[ANOMALY] similarity:', similarity);
     
     try {
@@ -193,11 +196,10 @@ async function performDetection() {
             body: JSON.stringify({
                 test_image_path: uploadedImageData.file_path,
                 product_name: productCode,
-                // ✅ TOP-1 불량 이미지는 표시용으로만 전달
                 top1_defect_image: defectImagePath,
                 defect_name: defectCode,
-                search_id: searchId,           // ✅ 추가
-                similarity_score: similarity   // ✅ 추가
+                search_id: searchId,           // ✅ 전달
+                similarity_score: similarity   // ✅ 전달
             })
         });
         
@@ -210,8 +212,8 @@ async function performDetection() {
         
         const data = await response.json();
         console.log('[ANOMALY] 검출 완료:', data);
-        console.log('[ANOMALY] response_id:', data.response_id);  // ✅ 추가
-        console.log('[ANOMALY] 정상 기준 이미지:', data.reference_normal_path);
+        console.log('[ANOMALY] response_id:', data.response_id);
+        console.log('[ANOMALY] 정상 기준 이미지:', data.top1_normal_image);
         
         // 결과 저장
         detectionResult = data;
@@ -228,11 +230,11 @@ async function performDetection() {
             defect: selectedMatchData.defect_name || selectedMatchData.defect_code,
             defect_code: selectedMatchData.defect_code || defectCode,
             defect_name: selectedMatchData.defect_name,
-            similarity: selectedMatchData.similarity_score || selectedMatchData.similarity_score,
-            image_score: data.anomaly_score || data.image_score,  // ✅ anomaly_score 우선
-            top1_defect_image: defectImagePath,  // ✅ TOP-1 불량 이미지 저장
-            search_id: searchId,           // ✅ 추가
-            response_id: data.response_id  // ✅ 추가
+            similarity: similarity,  // ✅ 계산된 값 사용
+            image_score: data.anomaly_score || data.image_score,
+            top1_defect_image: defectImagePath,
+            search_id: searchId,           // ✅ 계산된 값 사용
+            response_id: data.response_id
         });
         
         showNotification('이상 검출 완료', 'success');
@@ -256,7 +258,7 @@ async function performDetection() {
  */
 function displayResults(data) {
     // 점수 표시
-    const score = data.anomaly_score || data.image_score || 0;  // ✅ anomaly_score 우선
+    const score = data.anomaly_score || data.image_score || 0;
     anomalyScore.textContent = score.toFixed(4);
     
     // 판정 배지
@@ -268,20 +270,28 @@ function displayResults(data) {
         detectionBadge.className = 'detection-badge normal';
     }
     
-    // ✅ 이미지 표시: 정상 기준 이미지 사용
-    normalImage.src = `/api/image/${data.reference_normal_path}`;
-    overlayImage.src = data.overlay_url;
-    maskImage.src = data.mask_url;
-    comparisonImage.src = data.comparison_url;
-
+    // ✅ 이미지 표시: top1_normal_image 우선 사용
+    const normalImagePath = data.top1_normal_image || data.reference_normal_path;
+    if (normalImagePath) {
+        normalImage.src = `/api/image/${normalImagePath}`;
+    }
     
+    if (data.overlay_url) {
+        overlayImage.src = data.overlay_url;
+    }
+    if (data.mask_url) {
+        maskImage.src = data.mask_url;
+    }
+    if (data.comparison_url) {
+        comparisonImage.src = data.comparison_url;
+    }
     
     // 상세 정보 (V2 구조 반영)
     productName.textContent = selectedMatchData.product_name || selectedMatchData.product_code || '-';
     defectType.textContent = selectedMatchData.defect_name || selectedMatchData.defect_code || '-';
     imageScore.textContent = score.toFixed(4);
 
-     // ✅ threshold 처리 (image_tau 또는 threshold 사용)
+    // ✅ threshold 처리
     const thresholdValue = data.image_tau || data.threshold || 0.5;
     threshold.textContent = thresholdValue.toFixed(4);
     
@@ -294,9 +304,10 @@ function displayResults(data) {
         judgment.style.color = 'var(--success-color)';
     }
     
-    // 유사도 점수 (TOP-1 불량 이미지 대비)
-    if (selectedMatchData.similarity_score !== undefined) {
-        similarityScore.textContent = `${(selectedMatchData.similarity_score * 100).toFixed(1)}%`;
+    // ✅ 유사도 점수 (서버에서 받은 top1_similarity 또는 selectedMatchData 사용)
+    const similarityValue = data.top1_similarity || selectedMatchData.similarity_score || selectedMatchData.similarity || global_top1_similarity;
+    if (similarityValue !== undefined && similarityValue !== null) {
+        similarityScore.textContent = `${(similarityValue * 100).toFixed(1)}%`;
     } else {
         similarityScore.textContent = '-';
     }
