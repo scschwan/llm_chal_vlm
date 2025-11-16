@@ -220,13 +220,13 @@
     │   ├── [ 6.3M]  defect
     │   │   ├── [ 2.8M]  embeddings.pt
     │   │   ├── [ 2.8M]  faiss_index.bin
-    │   │   └── [ 650K]  metadata.json
-    │   └── [ 494K]  normal
-    │       ├── [ 224K]  embeddings.pt
-    │       ├── [ 222K]  faiss_index.bin
-    │       └── [  49K]  metadata.json
+    │   │   └── [ 651K]  metadata.json
+    │   └── [ 517K]  normal
+    │       ├── [ 234K]  embeddings.pt
+    │       ├── [ 232K]  faiss_index.bin
+    │       └── [  51K]  metadata.json
     ├── [  14K]  matching.html
-    ├── [ 111K]  pages
+    ├── [ 110K]  pages
     │   ├── [  44K]  admin
     │   │   ├── [ 3.7K]  admin_defect_type.html
     │   │   ├── [ 3.4K]  admin_deploy_clip.html
@@ -245,7 +245,7 @@
     │   ├── [ 7.3K]  manual.html
     │   ├── [ 9.5K]  search.html
     │   ├── [  19K]  search_v2_test.html
-    │   └── [ 5.7K]  upload.html
+    │   └── [ 4.7K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
     ├── [ 173K]  routers
