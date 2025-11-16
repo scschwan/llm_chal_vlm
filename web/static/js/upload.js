@@ -33,87 +33,51 @@ async function logout() {
         alert('로그아웃에 실패했습니다');
     }
 }
-
-// ✅ 단 하나의 DOMContentLoaded 이벤트
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[UPLOAD] 페이지 로드 시작');
+    console.log('[UPLOAD] 페이지 로드');
     
     try {
-        // 1. 인증 확인 - ✅ credentials 추가
-        console.log('[UPLOAD] 인증 확인 중...');
+        // 인증 확인
         const authResponse = await fetch('/api/auth/check', {
-            method: 'GET',
-            credentials: 'include'  // ✅ 추가: 쿠키 포함
+            credentials: 'include'
         });
-        
-        if (!authResponse.ok) {
-            console.error('[UPLOAD] 인증 실패 - 로그인 페이지로 이동');
-            window.location.href = '/login.html';
-            return;
-        }
-        
         const authData = await authResponse.json();
-        console.log('[UPLOAD] 인증 응답:', authData);
+        
+        console.log('[UPLOAD] 인증 결과:', authData);
         
         if (!authData.authenticated) {
-            console.warn('[UPLOAD] 미인증 사용자 - 로그인 페이지로 이동');
+            console.log('[UPLOAD] 미인증 - 로그인 페이지로 이동');
             window.location.href = '/login.html';
             return;
         }
         
-        console.log('[UPLOAD] 인증 성공');
+        // 사용자 이름 표시
+        document.getElementById('userName').textContent = authData.full_name;
         
-        // 2. 사용자 이름 표시
-        if (authData.full_name) {
-            const userNameElement = document.getElementById('userName');
-            if (userNameElement) {
-                userNameElement.textContent = authData.full_name;
-                console.log('[UPLOAD] 사용자 이름 표시:', authData.full_name);
-            } else {
-                console.warn('[UPLOAD] userName 엘리먼트를 찾을 수 없음');
-            }
-        }
-        
-        // 3. 로그인 직후 세션 초기화
-        const isNewLogin = sessionStorage.getItem('isNewLogin');
-        if (isNewLogin === 'true') {
-            console.log('[UPLOAD] 로그인 직후 - 세션 데이터 초기화');
-            if (typeof SessionData !== 'undefined' && SessionData.clear) {
-                SessionData.clear();
-            }
+        // 로그인 직후 세션 초기화
+        if (sessionStorage.getItem('isNewLogin') === 'true') {
+            console.log('[UPLOAD] 로그인 직후 - 세션 초기화');
+            SessionData.clear();
             sessionStorage.removeItem('isNewLogin');
         }
         
-        // 4. 기존 업로드 이미지 복원 시도
-        if (typeof SessionData !== 'undefined') {
-            const savedData = SessionData.get('uploadedImage');
-            
-            if (savedData && savedData.preview) {
-                console.log('[UPLOAD] 이전 업로드 이미지 복원:', savedData.filename);
-                restoreUploadedImage(savedData);
-            } else {
-                console.log('[UPLOAD] 새로운 업로드 대기 중');
-                resetUploadState();
-            }
-        } else {
-            console.error('[UPLOAD] SessionData 유틸리티를 찾을 수 없음');
-            resetUploadState();
+        // 기존 이미지 복원
+        const savedData = SessionData.get('uploadedImage');
+        if (savedData && savedData.preview) {
+            console.log('[UPLOAD] 이전 이미지 복원');
+            restoreUploadedImage(savedData);
         }
         
-        // 5. 이벤트 리스너 등록
+        // 이벤트 리스너 등록
         initEventListeners();
         
-        console.log('[UPLOAD] 페이지 로드 완료');
+        console.log('[UPLOAD] 초기화 완료');
         
     } catch (error) {
         console.error('[UPLOAD] 초기화 실패:', error);
-        alert('페이지 로드 중 오류가 발생했습니다: ' + error.message);
-        // 에러 발생 시에도 기본 UI는 표시
-        resetUploadState();
-        initEventListeners();
+        alert('페이지 로드 실패: ' + error.message);
     }
 });
-
 /**
  * 업로드 상태 초기화
  */

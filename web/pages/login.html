@@ -218,114 +218,72 @@
     </div>
     
     <script>
-    let selectedUserType = 'worker';
-    
-    // 페이지 로드 시 이미 로그인되어 있는지 확인
-    document.addEventListener('DOMContentLoaded', async () => {
-        try {
-            const response = await fetch('/api/auth/check');
-            const data = await response.json();
-            
-            if (data.authenticated) {
-                // 이미 로그인되어 있으면 해당 페이지로 리다이렉트
-                if (data.user_type === 'admin') {
-                    window.location.href = '/admin.html';
-                } else {
-                    window.location.href = '/upload.html';
-                }
-            }
-        } catch (error) {
-            console.log('인증 확인 실패:', error);
-        }
-    });
-    
-    // 사용자 타입 탭 전환
-    document.querySelectorAll('.user-type-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            // 탭 활성화
-            document.querySelectorAll('.user-type-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            
-            selectedUserType = tab.dataset.type;
-            
-            // 테스트 계정 정보 업데이트
-            const testCredentials = document.getElementById('testCredentials');
-            if (selectedUserType === 'admin') {
-                testCredentials.innerHTML = '<div class="credentials">ID: admin / PW: admin</div>';
-            } else {
-                testCredentials.innerHTML = '<div class="credentials">ID: worker / PW: worker</div>';
-            }
+// 페이지 로드 시 이미 로그인되어 있는지 확인
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const response = await fetch('/api/auth/check', {
+            credentials: 'include'
         });
-    });
-    
-   // 로그인 폼 제출
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        const data = await response.json();
+        
+        if (data.authenticated) {
+            window.location.href = data.user_type === 'admin' ? '/admin.html' : '/upload.html';
+        }
+    } catch (error) {
+        console.log('인증 확인 실패:', error);
+    }
+});
+
+// 로그인 폼 제출
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     const loginBtn = document.getElementById('loginBtn');
     
-    // 버튼 비활성화
     loginBtn.disabled = true;
     loginBtn.textContent = '로그인 중...';
     
     try {
         const response = await fetch('/api/auth/login', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include',  // ✅ 추가: 쿠키 저장
-            body: JSON.stringify({
-                username: username,
-                password: password
-            })
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify({ username, password })
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            showMessage('로그인 성공! 이동 중...', 'success');
+            console.log('✅ 로그인 성공');
+            sessionStorage.setItem('isNewLogin', 'true');
             
-            // ✅ 로그인 성공 시 플래그 저장
-            if (data.is_new_login) {
-                sessionStorage.setItem('isNewLogin', 'true');
-            }
-            
-            // 0.5초 후 페이지 이동
             setTimeout(() => {
-                if (data.user_type === 'admin') {
-                    window.location.href = '/admin/dashboard.html';
-                } else {
-                    window.location.href = '/upload.html';
-                }
-            }, 500);
+                window.location.href = data.user_type === 'admin' ? '/admin/dashboard.html' : '/upload.html';
+            }, 300);
         } else {
-            showMessage(data.detail || '로그인에 실패했습니다', 'error');
+            showMessage(data.detail || '로그인 실패', 'error');
             loginBtn.disabled = false;
             loginBtn.textContent = '로그인';
         }
     } catch (error) {
-        showMessage('서버 오류가 발생했습니다: ' + error.message, 'error');
+        showMessage('서버 오류: ' + error.message, 'error');
         loginBtn.disabled = false;
         loginBtn.textContent = '로그인';
     }
 });
+
+function showMessage(text, type) {
+    const messageDiv = document.getElementById('message');
+    messageDiv.textContent = text;
+    messageDiv.className = `message ${type}`;
+    messageDiv.style.display = 'block';
     
-    // 메시지 표시
-    function showMessage(text, type) {
-        const messageDiv = document.getElementById('message');
-        messageDiv.textContent = text;
-        messageDiv.className = `message ${type}`;
-        messageDiv.style.display = 'block';
-        
-        if (type === 'error') {
-            setTimeout(() => {
-                messageDiv.style.display = 'none';
-            }, 5000);
-        }
+    if (type === 'error') {
+        setTimeout(() => messageDiv.style.display = 'none', 5000);
     }
+}
 </script>
 </body>
 </html>
