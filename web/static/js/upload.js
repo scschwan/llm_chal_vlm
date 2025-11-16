@@ -4,7 +4,6 @@
 
 // 전역 변수
 let uploadedFileData = null;
-let resetFlag = true;
 
 // DOM 요소
 const uploadZone = document.getElementById('uploadZone');
@@ -22,117 +21,104 @@ const resolution = document.getElementById('resolution');
 const reuploadBtn = document.getElementById('reuploadBtn');
 const nextBtn = document.getElementById('nextBtn');
 
- // 로그아웃 함수
-    async function logout() {
-        if (!confirm('로그아웃 하시겠습니까?')) return;
-        
-        try {
-            await fetch('/api/auth/logout', { method: 'POST' });
-            window.location.href = '/login.html';
-        } catch (error) {
-            console.error('로그아웃 실패:', error);
-            alert('로그아웃에 실패했습니다');
-        }
-    }
+// 로그아웃 함수
+async function logout() {
+    if (!confirm('로그아웃 하시겠습니까?')) return;
     
-    // 페이지 로드 시 사용자 이름 표시
-    document.addEventListener('DOMContentLoaded', async () => {
-        try {
-            const response = await fetch('/api/auth/session');
-            if (response.ok) {
-                const session = await response.json();
-                document.getElementById('userName').textContent = session.full_name || '작업자';
-            }
-        } catch (error) {
-            console.error('세션 확인 실패:', error);
-        }
-    });
-    
-// 페이지 로드 시 인증 확인
-document.addEventListener('DOMContentLoaded', async () => {
     try {
-        const response = await fetch('/api/auth/check');
-        const data = await response.json();
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.location.href = '/login.html';
+    } catch (error) {
+        console.error('로그아웃 실패:', error);
+        alert('로그아웃에 실패했습니다');
+    }
+}
+
+// ✅ 페이지 로드 시 통합 초기화 (DOMContentLoaded 1번만)
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('[UPLOAD] 페이지 로드 완료');
+    
+    try {
+        // 1. 인증 확인
+        const authResponse = await fetch('/api/auth/check');
+        const authData = await authResponse.json();
         
-        if (!data.authenticated) {
+        if (!authData.authenticated) {
             window.location.href = '/login.html';
             return;
         }
         
-        // ✅ 로그인 직후인지 확인 (플래그 체크)
+        // 2. 로그인 직후 세션 초기화
         const isNewLogin = sessionStorage.getItem('isNewLogin');
         
         if (isNewLogin === 'true') {
-            // ✅ 로그인 직후라면 모든 세션 데이터 초기화
             console.log('[UPLOAD] 로그인 직후 - 세션 데이터 초기화');
-            SessionData.clear();  // 모든 세션 데이터 삭제
-            sessionStorage.removeItem('isNewLogin');  // 플래그 제거
+            SessionData.clear();
+            sessionStorage.removeItem('isNewLogin');
         }
         
+        // 3. 사용자 이름 표시 (실패해도 무시)
+        try {
+            const sessionResponse = await fetch('/api/auth/session');
+            if (sessionResponse.ok) {
+                const session = await sessionResponse.json();
+                const userNameElement = document.getElementById('userName');
+                if (userNameElement) {
+                    userNameElement.textContent = session.full_name || '작업자';
+                }
+            }
+        } catch (error) {
+            console.log('[UPLOAD] 사용자 이름 조회 실패 (무시):', error);
+        }
+        
+        // 4. 기존 업로드 이미지 복원 시도
+        const savedData = SessionData.get('uploadedImage');
+        
+        if (savedData && savedData.preview) {
+            console.log('[UPLOAD] 이전 업로드 이미지 복원:', savedData.filename);
+            restoreUploadedImage(savedData);
+        } else {
+            console.log('[UPLOAD] 새로운 업로드 대기 중');
+            resetUploadState();
+        }
+        
+        // 5. 이벤트 리스너 등록
+        initEventListeners();
+        
     } catch (error) {
-        console.error('인증 확인 실패:', error);
+        console.error('[UPLOAD] 인증 확인 실패:', error);
         window.location.href = '/login.html';
     }
-});
-
-// 페이지 로드 시 초기화
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('[UPLOAD] 페이지 로드 완료');
-    
-    /*
-    if(resetFlag){
-        resetUploadState();
-        resetFlag =false;
-    }
-        */
-    // ✅ 기존 업로드 이미지 복원 시도
-    const savedData = SessionData.get('uploadedImage');
-    
-    if (savedData && savedData.preview) {
-        console.log('[UPLOAD] 이전 업로드 이미지 복원:', savedData.filename);
-        restoreUploadedImage(savedData);
-    } else {
-        console.log('[UPLOAD] 새로운 업로드 대기 중');
-        resetUploadState();
-    }
-    
-    // 이벤트 리스너 등록
-    initEventListeners();
 });
 
 /**
  * 업로드 상태 초기화
  */
 function resetUploadState() {
-    uploadSection.style.display = 'block';
+    uploadZone.style.display = 'block';
     previewSection.style.display = 'none';
-    uploadedImageData = null;
+    uploadedFileData = null;
     if (fileInput) {
         fileInput.value = '';
     }
 }
 
 /**
- * 세션 데이터 복원
+ * 업로드된 이미지 복원
  */
-function restoreSessionData() {
-    const savedData = SessionData.get('uploadedImage');
-    if (savedData && savedData.preview) {
-        console.log('[UPLOAD] 세션 데이터 복원:', savedData.filename);
-        
-        // 이미지 표시
-        previewImage.src = savedData.preview;
-        fileName.textContent = savedData.filename;
-        fileSize.textContent = formatFileSize(savedData.file_size);
-        resolution.textContent = savedData.resolution;
-        
-        // UI 전환
-        uploadZone.style.display = 'none';
-        previewSection.style.display = 'block';
-        imageInfoCard.style.display = 'block';
-        
-        uploadedFileData = savedData;
-    }
+function restoreUploadedImage(savedData) {
+    // 이미지 표시
+    previewImage.src = savedData.preview;
+    fileName.textContent = savedData.filename;
+    fileSize.textContent = formatFileSize(savedData.file_size);
+    resolution.textContent = savedData.resolution;
+    
+    // UI 전환
+    uploadZone.style.display = 'none';
+    previewSection.style.display = 'block';
+    imageInfoCard.style.display = 'block';
+    
+    uploadedFileData = savedData;
 }
 
 /**
@@ -323,12 +309,7 @@ function resetUpload() {
     uploadedFileData = null;
     progressFill.style.width = '0%';
     
-    // ✅ 전체 워크플로우 초기화
-    if (typeof SessionData !== 'undefined' && SessionData.startNewWorkflow) {
-        SessionData.startNewWorkflow();
-    }
-    
-    // ✅ 세션 데이터 삭제
+    // 세션 데이터 삭제
     if (typeof SessionData !== 'undefined') {
         SessionData.remove('uploadedImage');
         SessionData.remove('searchResults');
