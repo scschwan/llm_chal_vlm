@@ -5,6 +5,9 @@
 // 전역 변수
 let currentResults = [];
 let uploadedImageData = null;
+let search_id = 0;
+let top1_similarity = 0;
+
 
 // DOM 요소
 const queryImage = document.getElementById('queryImage');
@@ -36,8 +39,6 @@ const modalCancelBtn = document.getElementById('modalCancelBtn');
 const modalConfirmBtn = document.getElementById('modalConfirmBtn');
 const productSelect = document.getElementById('productSelect');
 const defectSelect = document.getElementById('defectSelect');
-const search_id = 0;
-const top1_similarity = 0;
 
  // 로그아웃 함수
     async function logout() {
