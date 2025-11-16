@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[UPLOAD] 페이지 로드 시작');
     
     try {
-        // 1. 인증 확인 - ✅ credentials 옵션 추가
+        // 1. 인증 확인 - ✅ credentials 추가
         console.log('[UPLOAD] 인증 확인 중...');
         const authResponse = await fetch('/api/auth/check', {
             method: 'GET',
@@ -60,10 +60,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.location.href = '/login.html';
             return;
         }
-        
-        console.log('[UPLOAD] 인증 성공');
-        
-        // ... 나머지 코드는 동일
         
         console.log('[UPLOAD] 인증 성공');
         

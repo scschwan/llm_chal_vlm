@@ -260,59 +260,58 @@
     
    // 로그인 폼 제출
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const loginBtn = document.getElementById('loginBtn');
+    
+    // 버튼 비활성화
+    loginBtn.disabled = true;
+    loginBtn.textContent = '로그인 중...';
+    
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',  // ✅ 추가: 쿠키 저장
+            body: JSON.stringify({
+                username: username,
+                password: password
+            })
+        });
         
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        const loginBtn = document.getElementById('loginBtn');
+        const data = await response.json();
         
-        // 버튼 비활성화
-        loginBtn.disabled = true;
-        loginBtn.textContent = '로그인 중...';
-        
-        try {
-           // 로그인 폼 제출 - line 236 근처
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',  // ✅ 추가: 쿠키 저장 허용
-                body: JSON.stringify({
-                    username: username,
-                    password: password
-                })
-            });
+        if (response.ok) {
+            showMessage('로그인 성공! 이동 중...', 'success');
             
-            const data = await response.json();
-            
-            if (response.ok) {
-                showMessage('로그인 성공! 이동 중...', 'success');
-                
-                // ✅ 로그인 성공 시 플래그 저장
-                if (data.is_new_login) {
-                    sessionStorage.setItem('isNewLogin', 'true');
-                }
-                
-                // 0.5초 후 페이지 이동
-                setTimeout(() => {
-                    if (data.user_type === 'admin') {
-                        window.location.href = '/admin/dashboard.html';
-                    } else {
-                        window.location.href = '/upload.html';
-                    }
-                }, 500);
-            } else {
-                showMessage(data.detail || '로그인에 실패했습니다', 'error');
-                loginBtn.disabled = false;
-                loginBtn.textContent = '로그인';
+            // ✅ 로그인 성공 시 플래그 저장
+            if (data.is_new_login) {
+                sessionStorage.setItem('isNewLogin', 'true');
             }
-        } catch (error) {
-            showMessage('서버 오류가 발생했습니다: ' + error.message, 'error');
+            
+            // 0.5초 후 페이지 이동
+            setTimeout(() => {
+                if (data.user_type === 'admin') {
+                    window.location.href = '/admin/dashboard.html';
+                } else {
+                    window.location.href = '/upload.html';
+                }
+            }, 500);
+        } else {
+            showMessage(data.detail || '로그인에 실패했습니다', 'error');
             loginBtn.disabled = false;
             loginBtn.textContent = '로그인';
         }
-    });
+    } catch (error) {
+        showMessage('서버 오류가 발생했습니다: ' + error.message, 'error');
+        loginBtn.disabled = false;
+        loginBtn.textContent = '로그인';
+    }
+});
     
     // 메시지 표시
     function showMessage(text, type) {
