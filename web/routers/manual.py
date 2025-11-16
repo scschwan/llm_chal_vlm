@@ -205,7 +205,10 @@ async def generate_manual(request: ManualGenerateRequest):
                 
                 if response_history:
                     response_history.model_type = request.model_type
-                    response_history.guide_content = manual_context  # 생성된 메뉴얼 내용
+                    if isinstance(manual_context, dict):
+                        response_history.guide_content = json.dumps(manual_context, ensure_ascii=False)  # 생성된 메뉴얼 내용
+                    else:
+                        response_history.guide_content = str(manual_context)  # ✅ 문자열로 변환
                     response_history.guide_generated_at = datetime.now()
                     response_history.processing_time = processing_time
                     

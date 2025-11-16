@@ -332,6 +332,8 @@ async def detect_anomaly(request: AnomalyDetectRequest):
             "threshold": result.get('threshold', 0.5),
             "overlay_url": result.get('overlay_url', ''),
             "heatmap_url": result.get('heatmap_url', ''),
+            # ✅ 정상 기준 이미지 경로
+            "reference_normal_path": result.get("reference_image_path", ""),
             "top1_defect_path": request.top1_defect_image,
             "response_id": response_id  # 추가
         }

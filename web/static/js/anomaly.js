@@ -159,6 +159,9 @@ async function performDetection() {
      // ✅ search_id와 similarity 추출
     const searchId = selectedMatchData.search_id;
     const similarity = selectedMatchData.top1_similarity || selectedMatchData.similarity;
+
+    console.log('[ANOMALY] searchId:', searchId);  // ✅ 추가
+    console.log('[ANOMALY] similarity:', similarity);
     
     try {
         // UI 상태 변경
