@@ -810,12 +810,14 @@ def fetch_image_metadata_for_index(
     
     results = query.all()
     
+    #2025.11.16 object storage->local file path 기반으로 재변경 
     metadata_list = []
     for row in results:
         metadata_list.append({
             "image_id": row.image_id,
             "local_path": row.local_path,
-            "storage_url": row.storage_url or "",
+            #"storage_url": row.storage_url or "",
+            "storage_url": row.file_name or "",
             "product_id": row.product_id,
             "product_code": row.product_code,
             "product_name": row.product_name,
