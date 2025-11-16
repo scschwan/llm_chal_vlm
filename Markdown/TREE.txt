@@ -207,11 +207,11 @@
     │   ├── [ 6.3M]  defect
     │   │   ├── [ 2.8M]  embeddings.pt
     │   │   ├── [ 2.8M]  faiss_index.bin
-    │   │   └── [ 650K]  metadata.json
-    │   └── [ 494K]  normal
+    │   │   └── [ 635K]  metadata.json
+    │   └── [ 492K]  normal
     │       ├── [ 224K]  embeddings.pt
     │       ├── [ 222K]  faiss_index.bin
-    │       └── [  49K]  metadata.json
+    │       └── [  47K]  metadata.json
     ├── [  14K]  matching.html
     ├── [ 112K]  pages
     │   ├── [  44K]  admin
@@ -293,7 +293,7 @@
     │       ├── [  45K]  matching.js
     │       ├── [  16K]  search.js
     │       └── [ 9.9K]  upload.js
-    ├── [   59]  uploads
+    ├── [   33]  uploads
     └── [  16K]  utils
         ├── [ 1.6K]  auth.py
         ├── [    0]  __init__.py
