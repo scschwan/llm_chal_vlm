@@ -255,7 +255,8 @@ function displayResults(data) {
  */
 function displayMainResult(result) {
     // V2 API는 storage_url 제공
-    const imageUrl = result.storage_url || `/api/image/${result.local_path}`;
+    //const imageUrl = result.storage_url || `/api/image/${result.local_path}`;
+    const imageUrl = `/api/image/${result.local_path}` ;
     
     mainResultImage.src = imageUrl;
     mainSimilarity.textContent = `${(result.similarity_score * 100).toFixed(1)}%`;
@@ -282,7 +283,8 @@ function displayMainResult(result) {
  */
 function displayThumbnails(results) {
     thumbnailGrid.innerHTML = results.map((result, index) => {
-        const imageUrl = result.storage_url || `/api/image/${result.local_path}`;
+        //const imageUrl = result.storage_url || `/api/image/${result.local_path}`;
+        const imageUrl = `/api/image/${result.local_path}`;
         const productName = result.product_name || result.product_code || '-';
         const defectName = result.defect_name || result.defect_code || '-';
         const fileName = result.file_name || '-';
