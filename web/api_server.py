@@ -182,7 +182,7 @@ async def lifespan(app: FastAPI):
         
         # V2 라우터 초기화
         from routers.search_v2 import init_search_v2_router
-        init_search_v2_router(matcher, INDEX_DIR_V2, project_root , config)
+        init_search_v2_router(matcher, INDEX_DIR_V2, project_root)
         
         print("\n" + "=" * 70)
         print("V2 인덱스 구축 완료")

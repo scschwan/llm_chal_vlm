@@ -12,8 +12,11 @@
         <!-- 헤더 -->
         <header class="header">
             <div class="header-content">
-                <h1>🔍 불량 검출 시스템</h1>
-                <div class="user-info">
+                <div class="header-left">
+                    <h1>📸 이미지 업로드</h1>
+                    <p class="subtitle">불량 의심 이미지를 업로드하세요</p>
+                </div>
+                <div class="header-right">
                     <span class="user-name" id="userName">작업자</span>
                     <button class="btn-logout" onclick="logout()">로그아웃</button>
                 </div>
@@ -21,8 +24,8 @@
         </header>
 
         <!-- 네비게이션 -->
-        <nav class="nav-steps">
-            <a href="/uploads.html" class="nav-btn active">1. 이미지 업로드</a>
+        <nav class="nav">
+            <a href="/upload.html" class="nav-btn active">1. 이미지 업로드</a>
             <a href="/search.html" class="nav-btn disabled">2. 유사도 매칭</a>
             <a href="/anomaly.html" class="nav-btn disabled">3. 이상 검출</a>
             <a href="/manual.html" class="nav-btn disabled">4. 대응 매뉴얼</a>
@@ -57,33 +60,71 @@
                 <div class="preview-section" id="previewSection" style="display: none;">
                     <h3>업로드된 이미지</h3>
                     <div class="preview-container">
+                        <!-- 원본 이미지 -->
                         <div class="preview-item">
                             <h4>원본 이미지</h4>
                             <img id="previewImage" class="preview-image" alt="Original">
-                            <div class="image-info">
-                                <div class="info-row">
-                                    <span class="info-label">파일명:</span>
-                                    <span class="info-value" id="fileName">-</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">파일 크기:</span>
-                                    <span class="info-value" id="fileSize">-</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">해상도:</span>
-                                    <span class="info-value" id="resolution">-</span>
-                                </div>
-                            </div>
+                        </div>
+                        
+                        <!-- 전처리 이미지 -->
+                        <div class="preview-item">
+                            <h4>전처리 이미지</h4>
+                            <img id="preprocessedImage" class="preview-image" alt="Preprocessed">
+                            <p class="preprocessing-note">전처리 로직이 적용되면 여기에 표시됩니다</p>
                         </div>
                     </div>
 
                     <!-- 액션 버튼 -->
                     <div class="action-buttons">
-                        <button class="btn-next" onclick="goToSearch()">다음 단계로</button>
-                        <button class="btn-reset" onclick="resetUpload()">다시 업로드</button>
+                        <button class="btn btn-secondary" id="reuploadBtn">
+                            🔄 다시 업로드
+                        </button>
+                        <button class="btn btn-primary" id="nextBtn">
+                            다음: 유사도 매칭 →
+                        </button>
                     </div>
                 </div>
             </section>
+
+            <!-- 사이드바 -->
+            <aside class="sidebar">
+                <!-- 이미지 정보 -->
+                <div class="info-card" id="imageInfoCard" style="display: none;">
+                    <h3>📋 이미지 정보</h3>
+                    <div class="info-list">
+                        <div class="info-row">
+                            <span class="info-label">파일명</span>
+                            <span class="info-value" id="fileName">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">파일 크기</span>
+                            <span class="info-value" id="fileSize">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">해상도</span>
+                            <span class="info-value" id="resolution">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 인덱스 관리 -->
+                <div class="index-card">
+                    <h3>🔧 인덱스 관리</h3>
+                    
+                    <div class="index-status" id="indexStatus">
+                        <p class="status-loading">상태 확인 중...</p>
+                    </div>
+
+                    <div class="index-actions">
+                        <button class="btn btn-small" id="checkIndexBtn">
+                            📊 상태 확인
+                        </button>
+                        <button class="btn btn-small" id="rebuildIndexBtn">
+                            🔄 재구축
+                        </button>
+                    </div>
+                </div>
+            </aside>
         </main>
     </div>
 
