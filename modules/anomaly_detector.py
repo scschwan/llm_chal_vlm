@@ -373,20 +373,49 @@ class AnomalyDetector:
         if similarity_matcher is None:
             raise ValueError("similarity_matcher가 필요합니다")
         
-        # 정상 이미지 갤러리로 임시 인덱스 구축
+        # V1/V2 체크
+        is_v2 = hasattr(similarity_matcher, 'gallery_metadata')
+        
+        # 정상 이미지 갤러리로 인덱스가 로드되어 있는지 확인
         temp_index_built = False
-        if not similarity_matcher.index_built or \
-        str(normal_gallery_dir) not in str(similarity_matcher.gallery_paths[0] if similarity_matcher.gallery_paths else ""):
-            similarity_matcher.build_index(str(normal_gallery_dir))
-            temp_index_built = True
+        
+        if is_v2:
+            # V2: gallery_metadata 확인
+            # 인덱스 타입이 normal인지 확인
+            if not similarity_matcher.index_built or \
+            similarity_matcher.index_type != "normal":
+                # V2는 DB 기반이므로 build_index()를 직접 호출하지 않음
+                # 대신 이미 로드된 normal 인덱스를 사용해야 함
+                if self.verbose:
+                    print(f"[WARNING] V2 매처는 이미 로드된 normal 인덱스를 사용합니다")
+                
+                if similarity_matcher.index_type != "normal":
+                    raise ValueError(
+                        f"현재 인덱스 타입이 '{similarity_matcher.index_type}'입니다. "
+                        f"정상 이미지 검색을 위해서는 'normal' 인덱스가 필요합니다."
+                    )
+        else:
+            # V1: gallery_paths 확인
+            if not similarity_matcher.index_built or \
+            str(normal_gallery_dir) not in str(similarity_matcher.gallery_paths[0] if similarity_matcher.gallery_paths else ""):
+                similarity_matcher.build_index(str(normal_gallery_dir))
+                temp_index_built = True
         
         # 유사 정상 이미지 검색 (TOP-1)
         search_result = similarity_matcher.search(str(test_image_path), top_k=1)
-        reference_image_path = search_result.top_k_results[0]["image_path"]
+        
+        if is_v2:
+            # V2 응답 구조
+            reference_image_path = search_result.results[0]["local_path"]
+            similarity_score = search_result.results[0]["similarity_score"]
+        else:
+            # V1 응답 구조
+            reference_image_path = search_result.top_k_results[0]["image_path"]
+            similarity_score = search_result.top_k_results[0]["similarity_score"]
         
         if self.verbose:
             print(f"[정상 기준 이미지 선택] {reference_image_path}")
-            print(f"  유사도: {search_result.top_k_results[0]['similarity_score']:.4f}")
+            print(f"  유사도: {similarity_score:.4f}")
         
         # 기존 detect_with_reference 호출
         result = self.detect_with_reference(
@@ -397,10 +426,10 @@ class AnomalyDetector:
         )
         
         result["reference_image_path"] = reference_image_path
-        result["reference_similarity"] = search_result.top_k_results[0]['similarity_score']
-        
+        result["reference_similarity"] = similarity_score
+    
         return result
-
+    
 # 헬퍼 함수
 def create_detector(
     bank_base_dir: str = "../data/patchCore",
