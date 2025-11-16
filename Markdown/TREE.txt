@@ -213,7 +213,7 @@
     │       ├── [ 222K]  faiss_index.bin
     │       └── [  49K]  metadata.json
     ├── [  14K]  matching.html
-    ├── [ 111K]  pages
+    ├── [ 113K]  pages
     │   ├── [  44K]  admin
     │   │   ├── [ 3.7K]  admin_defect_type.html
     │   │   ├── [ 3.4K]  admin_deploy_clip.html
@@ -232,7 +232,7 @@
     │   ├── [ 7.3K]  manual.html
     │   ├── [ 9.5K]  search.html
     │   ├── [  19K]  search_v2_test.html
-    │   └── [ 5.2K]  upload.html
+    │   └── [ 6.8K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
     ├── [ 160K]  routers
@@ -253,7 +253,7 @@
     │   ├── [ 6.9K]  search.py
     │   ├── [ 7.8K]  search_v2.py
     │   └── [ 4.2K]  upload.py
-    ├── [ 298K]  static
+    ├── [ 304K]  static
     │   ├── [ 166K]  admin
     │   │   ├── [  61K]  css
     │   │   │   ├── [ 4.5K]  admin_defect_type.css
@@ -285,15 +285,15 @@
     │   │   ├── [ 5.7K]  manual.css
     │   │   ├── [  13K]  matching.css
     │   │   ├── [ 8.0K]  search.css
-    │   │   └── [ 3.3K]  upload.css
-    │   └── [  94K]  js
+    │   │   └── [ 3.9K]  upload.css
+    │   └── [ 100K]  js
     │       ├── [ 9.0K]  anomaly.js
     │       ├── [ 3.6K]  common.js
     │       ├── [  15K]  manual.js
     │       ├── [  45K]  matching.js
     │       ├── [  15K]  search.js
-    │       └── [ 5.8K]  upload.js
-    ├── [   33]  uploads
+    │       └── [  11K]  upload.js
+    ├── [    6]  uploads
     └── [  16K]  utils
         ├── [ 1.6K]  auth.py
         ├── [    0]  __init__.py
