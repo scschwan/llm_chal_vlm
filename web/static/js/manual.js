@@ -47,18 +47,7 @@ const viewHistoryBtn = document.getElementById('viewHistoryBtn');
         }
     }
     
-    // 페이지 로드 시 사용자 이름 표시
-    document.addEventListener('DOMContentLoaded', async () => {
-        try {
-            const response = await fetch('/api/auth/session');
-            if (response.ok) {
-                const session = await response.json();
-                document.getElementById('userName').textContent = session.full_name || '작업자';
-            }
-        } catch (error) {
-            console.error('세션 확인 실패:', error);
-        }
-    });
+    
 
 // 페이지 로드 시 인증 확인
 document.addEventListener('DOMContentLoaded', async () => {

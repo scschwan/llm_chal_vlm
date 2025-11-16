@@ -34,62 +34,94 @@ async function logout() {
     }
 }
 
-// ✅ 페이지 로드 시 통합 초기화 (DOMContentLoaded 1번만)
+// ✅ 단 하나의 DOMContentLoaded 이벤트
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[UPLOAD] 페이지 로드 완료');
+    console.log('[UPLOAD] 페이지 로드 시작');
     
     try {
         // 1. 인증 확인
+        console.log('[UPLOAD] 인증 확인 중...');
         const authResponse = await fetch('/api/auth/check');
-        const authData = await authResponse.json();
         
-        if (!authData.authenticated) {
+        if (!authResponse.ok) {
+            console.error('[UPLOAD] 인증 실패 - 로그인 페이지로 이동');
             window.location.href = '/login.html';
             return;
         }
         
-        // 2. 사용자 이름 표시 (check에서 받은 데이터 사용)
-        const userNameElement = document.getElementById('userName');
-        if (userNameElement && authData.full_name) {
-            userNameElement.textContent = authData.full_name;
+        const authData = await authResponse.json();
+        console.log('[UPLOAD] 인증 응답:', authData);
+        
+        if (!authData.authenticated) {
+            console.warn('[UPLOAD] 미인증 사용자 - 로그인 페이지로 이동');
+            window.location.href = '/login.html';
+            return;
+        }
+        
+        console.log('[UPLOAD] 인증 성공');
+        
+        // 2. 사용자 이름 표시
+        if (authData.full_name) {
+            const userNameElement = document.getElementById('userName');
+            if (userNameElement) {
+                userNameElement.textContent = authData.full_name;
+                console.log('[UPLOAD] 사용자 이름 표시:', authData.full_name);
+            } else {
+                console.warn('[UPLOAD] userName 엘리먼트를 찾을 수 없음');
+            }
         }
         
         // 3. 로그인 직후 세션 초기화
         const isNewLogin = sessionStorage.getItem('isNewLogin');
-        
         if (isNewLogin === 'true') {
             console.log('[UPLOAD] 로그인 직후 - 세션 데이터 초기화');
-            SessionData.clear();
+            if (typeof SessionData !== 'undefined' && SessionData.clear) {
+                SessionData.clear();
+            }
             sessionStorage.removeItem('isNewLogin');
         }
         
         // 4. 기존 업로드 이미지 복원 시도
-        const savedData = SessionData.get('uploadedImage');
-        
-        if (savedData && savedData.preview) {
-            console.log('[UPLOAD] 이전 업로드 이미지 복원:', savedData.filename);
-            restoreUploadedImage(savedData);
+        if (typeof SessionData !== 'undefined') {
+            const savedData = SessionData.get('uploadedImage');
+            
+            if (savedData && savedData.preview) {
+                console.log('[UPLOAD] 이전 업로드 이미지 복원:', savedData.filename);
+                restoreUploadedImage(savedData);
+            } else {
+                console.log('[UPLOAD] 새로운 업로드 대기 중');
+                resetUploadState();
+            }
         } else {
-            console.log('[UPLOAD] 새로운 업로드 대기 중');
+            console.error('[UPLOAD] SessionData 유틸리티를 찾을 수 없음');
             resetUploadState();
         }
         
         // 5. 이벤트 리스너 등록
         initEventListeners();
         
+        console.log('[UPLOAD] 페이지 로드 완료');
+        
     } catch (error) {
-        console.error('[UPLOAD] 인증 확인 실패:', error);
-        window.location.href = '/login.html';
+        console.error('[UPLOAD] 초기화 실패:', error);
+        alert('페이지 로드 중 오류가 발생했습니다: ' + error.message);
+        // 에러 발생 시에도 기본 UI는 표시
+        resetUploadState();
+        initEventListeners();
     }
 });
-
 
 /**
  * 업로드 상태 초기화
  */
 function resetUploadState() {
-    uploadZone.style.display = 'block';
-    previewSection.style.display = 'none';
+    const uploadSection = document.getElementById('uploadSection');
+    if (uploadSection) {
+        uploadSection.style.display = 'block';
+    }
+    if (previewSection) {
+        previewSection.style.display = 'none';
+    }
     uploadedFileData = null;
     if (fileInput) {
         fileInput.value = '';
@@ -100,18 +132,26 @@ function resetUploadState() {
  * 업로드된 이미지 복원
  */
 function restoreUploadedImage(savedData) {
-    // 이미지 표시
-    previewImage.src = savedData.preview;
-    fileName.textContent = savedData.filename;
-    fileSize.textContent = formatFileSize(savedData.file_size);
-    resolution.textContent = savedData.resolution;
-    
-    // UI 전환
-    uploadZone.style.display = 'none';
-    previewSection.style.display = 'block';
-    imageInfoCard.style.display = 'block';
-    
-    uploadedFileData = savedData;
+    try {
+        // 이미지 표시
+        previewImage.src = savedData.preview;
+        fileName.textContent = savedData.filename;
+        fileSize.textContent = formatFileSize(savedData.file_size);
+        resolution.textContent = savedData.resolution;
+        
+        // UI 전환
+        const uploadSection = document.getElementById('uploadSection');
+        if (uploadSection) {
+            uploadSection.style.display = 'none';
+        }
+        previewSection.style.display = 'block';
+        imageInfoCard.style.display = 'block';
+        
+        uploadedFileData = savedData;
+    } catch (error) {
+        console.error('[UPLOAD] 이미지 복원 실패:', error);
+        resetUploadState();
+    }
 }
 
 /**
