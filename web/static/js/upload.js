@@ -14,15 +14,12 @@ const progressFill = document.getElementById('progressFill');
 const progressText = document.getElementById('progressText');
 const previewSection = document.getElementById('previewSection');
 const previewImage = document.getElementById('previewImage');
-const preprocessedImage = document.getElementById('preprocessedImage');
 const imageInfoCard = document.getElementById('imageInfoCard');
 const fileName = document.getElementById('fileName');
 const fileSize = document.getElementById('fileSize');
 const resolution = document.getElementById('resolution');
 const reuploadBtn = document.getElementById('reuploadBtn');
 const nextBtn = document.getElementById('nextBtn');
-const checkIndexBtn = document.getElementById('checkIndexBtn');
-const rebuildIndexBtn = document.getElementById('rebuildIndexBtn');
 
  // 로그아웃 함수
     async function logout() {
@@ -88,9 +85,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 이벤트 리스너 등록
     initEventListeners();
     
-    // 인덱스 상태 확인
-    checkIndexStatus();
-    
     // ✅ 세션 데이터 복원 (있으면)
     restoreSessionData();
 });
@@ -106,7 +100,6 @@ function restoreSessionData() {
         
         // 이미지 표시
         previewImage.src = savedData.preview;
-        preprocessedImage.src = savedData.preview;
         fileName.textContent = savedData.filename;
         fileSize.textContent = formatFileSize(savedData.file_size);
         resolution.textContent = savedData.resolution;
@@ -151,10 +144,6 @@ function initEventListeners() {
     
     // 다음 단계
     nextBtn.addEventListener('click', goToNextPage);
-    
-    // 인덱스 관리
-    checkIndexBtn.addEventListener('click', checkIndexStatus);
-    rebuildIndexBtn.addEventListener('click', rebuildIndex);
 }
 
 /**
@@ -276,9 +265,6 @@ async function showPreview(file, uploadData) {
             // 원본 이미지 표시
             previewImage.src = e.target.result;
             
-            // 전처리 이미지 표시 (현재는 동일)
-            preprocessedImage.src = e.target.result;
-            
             // 정보 표시
             fileName.textContent = uploadData.filename;
             fileSize.textContent = formatFileSize(uploadData.file_size);
@@ -315,15 +301,18 @@ function resetUpload() {
     uploadedFileData = null;
     progressFill.style.width = '0%';
     
-     // ✅ 전체 워크플로우 초기화
-    SessionData.startNewWorkflow();
+    // ✅ 전체 워크플로우 초기화
+    if (typeof SessionData !== 'undefined' && SessionData.startNewWorkflow) {
+        SessionData.startNewWorkflow();
+    }
     
-    // ✅ 세션 데이터도 삭제
-    // ✅ 세션 데이터 삭제 (다시 업로드 버튼만)
-    SessionData.remove('uploadedImage');
-    SessionData.remove('searchResults');
-    SessionData.remove('selectedMatch');
-    SessionData.remove('anomalyResult');
+    // ✅ 세션 데이터 삭제
+    if (typeof SessionData !== 'undefined') {
+        SessionData.remove('uploadedImage');
+        SessionData.remove('searchResults');
+        SessionData.remove('selectedMatch');
+        SessionData.remove('anomalyResult');
+    }
 }
 
 /**
@@ -340,44 +329,14 @@ function goToNextPage() {
 }
 
 /**
- * 인덱스 재구축
+ * 파일 크기 포맷팅
  */
-async function rebuildIndex() {
-    if (!confirm('인덱스를 재구축하시겠습니까? 시간이 다소 걸릴 수 있습니다.')) {
-        return;
-    }
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
     
-    try {
-        rebuildIndexBtn.disabled = true;
-        rebuildIndexBtn.textContent = '재구축 중...';
-        
-        const response = await fetch(`${API_BASE_URL}/build_index`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                gallery_dir: '../data/def_split',
-                save_index: true
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error('인덱스 재구축 실패');
-        }
-        
-        const data = await response.json();
-        console.log('[INDEX] 재구축 완료:', data);
-        
-        showNotification(`인덱스 재구축 완료 (${data.num_images}개 이미지)`, 'success');
-        
-        await checkIndexStatus();
-        
-    } catch (error) {
-        console.error('[INDEX] 재구축 실패:', error);
-        showNotification(`재구축 실패: ${error.message}`, 'error');
-    } finally {
-        rebuildIndexBtn.disabled = false;
-        rebuildIndexBtn.textContent = '🔄 재구축';
-    }
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }
