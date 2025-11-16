@@ -235,7 +235,7 @@
     │   └── [ 5.7K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 160K]  routers
+    ├── [ 162K]  routers
     │   ├── [ 111K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
@@ -246,7 +246,7 @@
     │   │   ├── [ 9.7K]  model.py
     │   │   ├── [ 9.5K]  preprocessing.py
     │   │   └── [ 5.9K]  product.py
-    │   ├── [  12K]  anomaly.py
+    │   ├── [  14K]  anomaly.py
     │   ├── [ 3.4K]  auth.py
     │   ├── [  291]  __init__.py
     │   ├── [  15K]  manual.py
@@ -293,7 +293,7 @@
     │       ├── [  45K]  matching.js
     │       ├── [  16K]  search.js
     │       └── [ 9.9K]  upload.js
-    ├── [   33]  uploads
+    ├── [   60]  uploads
     └── [  16K]  utils
         ├── [ 1.6K]  auth.py
         ├── [    0]  __init__.py
