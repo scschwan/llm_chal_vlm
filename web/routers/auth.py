@@ -1,51 +1,38 @@
 """
 인증 라우터
 """
-
 from fastapi import APIRouter, HTTPException, Response, Cookie
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
-
 import sys
 from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
-
 from web.utils.auth import verify_password, create_session, validate_session, delete_session
-
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-
-
 # ========================================
 # Request/Response 모델
 # ========================================
-
 class LoginRequest(BaseModel):
     """로그인 요청"""
     username: str
     password: str
-
-
 class LoginResponse(BaseModel):
     """로그인 응답"""
     status: str
     message: str
     user_type: str
     full_name: str
-
-
 class SessionResponse(BaseModel):
     """세션 정보 응답"""
     username: str
     user_type: str
     full_name: str
-
-
 # ========================================
 # API 엔드포인트
 # ========================================
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login")
 async def login(request: LoginRequest, response: Response):
     """
     로그인
@@ -70,7 +57,6 @@ async def login(request: LoginRequest, response: Response):
     from web.utils.auth import USERS
     user = USERS[request.username]
     
-    # ✅ JSONResponse로 변경하여 is_new_login 추가
     return JSONResponse(content={
         "status": "success",
         "message": "로그인 성공",
@@ -135,5 +121,6 @@ async def check_auth(session_token: Optional[str] = Cookie(None)):
     return JSONResponse(content={
         "authenticated": True,
         "user_type": session["user_type"],
-        "username": session["username"]
+        "username": session["username"],
+        "full_name": session.get("full_name", "작업자")  # ✅ 추가
     })

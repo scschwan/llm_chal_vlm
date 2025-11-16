@@ -48,27 +48,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         
-        // 2. 로그인 직후 세션 초기화
+        // 2. 사용자 이름 표시 (check에서 받은 데이터 사용)
+        const userNameElement = document.getElementById('userName');
+        if (userNameElement && authData.full_name) {
+            userNameElement.textContent = authData.full_name;
+        }
+        
+        // 3. 로그인 직후 세션 초기화
         const isNewLogin = sessionStorage.getItem('isNewLogin');
         
         if (isNewLogin === 'true') {
             console.log('[UPLOAD] 로그인 직후 - 세션 데이터 초기화');
             SessionData.clear();
             sessionStorage.removeItem('isNewLogin');
-        }
-        
-        // 3. 사용자 이름 표시 (실패해도 무시)
-        try {
-            const sessionResponse = await fetch('/api/auth/session');
-            if (sessionResponse.ok) {
-                const session = await sessionResponse.json();
-                const userNameElement = document.getElementById('userName');
-                if (userNameElement) {
-                    userNameElement.textContent = session.full_name || '작업자';
-                }
-            }
-        } catch (error) {
-            console.log('[UPLOAD] 사용자 이름 조회 실패 (무시):', error);
         }
         
         // 4. 기존 업로드 이미지 복원 시도
@@ -90,6 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = '/login.html';
     }
 });
+
 
 /**
  * 업로드 상태 초기화
