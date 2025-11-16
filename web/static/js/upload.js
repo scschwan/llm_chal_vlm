@@ -79,10 +79,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[UPLOAD] 페이지 로드 완료');
     
+    /*
     if(resetFlag){
         resetUploadState();
         resetFlag =false;
     }
+        */
     // ✅ 기존 업로드 이미지 복원 시도
     const savedData = SessionData.get('uploadedImage');
     
