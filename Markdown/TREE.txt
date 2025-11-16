@@ -204,16 +204,16 @@
     │       ├── [ 296K]  faiss_index.bin
     │       └── [ 309K]  index_data.pt
     ├── [ 6.8M]  index_cache_v2
-    │   ├── [ 6.4M]  defect
+    │   ├── [ 6.3M]  defect
     │   │   ├── [ 2.8M]  embeddings.pt
     │   │   ├── [ 2.8M]  faiss_index.bin
-    │   │   └── [ 710K]  metadata.json
+    │   │   └── [ 650K]  metadata.json
     │   └── [ 494K]  normal
-    │       ├── [ 222K]  embeddings.pt
-    │       ├── [ 220K]  faiss_index.bin
-    │       └── [  53K]  metadata.json
+    │       ├── [ 224K]  embeddings.pt
+    │       ├── [ 222K]  faiss_index.bin
+    │       └── [  49K]  metadata.json
     ├── [  14K]  matching.html
-    ├── [ 113K]  pages
+    ├── [ 111K]  pages
     │   ├── [  44K]  admin
     │   │   ├── [ 3.7K]  admin_defect_type.html
     │   │   ├── [ 3.4K]  admin_deploy_clip.html
@@ -228,14 +228,14 @@
     │   │   └── [ 5.2K]  dashboard.html
     │   ├── [ 9.7K]  admin.html
     │   ├── [ 6.3K]  anomaly.html
-    │   ├── [  10K]  login.html
+    │   ├── [10.0K]  login.html
     │   ├── [ 7.3K]  manual.html
     │   ├── [ 9.5K]  search.html
     │   ├── [  19K]  search_v2_test.html
-    │   └── [ 6.8K]  upload.html
+    │   └── [ 5.2K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 166K]  routers
+    ├── [ 160K]  routers
     │   ├── [ 111K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
@@ -251,9 +251,9 @@
     │   ├── [  291]  __init__.py
     │   ├── [  15K]  manual.py
     │   ├── [ 6.9K]  search.py
-    │   ├── [  13K]  search_v2.py
+    │   ├── [ 7.8K]  search_v2.py
     │   └── [ 4.2K]  upload.py
-    ├── [ 304K]  static
+    ├── [ 298K]  static
     │   ├── [ 166K]  admin
     │   │   ├── [  61K]  css
     │   │   │   ├── [ 4.5K]  admin_defect_type.css
@@ -285,15 +285,15 @@
     │   │   ├── [ 5.7K]  manual.css
     │   │   ├── [  13K]  matching.css
     │   │   ├── [ 8.0K]  search.css
-    │   │   └── [ 3.9K]  upload.css
-    │   └── [ 100K]  js
+    │   │   └── [ 3.3K]  upload.css
+    │   └── [  94K]  js
     │       ├── [ 9.0K]  anomaly.js
     │       ├── [ 3.6K]  common.js
     │       ├── [  15K]  manual.js
     │       ├── [  45K]  matching.js
     │       ├── [  15K]  search.js
-    │       └── [  11K]  upload.js
-    ├── [    6]  uploads
+    │       └── [ 5.8K]  upload.js
+    ├── [   33]  uploads
     └── [  16K]  utils
         ├── [ 1.6K]  auth.py
         ├── [    0]  __init__.py
