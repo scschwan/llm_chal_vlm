@@ -242,7 +242,7 @@
     │   ├── [ 8.1K]  admin.html
     │   ├── [ 9.7K]  admin.html.bak
     │   ├── [ 6.3K]  anomaly.html
-    │   ├── [ 9.8K]  login.html
+    │   ├── [ 9.6K]  login.html
     │   ├── [ 7.3K]  manual.html
     │   ├── [ 9.5K]  search.html
     │   ├── [  19K]  search_v2_test.html
@@ -262,7 +262,7 @@
     │   │   ├── [ 9.5K]  preprocessing.py
     │   │   └── [ 5.9K]  product.py
     │   ├── [  19K]  anomaly.py
-    │   ├── [ 3.9K]  auth.py
+    │   ├── [ 4.1K]  auth.py
     │   ├── [  291]  __init__.py
     │   ├── [  18K]  manual.py
     │   ├── [ 6.9K]  search.py
