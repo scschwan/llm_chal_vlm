@@ -207,7 +207,7 @@
     │   ├── [ 6.4M]  defect
     │   │   ├── [ 2.8M]  embeddings.pt
     │   │   ├── [ 2.8M]  faiss_index.bin
-    │   │   └── [ 709K]  metadata.json
+    │   │   └── [ 710K]  metadata.json
     │   └── [ 494K]  normal
     │       ├── [ 222K]  embeddings.pt
     │       ├── [ 220K]  faiss_index.bin
@@ -235,7 +235,7 @@
     │   └── [ 6.8K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 153K]  routers
+    ├── [ 166K]  routers
     │   ├── [ 111K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
@@ -246,12 +246,12 @@
     │   │   ├── [ 9.7K]  model.py
     │   │   ├── [ 9.5K]  preprocessing.py
     │   │   └── [ 5.9K]  product.py
-    │   ├── [ 7.7K]  anomaly.py
+    │   ├── [  12K]  anomaly.py
     │   ├── [ 3.4K]  auth.py
     │   ├── [  291]  __init__.py
-    │   ├── [ 7.9K]  manual.py
+    │   ├── [  15K]  manual.py
     │   ├── [ 6.9K]  search.py
-    │   ├── [  11K]  search_v2.py
+    │   ├── [  13K]  search_v2.py
     │   └── [ 4.2K]  upload.py
     ├── [ 304K]  static
     │   ├── [ 166K]  admin
@@ -294,9 +294,10 @@
     │       ├── [  15K]  search.js
     │       └── [  11K]  upload.js
     ├── [    6]  uploads
-    └── [  11K]  utils
+    └── [  16K]  utils
         ├── [ 1.6K]  auth.py
         ├── [    0]  __init__.py
-        └── [ 9.7K]  object_storage.py
+        ├── [ 9.7K]  object_storage.py
+        └── [ 5.0K]  session_helper.py
 
-  318M used in 72 directories, 227 files
+  318M used in 72 directories, 228 files
