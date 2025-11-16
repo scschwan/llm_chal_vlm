@@ -182,10 +182,11 @@
 ├── [  335]  settings.config
 ├── [    6]  uploads
 └── [  17M]  web
-    ├── [  636]  anomaly_outputs
+    ├── [  740]  anomaly_outputs
     │   ├── [   82]  carpet_thread_017
     │   ├── [   82]  cast_def_0_146
     │   ├── [   82]  cast_def_0_318
+    │   ├── [   82]  cast_def_0_430
     │   ├── [   82]  cast_def_0_604
     │   ├── [   82]  cast_def_0_619
     │   └── [   82]  leather_color_017
@@ -216,7 +217,7 @@
     │       ├── [ 222K]  faiss_index.bin
     │       └── [  49K]  metadata.json
     ├── [  14K]  matching.html
-    ├── [ 112K]  pages
+    ├── [ 111K]  pages
     │   ├── [  44K]  admin
     │   │   ├── [ 3.7K]  admin_defect_type.html
     │   │   ├── [ 3.4K]  admin_deploy_clip.html
@@ -231,15 +232,15 @@
     │   │   └── [ 5.2K]  dashboard.html
     │   ├── [ 9.7K]  admin.html
     │   ├── [ 6.3K]  anomaly.html
-    │   ├── [10.0K]  login.html
+    │   ├── [ 9.7K]  login.html
     │   ├── [ 7.3K]  manual.html
     │   ├── [ 9.5K]  search.html
     │   ├── [  19K]  search_v2_test.html
     │   └── [ 5.7K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 172K]  routers
-    │   ├── [ 111K]  admin
+    ├── [ 173K]  routers
+    │   ├── [ 112K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
     │   │   ├── [  26K]  deployment.py
@@ -250,13 +251,13 @@
     │   │   ├── [ 9.5K]  preprocessing.py
     │   │   └── [ 5.9K]  product.py
     │   ├── [  19K]  anomaly.py
-    │   ├── [ 3.4K]  auth.py
+    │   ├── [ 3.5K]  auth.py
     │   ├── [  291]  __init__.py
     │   ├── [  18K]  manual.py
     │   ├── [ 6.9K]  search.py
     │   ├── [ 9.4K]  search_v2.py
     │   └── [ 4.2K]  upload.py
-    ├── [ 306K]  static
+    ├── [ 308K]  static
     │   ├── [ 166K]  admin
     │   │   ├── [  61K]  css
     │   │   │   ├── [ 4.5K]  admin_defect_type.css
@@ -289,18 +290,18 @@
     │   │   ├── [  13K]  matching.css
     │   │   ├── [ 8.0K]  search.css
     │   │   └── [ 3.3K]  upload.css
-    │   └── [ 102K]  js
-    │       ├── [  11K]  anomaly.js
-    │       ├── [ 3.6K]  common.js
+    │   └── [ 104K]  js
+    │       ├── [  12K]  anomaly.js
+    │       ├── [ 3.9K]  common.js
     │       ├── [  15K]  manual.js
     │       ├── [  45K]  matching.js
     │       ├── [  17K]  search.js
-    │       └── [ 9.9K]  upload.js
-    ├── [   33]  uploads
+    │       └── [  10K]  upload.js
+    ├── [   87]  uploads
     └── [  16K]  utils
         ├── [ 1.6K]  auth.py
         ├── [    0]  __init__.py
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  318M used in 75 directories, 228 files
+  318M used in 76 directories, 228 files
