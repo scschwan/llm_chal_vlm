@@ -182,12 +182,13 @@
 ├── [  335]  settings.config
 ├── [    6]  uploads
 └── [  17M]  web
-    ├── [  428]  anomaly_outputs
+    ├── [  532]  anomaly_outputs
     │   ├── [   82]  carpet_thread_017
     │   ├── [   82]  cast_def_0_146
+    │   ├── [   82]  cast_def_0_318
     │   ├── [   82]  cast_def_0_619
     │   └── [   82]  leather_color_017
-    ├── [  33K]  api_server.py
+    ├── [  34K]  api_server.py
     ├── [  48K]  database
     │   ├── [ 3.0K]  connection.py
     │   ├── [  26K]  crud.py
@@ -236,7 +237,7 @@
     │   └── [ 5.7K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 170K]  routers
+    ├── [ 172K]  routers
     │   ├── [ 111K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
@@ -247,14 +248,14 @@
     │   │   ├── [ 9.7K]  model.py
     │   │   ├── [ 9.5K]  preprocessing.py
     │   │   └── [ 5.9K]  product.py
-    │   ├── [  17K]  anomaly.py
+    │   ├── [  18K]  anomaly.py
     │   ├── [ 3.4K]  auth.py
     │   ├── [  291]  __init__.py
     │   ├── [  18K]  manual.py
     │   ├── [ 6.9K]  search.py
     │   ├── [ 9.4K]  search_v2.py
     │   └── [ 4.2K]  upload.py
-    ├── [ 305K]  static
+    ├── [ 306K]  static
     │   ├── [ 166K]  admin
     │   │   ├── [  61K]  css
     │   │   │   ├── [ 4.5K]  admin_defect_type.css
@@ -287,7 +288,7 @@
     │   │   ├── [  13K]  matching.css
     │   │   ├── [ 8.0K]  search.css
     │   │   └── [ 3.3K]  upload.css
-    │   └── [ 101K]  js
+    │   └── [ 102K]  js
     │       ├── [  11K]  anomaly.js
     │       ├── [ 3.6K]  common.js
     │       ├── [  15K]  manual.js
@@ -301,4 +302,4 @@
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  318M used in 73 directories, 228 files
+  318M used in 74 directories, 228 files
