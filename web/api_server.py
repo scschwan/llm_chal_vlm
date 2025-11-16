@@ -44,6 +44,7 @@ from modules.vlm import RAGManager, DefectMapper, PromptBuilder
 #matcher: Optional[TopKSimilarityMatcher] = None
 matcher_defect: Optional[TopKSimilarityMatcher] = None  # 유사도 매칭용 (불량 인덱스)
 matcher_normal: Optional[TopKSimilarityMatcher] = None  # 이상 검출용 (정상 인덱스)
+matcher = None
 detector: Optional[AnomalyDetector] = None
 current_index_type: Optional[str] = None
 config = None
@@ -75,7 +76,7 @@ async def lifespan(app: FastAPI):
     test_connection()
     
     """서버 시작 시 초기화"""
-    global matcher_defect,matcher_normal, detector, current_index_type ,config
+    global matcher,matcher_defect,matcher_normal, detector, current_index_type ,config
 
     # ==================== 설정 파일 로드 ====================
     config_file = project_root / "settings.config"
@@ -172,7 +173,7 @@ async def lifespan(app: FastAPI):
                 # 저장된 인덱스 로드 시도
                 if (normal_index_v2 / "metadata.json").exists():
                     print(f"      → 저장된 인덱스 로드 시도...")
-                    matcher.load_index(str(normal_index_v2))
+                    matcher_normal.load_index(str(normal_index_v2))
                     print(f"      ✅ 저장된 인덱스 로드 완료")
             
             # 2. 불량 이미지 인덱스 구축
@@ -553,293 +554,6 @@ def update_tree_on_startup():
 
 
 # ====================
-# 라이프사이클 이벤트
-# ====================
-'''
-@app.on_event("startup")
-async def startup_event():
-    """서버 시작 시 초기화"""
-    global matcher, detector, current_index_type ,config
-
-    # ==================== 설정 파일 로드 ====================
-    config_file = project_root / "settings.config"
-    config = {}
-    
-    if config_file.exists():
-        print("\n" + "=" * 70)
-        print("설정 파일 로드 중...")
-        print("=" * 70)
-        with open(config_file, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    if '=' in line:
-                        key, value = line.split('=', 1)
-                        config[key.strip()] = value.strip()
-        
-        print(f"인덱스 버전: {'V2 (DB 메타데이터)' if config.get('USE_INDEX_V2', 'false') == 'true' else 'V1 (파일명 파싱)'}")
-        print(f"CLIP 모델: {config.get('CLIP_MODEL_ID', 'ViT-B-32')}/{config.get('CLIP_PRETRAINED', 'openai')}")
-        print("=" * 70 + "\n")
-    else:
-        print(f"⚠️  설정 파일 없음: {config_file}")
-        print("기본 설정 사용: V1 인덱스")
-    
-    USE_INDEX_V2 = config.get('USE_INDEX_V2', 'false') == 'true'
-    CLIP_MODEL = config.get('CLIP_MODEL_ID', 'ViT-B-32')
-    CLIP_PRETRAINED = config.get('CLIP_PRETRAINED', 'openai')
-    CLIP_BATCH_SIZE = int(config.get('CLIP_BATCH_SIZE', '32'))
-    CLIP_NUM_WORKERS = int(config.get('CLIP_NUM_WORKERS', '4'))
-    CLIP_USE_FP16 = config.get('CLIP_USE_FP16', 'false') == 'true'
-
-    update_tree_on_startup()
-    
-    print("=" * 60)
-    print("유사도 매칭 + Anomaly Detection API 서버 시작")
-    print("=" * 60)
-    
-    # ✅ 업로드 디렉토리 초기화 (임시 파일 삭제)
-    print("\n[CLEANUP] 임시 업로드 파일 삭제 중...")
-    try:
-        deleted_count = 0
-        for file_path in UPLOAD_DIR.glob("*"):
-            if file_path.is_file():
-                file_path.unlink()
-                deleted_count += 1
-        print(f"✅ {deleted_count}개 임시 파일 삭제 완료")
-    except Exception as e:
-        print(f"⚠️  임시 파일 삭제 실패: {e}")
-    
-    # ==================== 인덱스 버전 분기 ====================
-    if USE_INDEX_V2:
-        # ========== V2: DB 메타데이터 기반 인덱스 ==========
-        print("\n" + "=" * 70)
-        print("V2 인덱스 구축 (DB 메타데이터 기반)")
-        print("=" * 70)
-        
-        from modules.similarity_matcher_v2 import create_matcher_v2
-        from web.database.connection import get_db
-        
-        # V2 매처 생성
-        matcher = create_matcher_v2(
-            model_id=f"{CLIP_MODEL}/{CLIP_PRETRAINED}",
-            device="auto",
-            use_fp16=CLIP_USE_FP16,
-            batch_size=CLIP_BATCH_SIZE,
-            num_workers=CLIP_NUM_WORKERS,
-            verbose=True
-        )
-        
-        # V2 인덱스 디렉토리
-        INDEX_DIR_V2 = WEB_DIR / "index_cache_v2"
-        INDEX_DIR_V2.mkdir(parents=True, exist_ok=True)
-        
-        defect_index_v2 = INDEX_DIR_V2 / "defect"
-        normal_index_v2 = INDEX_DIR_V2 / "normal"
-        
-        defect_index_v2.mkdir(parents=True, exist_ok=True)
-        normal_index_v2.mkdir(parents=True, exist_ok=True)
-        
-        try:
-            # DB 세션 생성
-            db = next(get_db())
-            
-            # 1. 정상 이미지 인덱스 구축
-            print(f"\n[1/2] 정상 이미지 인덱스 구축 (DB 기반)...")
-            try:
-                info = matcher.build_index_from_db(db, image_type='normal')
-                matcher.save_index(str(normal_index_v2))
-                print(f"      ✅ 완료: {info['num_images']}개 이미지")
-            except Exception as e:
-                print(f"      ⚠️  실패: {e}")
-                # 저장된 인덱스 로드 시도
-                if (normal_index_v2 / "metadata.json").exists():
-                    print(f"      → 저장된 인덱스 로드 시도...")
-                    matcher.load_index(str(normal_index_v2))
-                    print(f"      ✅ 저장된 인덱스 로드 완료")
-            
-            # 2. 불량 이미지 인덱스 구축
-            print(f"\n[2/2] 불량 이미지 인덱스 구축 (DB 기반)...")
-            try:
-                info = matcher.build_index_from_db(db, image_type='defect')
-                matcher.save_index(str(defect_index_v2))
-                print(f"      ✅ 완료: {info['num_images']}개 이미지")
-            except Exception as e:
-                print(f"      ⚠️  실패: {e}")
-                # 저장된 인덱스 로드 시도
-                if (defect_index_v2 / "metadata.json").exists():
-                    print(f"      → 저장된 인덱스 로드 시도...")
-                    matcher.load_index(str(defect_index_v2))
-                    print(f"      ✅ 저장된 인덱스 로드 완료")
-            
-            # 3. 기본 인덱스를 불량 이미지로 설정
-            print("\n🔄 기본 인덱스 설정 (불량 이미지)...")
-            if (defect_index_v2 / "metadata.json").exists():
-                matcher.load_index(str(defect_index_v2))
-                current_index_type = "defect"
-                print(f"✅ 불량 이미지 인덱스 로드 완료: {len(matcher.gallery_metadata)}개")
-            
-        except Exception as e:
-            print(f"\n❌ V2 인덱스 구축 실패: {e}")
-            import traceback
-            traceback.print_exc()
-        
-        # V2 라우터 초기화
-        from routers.search_v2 import init_search_v2_router
-        init_search_v2_router(matcher, INDEX_DIR_V2, project_root , config)
-        
-        print("\n" + "=" * 70)
-        print("V2 인덱스 구축 완료")
-        print("=" * 70)
-    
-    else:
-        # ========== V1: 파일명 파싱 기반 인덱스 (기존 코드) ==========
-        print("\n" + "=" * 70)
-        print("V1 인덱스 구축 (파일명 파싱 기반)")
-        print("=" * 70)
-        
-        # V1 매처 생성
-        matcher = create_matcher(
-            model_id=f"{CLIP_MODEL}/{CLIP_PRETRAINED}",
-            device="auto",
-            use_fp16=CLIP_USE_FP16,
-            batch_size=CLIP_BATCH_SIZE,
-            num_workers=CLIP_NUM_WORKERS,
-            verbose=True
-        )
-        
-        # 불량 이미지 인덱스 구축
-        defect_dir = project_root / "data" / "def_split"
-        defect_index_path = INDEX_DIR / "defect"
-        defect_index_path.mkdir(parents=True, exist_ok=True)
-        
-        if defect_dir.exists():
-            try:
-                print(f"\n[1/2] 불량 이미지 인덱스 구축 중...")
-                print(f"      경로: {defect_dir}")
-                
-                info = matcher.build_index(str(defect_dir))
-                matcher.save_index(str(defect_index_path))
-                
-                print(f"      ✅ 완료: {info['num_images']}개 이미지")
-            except Exception as e:
-                print(f"      ❌ 실패: {e}")
-                import traceback
-                traceback.print_exc()
-        else:
-            print(f"\n[1/2] ⚠️  불량 이미지 디렉토리 없음: {defect_dir}")
-        
-        # 정상 이미지 통합 인덱스 구축
-        normal_base_dir = project_root / "data" / "patchCore"
-        normal_index_path = INDEX_DIR / "normal"
-        normal_index_path.mkdir(parents=True, exist_ok=True)
-        
-        if normal_base_dir.exists():
-            try:
-                print(f"\n[2/2] 정상 이미지 통합 인덱스 구축 중...")
-                print(f"      기본 경로: {normal_base_dir}")
-                
-                # 모든 제품 폴더 탐색
-                product_dirs = [d for d in normal_base_dir.iterdir() if d.is_dir()]
-                
-                if not product_dirs:
-                    print(f"      ⚠️  제품 폴더를 찾을 수 없습니다")
-                else:
-                    print(f"      발견된 제품: {[d.name for d in product_dirs]}")
-                    
-                    # 통합 인덱스 구축
-                    info = matcher.build_index(str(normal_base_dir))
-                    matcher.save_index(str(normal_index_path))
-                    
-                    print(f"      ✅ 완료: {info['num_images']}개 이미지 (통합)")
-                    
-                    # 제품별 이미지 개수 표시
-                    for prod_dir in product_dirs:
-                        ok_dir = prod_dir / "ok"
-                        if ok_dir.exists():
-                            prod_images = list(ok_dir.glob("*.jpg")) + list(ok_dir.glob("*.png"))
-                            print(f"         - {prod_dir.name}: {len(prod_images)}개")
-                        
-            except Exception as e:
-                print(f"      ❌ 실패: {e}")
-                import traceback
-                traceback.print_exc()
-        else:
-            print(f"\n[2/2] ⚠️  정상 이미지 기본 디렉토리 없음: {normal_base_dir}")
-        
-        # 기본 인덱스를 불량 이미지로 설정
-        try:
-            print("\n🔄 기본 인덱스 로드 중 (불량 이미지)...")
-            if (defect_index_path / "index_data.pt").exists():
-                matcher.load_index(str(defect_index_path))
-                current_index_type = "defect"
-                print(f"✅ 불량 이미지 인덱스 로드 완료: {len(matcher.gallery_paths)}개")
-            else:
-                print("⚠️  저장된 불량 인덱스를 찾을 수 없습니다")
-        except Exception as e:
-            print(f"⚠️  기본 인덱스 로드 실패: {e}")
-        
-        # V1 라우터 초기화
-        from routers.search import init_search_router
-        init_search_router(matcher, INDEX_DIR, project_root)
-        
-        print("\n" + "=" * 70)
-        print("V1 인덱스 구축 완료")
-        print("=" * 70)
-    
-    # ==================== 공통: Anomaly Detector & VLM ====================
-
-    # 4. Anomaly Detector 생성
-    try:
-        detector = create_detector(
-            bank_base_dir=str(project_root / "data" / "patchCore"),
-            device="auto",
-            verbose=True
-        )
-        print("✅ Anomaly Detector 초기화 완료")
-    except Exception as e:
-        print(f"⚠️  Anomaly Detector 초기화 실패: {e}")
-        detector = None
-    
-    # 5. VLM 컴포넌트 초기화 (기존 함수 있다면)
-    init_vlm_components()
-    print("✅ VLM Component 초기화 완료")
-
-    # ✅ 6. 라우터 초기화 (매처를 전달)
-    from routers.upload import init_upload_router
-    from routers.search import init_search_router
-    from routers.anomaly import init_anomaly_router
-    from routers.manual import init_manual_router
-
-
-    init_upload_router(UPLOAD_DIR)
-    init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR)  # ✅ INDEX_DIR 추가
-    init_manual_router(
-        vlm_components.get("mapper"),
-        vlm_components.get("rag"),
-        project_root,
-        "http://localhost:5001"  # LLM 서버 URL
-    )
-    #init_search_router(matcher, INDEX_DIR, project_root)
-    #init_search_v2_router(matcher_v2=similarity_matcher_v2, index_dir_v2=INDEX_DIR_V2,proj_root=project_root)
-
-    if USE_INDEX_V2:
-        from routers.search_v2 import router as search_v2_router
-        app.include_router(search_v2_router)
-        print("✅ V2 검색 라우터 등록 완료")
-    
-    
-    print("\n" + "=" * 60)
-    print("서버 초기화 완료")
-    print("=" * 60 + "\n")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """서버 종료 시 정리"""
-    print("\n서버 종료 중...")
-'''
-
-# ====================
 # 라우터 등록
 # ====================
 
@@ -998,7 +712,7 @@ async def serve_admin_model():
 @app.get("/index/status")
 async def get_index_status():
     """현재 인덱스 상태 조회"""
-    if matcher is None:
+    if matcher_defect is None:
         return {
             "status": "error",
             "message": "매처가 초기화되지 않았습니다",
@@ -1007,10 +721,10 @@ async def get_index_status():
         }
     
     # V2 체크
-    is_v2 = hasattr(matcher, 'gallery_metadata')
+    is_v2 = hasattr(matcher_defect, 'gallery_metadata')
     
     if is_v2:
-        gallery_count = len(matcher.gallery_metadata) if matcher.gallery_metadata else 0
+        gallery_count = len(matcher_defect.gallery_metadata) if matcher_defect.gallery_metadata else 0
     else:
         gallery_count = len(matcher.gallery_paths) if matcher.gallery_paths else 0
     
@@ -1018,8 +732,8 @@ async def get_index_status():
         "status": "success",
         "current_index_type": current_index_type,
         "gallery_count": gallery_count,
-        "index_built": matcher.index_built,
-        "model_id": matcher.model_id if hasattr(matcher, 'model_id') else None,
+        "index_built": matcher_defect.index_built,
+        "model_id": matcher_defect.model_id if hasattr(matcher_defect, 'model_id') else None,
         "version": "v2" if is_v2 else "v1"
     }
 
@@ -1219,13 +933,13 @@ async def reload_mapping():
 @app.get("/health2")
 async def health_check():
     """헬스체크 엔드포인트 (ALB 용)"""
-    
+    '''
     # V2 체크
-    is_v2 = hasattr(matcher, 'gallery_metadata') if matcher else False
+    is_v2 = hasattr(matcher_defect, 'gallery_metadata') if matcher else False
     
     if matcher and matcher.index_built:
         if is_v2:
-            gallery_size = len(matcher.gallery_metadata) if matcher.gallery_metadata else 0
+            gallery_size = len(matcher_defect.gallery_metadata) if matcher_defect.gallery_metadata else 0
         else:
             gallery_size = len(matcher.gallery_paths) if matcher.gallery_paths else 0
     else:
@@ -1239,6 +953,12 @@ async def health_check():
         "matcher_initialized": matcher is not None,
         "detector_initialized": detector is not None,
         "matcher_version": "v2" if is_v2 else "v1"
+    }
+    '''
+    return {
+        "status": "healthy",
+        "message": "API 서버가 정상 작동 중입니다",
+
     }
 
 # ====================
