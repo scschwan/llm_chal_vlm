@@ -182,17 +182,17 @@
 ├── [  335]  settings.config
 ├── [    6]  uploads
 └── [  17M]  web
-    ├── [  352]  anomaly_outputs
+    ├── [  428]  anomaly_outputs
     │   ├── [   82]  carpet_thread_017
-    │   ├── [    6]  cast_def_0_146
+    │   ├── [   82]  cast_def_0_146
     │   ├── [   82]  cast_def_0_619
     │   └── [   82]  leather_color_017
-    ├── [  44K]  api_server.py
+    ├── [  45K]  api_server.py
     ├── [  48K]  database
     │   ├── [ 3.0K]  connection.py
     │   ├── [  26K]  crud.py
     │   ├── [  10K]  image_table_insert.py
-    │   └── [ 8.7K]  models.py
+    │   └── [ 8.4K]  models.py
     ├── [ 1.9K]  defect_mapping.json
     ├── [ 1.9K]  defect_mapping_origin.json
     ├── [ 9.4M]  index_cache
@@ -236,7 +236,7 @@
     │   └── [ 5.7K]  upload.html
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 162K]  routers
+    ├── [ 170K]  routers
     │   ├── [ 111K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
@@ -247,14 +247,14 @@
     │   │   ├── [ 9.7K]  model.py
     │   │   ├── [ 9.5K]  preprocessing.py
     │   │   └── [ 5.9K]  product.py
-    │   ├── [  14K]  anomaly.py
+    │   ├── [  17K]  anomaly.py
     │   ├── [ 3.4K]  auth.py
     │   ├── [  291]  __init__.py
-    │   ├── [  15K]  manual.py
+    │   ├── [  18K]  manual.py
     │   ├── [ 6.9K]  search.py
-    │   ├── [ 7.8K]  search_v2.py
+    │   ├── [ 9.4K]  search_v2.py
     │   └── [ 4.2K]  upload.py
-    ├── [ 304K]  static
+    ├── [ 305K]  static
     │   ├── [ 166K]  admin
     │   │   ├── [  61K]  css
     │   │   │   ├── [ 4.5K]  admin_defect_type.css
@@ -287,14 +287,14 @@
     │   │   ├── [  13K]  matching.css
     │   │   ├── [ 8.0K]  search.css
     │   │   └── [ 3.3K]  upload.css
-    │   └── [ 100K]  js
-    │       ├── [ 9.8K]  anomaly.js
+    │   └── [ 101K]  js
+    │       ├── [  11K]  anomaly.js
     │       ├── [ 3.6K]  common.js
     │       ├── [  15K]  manual.js
     │       ├── [  45K]  matching.js
     │       ├── [  16K]  search.js
     │       └── [ 9.9K]  upload.js
-    ├── [    6]  uploads
+    ├── [   33]  uploads
     └── [  16K]  utils
         ├── [ 1.6K]  auth.py
         ├── [    0]  __init__.py
