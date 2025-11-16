@@ -182,10 +182,11 @@
 ├── [  335]  settings.config
 ├── [    6]  uploads
 └── [  17M]  web
-    ├── [  532]  anomaly_outputs
+    ├── [  636]  anomaly_outputs
     │   ├── [   82]  carpet_thread_017
     │   ├── [   82]  cast_def_0_146
     │   ├── [   82]  cast_def_0_318
+    │   ├── [   82]  cast_def_0_604
     │   ├── [   82]  cast_def_0_619
     │   └── [   82]  leather_color_017
     ├── [  34K]  api_server.py
@@ -295,11 +296,11 @@
     │       ├── [  45K]  matching.js
     │       ├── [  16K]  search.js
     │       └── [ 9.9K]  upload.js
-    ├── [    6]  uploads
+    ├── [   33]  uploads
     └── [  16K]  utils
         ├── [ 1.6K]  auth.py
         ├── [    0]  __init__.py
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  318M used in 74 directories, 228 files
+  318M used in 75 directories, 228 files
