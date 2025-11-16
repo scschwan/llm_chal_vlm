@@ -60,17 +60,10 @@
                 <div class="preview-section" id="previewSection" style="display: none;">
                     <h3>업로드된 이미지</h3>
                     <div class="preview-container">
-                        <!-- 원본 이미지 -->
+                        <!-- 원본 이미지만 표시 -->
                         <div class="preview-item">
                             <h4>원본 이미지</h4>
                             <img id="previewImage" class="preview-image" alt="Original">
-                        </div>
-                        
-                        <!-- 전처리 이미지 -->
-                        <div class="preview-item">
-                            <h4>전처리 이미지</h4>
-                            <img id="preprocessedImage" class="preview-image" alt="Preprocessed">
-                            <p class="preprocessing-note">전처리 로직이 적용되면 여기에 표시됩니다</p>
                         </div>
                     </div>
 
@@ -104,24 +97,6 @@
                             <span class="info-label">해상도</span>
                             <span class="info-value" id="resolution">-</span>
                         </div>
-                    </div>
-                </div>
-
-                <!-- 인덱스 관리 -->
-                <div class="index-card">
-                    <h3>🔧 인덱스 관리</h3>
-                    
-                    <div class="index-status" id="indexStatus">
-                        <p class="status-loading">상태 확인 중...</p>
-                    </div>
-
-                    <div class="index-actions">
-                        <button class="btn btn-small" id="checkIndexBtn">
-                            📊 상태 확인
-                        </button>
-                        <button class="btn btn-small" id="rebuildIndexBtn">
-                            🔄 재구축
-                        </button>
                     </div>
                 </div>
             </aside>

@@ -1,5 +1,5 @@
 /**
- * 유사도 매칭 화면 스크립트
+ * 유사도 매칭 화면 스크립트 (V2 API 사용)
  */
 
 // 전역 변수
@@ -36,7 +36,6 @@ const modalCancelBtn = document.getElementById('modalCancelBtn');
 const modalConfirmBtn = document.getElementById('modalConfirmBtn');
 const productSelect = document.getElementById('productSelect');
 const defectSelect = document.getElementById('defectSelect');
-const filenamePreview = document.getElementById('filenamePreview');
 
  // 로그아웃 함수
     async function logout() {
@@ -154,7 +153,7 @@ function restoreUploadedImage() {
 }
 
 /**
- * 유사도 검색 수행
+ * 유사도 검색 수행 (V2 API 사용)
  */
 async function performSearch() {
     if (!uploadedImageData) {
@@ -164,7 +163,7 @@ async function performSearch() {
     
     const topK = parseInt(topKSlider.value);
     
-    console.log(`[SEARCH] 검색 시작: TOP-${topK}`);
+    console.log(`[SEARCH V2] 검색 시작: TOP-${topK}`);
     
     try {
         // UI 상태 변경
@@ -174,15 +173,16 @@ async function performSearch() {
         searchProgress.style.display = 'block';
         statsCard.style.display = 'none';
         
-        // 검색 요청
-        const response = await fetch(`${API_BASE_URL}/search/similarity`, {
+        // V2 API로 검색 요청
+        const response = await fetch(`${API_BASE_URL}/v2/search/similarity`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 query_image_path: uploadedImageData.file_path,
-                top_k: topK
+                top_k: topK,
+                index_type: 'defect'
             })
         });
         
@@ -192,28 +192,28 @@ async function performSearch() {
         }
         
         const data = await response.json();
-        console.log('[SEARCH] 검색 완료:', data);
+        console.log('[SEARCH V2] 검색 완료:', data);
         
-        // 결과 저장
-        currentResults = data.top_k_results;
+        // 결과 저장 (V2 응답 구조 사용)
+        currentResults = data.results;
         
         // 결과 표시
         displayResults(data);
         
         // 통계 표시
-        displayStatistics(data.top_k_results);
+        displayStatistics(data.results);
         
         // 세션에 저장
         SessionData.set('searchResults', {
-            results: data.top_k_results,
+            results: data.results,
             query_image: data.query_image,
-            top1: data.top_k_results[0]
+            top1: data.results[0]
         });
         
         showNotification('검색 완료', 'success');
         
     } catch (error) {
-        console.error('[SEARCH] 검색 실패:', error);
+        console.error('[SEARCH V2] 검색 실패:', error);
         showNotification(`검색 실패: ${error.message}`, 'error');
     } finally {
         searchBtn.disabled = false;
@@ -223,25 +223,25 @@ async function performSearch() {
 }
 
 /**
- * 검색 결과 표시
+ * 검색 결과 표시 (V2 메타데이터 사용)
  */
 function displayResults(data) {
     // 총 결과 수 표시
-    totalResults.textContent = data.top_k_results.length;
+    totalResults.textContent = data.results.length;
     gallerySize.textContent = data.total_gallery_size;
     
-    if (data.top_k_results.length === 0) {
+    if (data.results.length === 0) {
         showNotification('검색 결과가 없습니다', 'warning');
         return;
     }
     
     // TOP-1 메인 결과 표시
-    const top1 = data.top_k_results[0];
+    const top1 = data.results[0];
     displayMainResult(top1);
     
     // 나머지 썸네일 표시
-    if (data.top_k_results.length > 1) {
-        displayThumbnails(data.top_k_results.slice(1));
+    if (data.results.length > 1) {
+        displayThumbnails(data.results.slice(1));
     } else {
         thumbnailGrid.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">추가 결과가 없습니다</p>';
     }
@@ -251,14 +251,19 @@ function displayResults(data) {
 }
 
 /**
- * TOP-1 메인 결과 표시
+ * TOP-1 메인 결과 표시 (V2 메타데이터 사용)
  */
 function displayMainResult(result) {
-    mainResultImage.src = `/api/image/${result.image_path}`;
+    // V2 API는 storage_url 제공
+    const imageUrl = result.storage_url || `/api/image/${result.local_path}`;
+    
+    mainResultImage.src = imageUrl;
     mainSimilarity.textContent = `${(result.similarity_score * 100).toFixed(1)}%`;
-    mainProduct.textContent = result.product;
-    mainDefect.textContent = result.defect;
-    mainFilename.textContent = result.image_path.split('/').pop();
+    
+    // V2에서는 product_name, defect_name 사용
+    mainProduct.textContent = result.product_name || result.product_code || '-';
+    mainDefect.textContent = result.defect_name || result.defect_code || '-';
+    mainFilename.textContent = result.file_name || '-';
     mainScore.textContent = result.similarity_score.toFixed(4);
     
     // 유사도에 따라 배지 색상 변경
@@ -273,32 +278,38 @@ function displayMainResult(result) {
 }
 
 /**
- * 썸네일 결과 표시
+ * 썸네일 결과 표시 (V2 메타데이터 사용)
  */
 function displayThumbnails(results) {
-    thumbnailGrid.innerHTML = results.map((result, index) => `
+    thumbnailGrid.innerHTML = results.map((result, index) => {
+        const imageUrl = result.storage_url || `/api/image/${result.local_path}`;
+        const productName = result.product_name || result.product_code || '-';
+        const defectName = result.defect_name || result.defect_code || '-';
+        const fileName = result.file_name || '-';
+        
+        return `
         <div class="thumbnail-item" onclick="swapWithMain(${index + 1})">
             <img 
-                src="/api/image/${result.image_path}" 
+                src="${imageUrl}" 
                 class="thumbnail-image" 
                 alt="Similar ${index + 2}"
             >
             <div class="thumbnail-info">
                 <p class="similarity">${(result.similarity_score * 100).toFixed(1)}%</p>
-                <p><strong>${result.product}</strong> - ${result.defect}</p>
+                <p><strong>${productName}</strong> - ${defectName}</p>
                 <p style="font-size: 0.75rem; color: var(--text-secondary);">
-                    ${result.image_path.split('/').pop()}
+                    ${fileName}
                 </p>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 /**
  * 썸네일과 메인 이미지 교체
  */
 function swapWithMain(index) {
-    console.log(`[SEARCH] 이미지 교체: ${index}번 → TOP-1`);
+    console.log(`[SEARCH V2] 이미지 교체: ${index}번 → TOP-1`);
     
     // 현재 TOP-1과 선택된 썸네일 교체
     const temp = currentResults[0];
@@ -337,11 +348,11 @@ function displayStatistics(results) {
 }
 
 /**
- * 인덱스 상태 확인
+ * 인덱스 상태 확인 (V2 API)
  */
 async function checkSearchIndexStatus() {
     try {
-        const response = await fetch(`${API_BASE_URL}/search/index/status`);
+        const response = await fetch(`${API_BASE_URL}/v2/search/index/status`);
         const data = await response.json();
         
         const statusEl = document.getElementById('indexStatus');
@@ -361,7 +372,7 @@ async function checkSearchIndexStatus() {
         }
         
     } catch (error) {
-        console.error('[SEARCH] 인덱스 상태 확인 실패:', error);
+        console.error('[SEARCH V2] 인덱스 상태 확인 실패:', error);
     }
 }
 
@@ -374,16 +385,18 @@ function goToNextPage() {
         return;
     }
     
-    // TOP-1 정보를 세션에 저장
+    // TOP-1 정보를 세션에 저장 (V2 메타데이터 포함)
     const top1 = currentResults[0];
     SessionData.set('selectedMatch', {
-        image_path: top1.image_path,
-        product: top1.product,
-        defect: top1.defect,
+        image_path: top1.local_path,
+        product_code: top1.product_code,
+        product_name: top1.product_name,
+        defect_code: top1.defect_code,
+        defect_name: top1.defect_name,
         similarity: top1.similarity_score
     });
     
-    console.log('[SEARCH] 이상 검출 페이지로 이동');
+    console.log('[SEARCH V2] 이상 검출 페이지로 이동');
     window.location.href = '/anomaly.html';
 }
 
@@ -416,7 +429,9 @@ function updateFilenamePreview() {
     const product = productSelect.value || 'prod1';
     const defect = defectSelect.value || 'hole';
     
-    filenamePreview.textContent = `${product}_${defect}_XXX.jpg`;
+    if (filenamePreview) {
+        filenamePreview.textContent = `${product}_${defect}_XXX.jpg`;
+    }
 }
 
 /**
