@@ -51,7 +51,6 @@ def get_index_dir():
 class AnomalyDetectRequest(BaseModel):
     """이상 검출 요청"""
     test_image_path: str = Field(..., description="테스트 이미지 경로")
-    session_id : str = Field(..., description="session_id"),
     product_name: str = Field(..., description="제품명")
     # ✅ TOP-1 불량 이미지는 표시용으로만 사용
     top1_defect_image: Optional[str] = Field(None, description="TOP-1 불량 이미지 (표시용)")

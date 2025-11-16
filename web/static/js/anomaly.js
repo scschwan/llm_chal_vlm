@@ -131,9 +131,10 @@ function restoreSessionData() {
     
     console.log('[ANOMALY] 데이터 복원 완료');
     console.log('  입력 이미지:', uploadedImageData.filename);
-    console.log('  TOP-1 불량 이미지:', selectedMatchData.image_path);
-    console.log('  제품:', selectedMatchData.product);
-    console.log('  불량:', selectedMatchData.defect);
+    // V2 API 응답 구조 대응
+    console.log('  TOP-1 불량 이미지:', selectedMatchData.local_path || selectedMatchData.image_path);
+    console.log('  제품:', selectedMatchData.product_name || selectedMatchData.product_code);
+    console.log('  불량:', selectedMatchData.defect_name || selectedMatchData.defect_code);
 }
 
 /**
@@ -142,6 +143,10 @@ function restoreSessionData() {
 async function performDetection() {
     console.log('[ANOMALY] 이상 검출 시작');
     console.log('[ANOMALY] 정상 이미지 인덱스로 전환하여 검출 수행');
+    
+    // V2 API 응답 구조에서 필요한 값 추출
+    const productCode = selectedMatchData.product_code || selectedMatchData.product;
+    const defectImagePath = selectedMatchData.local_path || selectedMatchData.image_path;
     
     try {
         // UI 상태 변경
@@ -157,9 +162,9 @@ async function performDetection() {
             },
             body: JSON.stringify({
                 test_image_path: uploadedImageData.file_path,
-                product_name: selectedMatchData.product,
+                product_name: productCode,
                 // ✅ TOP-1 불량 이미지는 표시용으로만 전달
-                top1_defect_image: selectedMatchData.image_path
+                top1_defect_image: defectImagePath
             })
         });
         
@@ -180,13 +185,17 @@ async function performDetection() {
         // 결과 표시
         displayResults(data);
         
-        // 세션에 저장
+        // 세션에 저장 (V2 구조 반영)
         SessionData.set('anomalyResult', {
             ...data,
-            product: selectedMatchData.product,
-            defect: selectedMatchData.defect,
+            product: selectedMatchData.product_name || selectedMatchData.product_code,
+            product_code: selectedMatchData.product_code,
+            product_name: selectedMatchData.product_name,
+            defect: selectedMatchData.defect_name || selectedMatchData.defect_code,
+            defect_code: selectedMatchData.defect_code,
+            defect_name: selectedMatchData.defect_name,
             similarity: selectedMatchData.similarity_score,
-            top1_defect_image: selectedMatchData.image_path  // ✅ TOP-1 불량 이미지 저장
+            top1_defect_image: defectImagePath  // ✅ TOP-1 불량 이미지 저장
         });
         
         showNotification('이상 검출 완료', 'success');
@@ -228,9 +237,9 @@ function displayResults(data) {
     maskImage.src = data.mask_url;
     comparisonImage.src = data.comparison_url;
     
-    // 상세 정보
-    productName.textContent = selectedMatchData.product;
-    defectType.textContent = selectedMatchData.defect;
+    // 상세 정보 (V2 구조 반영)
+    productName.textContent = selectedMatchData.product_name || selectedMatchData.product_code || '-';
+    defectType.textContent = selectedMatchData.defect_name || selectedMatchData.defect_code || '-';
     imageScore.textContent = score.toFixed(4);
     threshold.textContent = data.image_tau.toFixed(4);
     
