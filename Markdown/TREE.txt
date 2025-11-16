@@ -205,7 +205,7 @@
     │   ├── [  26K]  crud.py
     │   ├── [  10K]  image_table_insert.py
     │   └── [ 8.4K]  models.py
-    ├── [ 2.6K]  defect_mapping.json
+    ├── [ 1.9K]  defect_mapping.json
     ├── [ 1.9K]  defect_mapping_origin.json
     ├── [ 9.4M]  index_cache
     │   ├── [ 8.3M]  defect
@@ -226,7 +226,7 @@
     │       ├── [ 232K]  faiss_index.bin
     │       └── [  51K]  metadata.json
     ├── [  14K]  matching.html
-    ├── [ 110K]  pages
+    ├── [ 123K]  pages
     │   ├── [  44K]  admin
     │   │   ├── [ 3.7K]  admin_defect_type.html
     │   │   ├── [ 3.4K]  admin_deploy_clip.html
@@ -239,13 +239,15 @@
     │   │   ├── [ 5.9K]  admin_preprocessing.html
     │   │   ├── [ 2.6K]  admin_product.html
     │   │   └── [ 5.2K]  dashboard.html
-    │   ├── [ 9.7K]  admin.html
+    │   ├── [ 8.1K]  admin.html
+    │   ├── [ 9.7K]  admin.html.bak
     │   ├── [ 6.3K]  anomaly.html
-    │   ├── [ 9.7K]  login.html
+    │   ├── [ 9.8K]  login.html
     │   ├── [ 7.3K]  manual.html
     │   ├── [ 9.5K]  search.html
     │   ├── [  19K]  search_v2_test.html
-    │   └── [ 4.7K]  upload.html
+    │   ├── [ 4.6K]  upload.html
+    │   └── [ 4.7K]  upload.html.bak
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
     ├── [ 173K]  routers
@@ -260,13 +262,13 @@
     │   │   ├── [ 9.5K]  preprocessing.py
     │   │   └── [ 5.9K]  product.py
     │   ├── [  19K]  anomaly.py
-    │   ├── [ 3.5K]  auth.py
+    │   ├── [ 3.9K]  auth.py
     │   ├── [  291]  __init__.py
     │   ├── [  18K]  manual.py
     │   ├── [ 6.9K]  search.py
     │   ├── [ 9.4K]  search_v2.py
     │   └── [ 4.2K]  upload.py
-    ├── [ 307K]  static
+    ├── [ 351K]  static
     │   ├── [ 166K]  admin
     │   │   ├── [  61K]  css
     │   │   │   ├── [ 4.5K]  admin_defect_type.css
@@ -299,13 +301,16 @@
     │   │   ├── [  13K]  matching.css
     │   │   ├── [ 8.0K]  search.css
     │   │   └── [ 3.3K]  upload.css
-    │   └── [ 103K]  js
+    │   └── [ 148K]  js
     │       ├── [  12K]  anomaly.js
+    │       ├── [  12K]  anomaly.js.bak
     │       ├── [ 3.9K]  common.js
     │       ├── [  15K]  manual.js
+    │       ├── [  15K]  manual.js.bak
     │       ├── [  45K]  matching.js
-    │       ├── [  17K]  search.js
-    │       └── [ 9.6K]  upload.js
+    │       ├── [  16K]  search.js
+    │       ├── [  17K]  search.js.bak
+    │       └── [  11K]  upload.js
     ├── [    6]  uploads
     └── [  16K]  utils
         ├── [ 1.6K]  auth.py
@@ -313,4 +318,4 @@
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  325M used in 78 directories, 235 files
+  325M used in 78 directories, 240 files
