@@ -85,8 +85,14 @@ const SessionData = {
     remove(key) {
         sessionStorage.removeItem(key);
     },
-    clear() {
+    // ✅ 추가: 모든 세션 데이터 삭제
+    clear: () => {
+        // isNewLogin 플래그는 유지 (삭제는 upload.js에서 처리)
+        const isNewLogin = sessionStorage.getItem('isNewLogin');
         sessionStorage.clear();
+        if (isNewLogin) {
+            sessionStorage.setItem('isNewLogin', isNewLogin);
+        }
     },
     // ✅ 새 워크플로우 시작 (완전 초기화)
     startNewWorkflow() {

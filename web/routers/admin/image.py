@@ -586,7 +586,9 @@ async def sync_normal_images():
         
         print(f"[SYNC-NORMAL] {len(normal_images)}개 정상 이미지 동기화 시작")
         
-        synced_ids = []
+        
+        synced_data = []  # ✅ (image_id, local_path) 튜플 저장
+
         failed_count = 0
         
         # 2. Object Storage에서 다운로드
@@ -628,7 +630,7 @@ async def sync_normal_images():
                 print(f"[SYNC-NORMAL] NORMAL_PATH 저장: {normal_local_path}")
                 print(f"[SYNC-NORMAL] 다운로드 완료: {file_name}")
                 
-                synced_ids.append(image_id)
+                synced_data.append((image_id, str(normal_local_path)))  # ✅ (id, path) 저장
                 
             except Exception as e:
                 print(f"[SYNC-NORMAL] 다운로드 실패 ({file_name}): {str(e)}")
@@ -637,22 +639,24 @@ async def sync_normal_images():
                 failed_count += 1
                 continue
         
-        # 3. DB 업데이트 - sync_yn = 1
-        if synced_ids:
-            update_query = text("""
-                UPDATE images 
-                SET sync_yn = 1 
-                WHERE image_id IN :image_ids
-            """)
-            db.execute(update_query, {"image_ids": tuple(synced_ids)})
-            db.commit()
+       # 3. DB 업데이트 - sync_yn = 1, file_path 업데이트
+        if synced_data:
+            # ✅ 개별 업데이트로 변경
+            for image_id, file_path in synced_data:
+                update_query = text("""
+                    UPDATE images 
+                    SET sync_yn = 1, file_path = :file_path
+                    WHERE image_id = :image_id
+                """)
+                db.execute(update_query, {"image_id": image_id, "file_path": file_path})
             
-            print(f"[SYNC-NORMAL] DB 업데이트 완료: {len(synced_ids)}개")
+            db.commit()
+            print(f"[SYNC-NORMAL] DB 업데이트 완료: {len(synced_data)}개")
         
         return {
             "status": "success",
             "message": "정상 이미지 동기화 완료",
-            "synced_count": len(synced_ids),
+            "synced_count": len(synced_data),
             "failed_count": failed_count,
             "total": len(normal_images)
         }
@@ -742,7 +746,7 @@ async def sync_defect_images():
         
         print(f"[SYNC-DEFECT] {len(defect_images)}개 불량 이미지 동기화 시작")
         
-        synced_ids = []
+        synced_data = []  # ✅ (image_id, local_path) 튜플 저장
         failed_count = 0
         
         # 2. Object Storage에서 다운로드
@@ -774,29 +778,31 @@ async def sync_defect_images():
                 )
                 
                 print(f"[SYNC-DEFECT] 다운로드 완료: {file_name}")
-                synced_ids.append(image_id)
+                synced_data.append((image_id, str(local_path)))  # ✅ (id, path) 저장
                 
             except Exception as e:
                 print(f"[SYNC-DEFECT] 다운로드 실패 ({file_name}): {str(e)}")
                 failed_count += 1
                 continue
         
-        # 3. DB 업데이트 - sync_yn = 1
-        if synced_ids:
-            update_query = text("""
-                UPDATE images 
-                SET sync_yn = 1 
-                WHERE image_id IN :image_ids
-            """)
-            db.execute(update_query, {"image_ids": tuple(synced_ids)})
-            db.commit()
+        # 3. DB 업데이트 - sync_yn = 1, file_path 업데이트
+        if synced_data:
+            # ✅ 개별 업데이트로 변경
+            for image_id, file_path in synced_data:
+                update_query = text("""
+                    UPDATE images 
+                    SET sync_yn = 1, file_path = :file_path
+                    WHERE image_id = :image_id
+                """)
+                db.execute(update_query, {"image_id": image_id, "file_path": file_path})
             
-            print(f"[SYNC-DEFECT] DB 업데이트 완료: {len(synced_ids)}개")
+            db.commit()
+            print(f"[SYNC-DEFECT] DB 업데이트 완료: {len(synced_data)}개")
         
         return {
             "status": "success",
             "message": "불량 이미지 동기화 완료",
-            "synced_count": len(synced_ids),
+            "synced_count": len(synced_data),
             "failed_count": failed_count,
             "total": len(defect_images)
         }

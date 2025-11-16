@@ -45,7 +45,6 @@ class SessionResponse(BaseModel):
 # ========================================
 # API 엔드포인트
 # ========================================
-
 @router.post("/login", response_model=LoginResponse)
 async def login(request: LoginRequest, response: Response):
     """
@@ -71,12 +70,14 @@ async def login(request: LoginRequest, response: Response):
     from web.utils.auth import USERS
     user = USERS[request.username]
     
-    return LoginResponse(
-        status="success",
-        message="로그인 성공",
-        user_type=user["user_type"],
-        full_name=user["full_name"]
-    )
+    # ✅ JSONResponse로 변경하여 is_new_login 추가
+    return JSONResponse(content={
+        "status": "success",
+        "message": "로그인 성공",
+        "user_type": user["user_type"],
+        "full_name": user["full_name"],
+        "is_new_login": True  # ✅ 추가
+    })
 
 
 @router.post("/logout")

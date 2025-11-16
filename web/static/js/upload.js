@@ -4,6 +4,7 @@
 
 // 전역 변수
 let uploadedFileData = null;
+let resetFlag = true;
 
 // DOM 요소
 const uploadZone = document.getElementById('uploadZone');
@@ -55,7 +56,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (!data.authenticated) {
             window.location.href = '/login.html';
+            return;
         }
+        
+        // ✅ 로그인 직후인지 확인 (플래그 체크)
+        const isNewLogin = sessionStorage.getItem('isNewLogin');
+        
+        if (isNewLogin === 'true') {
+            // ✅ 로그인 직후라면 모든 세션 데이터 초기화
+            console.log('[UPLOAD] 로그인 직후 - 세션 데이터 초기화');
+            SessionData.clear();  // 모든 세션 데이터 삭제
+            sessionStorage.removeItem('isNewLogin');  // 플래그 제거
+        }
+        
     } catch (error) {
         console.error('인증 확인 실패:', error);
         window.location.href = '/login.html';
@@ -66,29 +79,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[UPLOAD] 페이지 로드 완료');
     
-    // ✅ 업로드 페이지 진입 시에만 세션 초기화 (뒤로가기 제외)
-    // performance.navigation.type: 0=일반, 1=새로고침, 2=뒤로/앞으로
-    const navigationType = performance.navigation.type;
+    if(resetFlag){
+        resetUploadState();
+        resetFlag =false;
+    }
+    // ✅ 기존 업로드 이미지 복원 시도
+    const savedData = SessionData.get('uploadedImage');
     
-    if (navigationType === 0 || navigationType === 1) {
-        // 일반 진입이나 새로고침인 경우에만 초기화
-        // 단, 세션에 uploadedImage가 없는 경우에만
-        const existingData = SessionData.get('uploadedImage');
-        if (!existingData) {
-            console.log('[UPLOAD] 새 세션 시작 - 초기화');
-            SessionData.clear();
-        } else {
-            console.log('[UPLOAD] 기존 세션 유지');
-        }
+    if (savedData && savedData.preview) {
+        console.log('[UPLOAD] 이전 업로드 이미지 복원:', savedData.filename);
+        restoreUploadedImage(savedData);
+    } else {
+        console.log('[UPLOAD] 새로운 업로드 대기 중');
+        resetUploadState();
     }
     
     // 이벤트 리스너 등록
     initEventListeners();
-    
-    // ✅ 세션 데이터 복원 (있으면)
-    restoreSessionData();
 });
 
+/**
+ * 업로드 상태 초기화
+ */
+function resetUploadState() {
+    uploadSection.style.display = 'block';
+    previewSection.style.display = 'none';
+    uploadedImageData = null;
+    if (fileInput) {
+        fileInput.value = '';
+    }
+}
 
 /**
  * 세션 데이터 복원
