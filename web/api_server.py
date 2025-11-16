@@ -217,6 +217,21 @@ async def lifespan(app: FastAPI):
         print("\n" + "=" * 70)
         print("V2 인덱스 구축 완료")
         print("=" * 70)
+
+
+        # ✅ 디버깅: 전역 변수 확인
+        print("\n[DEBUG] 전역 변수 확인:")
+        print(f"  - matcher_defect is None: {matcher_defect is None}")
+        print(f"  - matcher_normal is None: {matcher_normal is None}")
+        if matcher_defect:
+            print(f"  - matcher_defect.index_type: {matcher_defect.index_type}")
+            print(f"  - matcher_defect 갤러리: {len(matcher_defect.gallery_metadata)}개")
+            print(f"  - matcher_defect ID: {id(matcher_defect)}")
+        if matcher_normal:
+            print(f"  - matcher_normal.index_type: {matcher_normal.index_type}")
+            print(f"  - matcher_normal 갤러리: {len(matcher_normal.gallery_metadata)}개")
+            print(f"  - matcher_normal ID: {id(matcher_normal)}")
+        print()
     
     else:
         # ========== V1: 파일명 파싱 기반 인덱스 (기존 코드) ==========
@@ -342,6 +357,10 @@ async def lifespan(app: FastAPI):
     #init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR)  # ✅ INDEX_DIR 추가
     if USE_INDEX_V2:
         init_anomaly_router(detector, matcher_normal, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR_V2)
+        # ✅ 디버깅: 전달된 매처 확인
+        print(f"[DEBUG] anomaly_router에 전달된 matcher:")
+        print(f"  - index_type: {matcher_normal.index_type if matcher_normal else 'None'}")
+        print(f"  - ID: {id(matcher_normal) if matcher_normal else 'None'}")
     else:
         init_anomaly_router(detector, matcher, ANOMALY_OUTPUT_DIR, project_root, INDEX_DIR)
 

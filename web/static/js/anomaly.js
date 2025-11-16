@@ -205,12 +205,13 @@ async function performDetection() {
         SessionData.set('anomalyResult', {
             ...data,
             product: selectedMatchData.product_name || selectedMatchData.product_code,
-            product_code: selectedMatchData.product_code,
+            product_code: selectedMatchData.product_code || productCode,
             product_name: selectedMatchData.product_name,
             defect: selectedMatchData.defect_name || selectedMatchData.defect_code,
-            defect_code: selectedMatchData.defect_code,
+            defect_code: selectedMatchData.defect_code || defectCode,
             defect_name: selectedMatchData.defect_name,
-            similarity: selectedMatchData.similarity_score,
+            similarity: selectedMatchData.similarity_score || selectedMatchData.similarity_score,
+            image_score: data.anomaly_score || data.image_score,  // ✅ anomaly_score 우선
             top1_defect_image: defectImagePath,  // ✅ TOP-1 불량 이미지 저장
             search_id: searchId,           // ✅ 추가
             response_id: data.response_id  // ✅ 추가
@@ -237,7 +238,7 @@ async function performDetection() {
  */
 function displayResults(data) {
     // 점수 표시
-    const score = data.image_score;
+    const score = data.anomaly_score || data.image_score || 0;  // ✅ anomaly_score 우선
     anomalyScore.textContent = score.toFixed(4);
     
     // 판정 배지
@@ -261,7 +262,10 @@ function displayResults(data) {
     productName.textContent = selectedMatchData.product_name || selectedMatchData.product_code || '-';
     defectType.textContent = selectedMatchData.defect_name || selectedMatchData.defect_code || '-';
     imageScore.textContent = score.toFixed(4);
-    threshold.textContent = data.image_tau.toFixed(4);
+
+     // ✅ threshold 처리 (image_tau 또는 threshold 사용)
+    const thresholdValue = data.image_tau || data.threshold || 0.5;
+    threshold.textContent = thresholdValue.toFixed(4);
     
     // 판정 결과 (색상 포함)
     if (data.is_anomaly) {

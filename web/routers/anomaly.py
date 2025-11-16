@@ -30,7 +30,14 @@ def init_anomaly_router(detector, matcher, anomaly_output_dir, proj_root, index_
     _anomaly_output_dir_ref = anomaly_output_dir
     _project_root_ref = proj_root
     _index_dir_ref = index_dir
-    print(f"[ANOMALY ROUTER] 초기화 완료: detector={_detector_ref is not None}")
+     # ✅ 디버깅 로그 추가
+    print(f"[ANOMALY ROUTER] 초기화 완료:")
+    print(f"  - detector: {_detector_ref is not None}")
+    print(f"  - matcher: {_matcher_ref is not None}")
+    if _matcher_ref:
+        print(f"  - matcher.index_type: {getattr(_matcher_ref, 'index_type', 'N/A')}")
+        print(f"  - matcher 갤러리: {len(_matcher_ref.gallery_metadata) if hasattr(_matcher_ref, 'gallery_metadata') and _matcher_ref.gallery_metadata else 0}개")
+        print(f"  - matcher ID: {id(_matcher_ref)}")
 
 
 def get_detector():
@@ -198,6 +205,23 @@ async def detect_anomaly(request: AnomalyDetectRequest):
 
     anomaly_output_dir = get_anomaly_output_dir()
     project_root = get_project_root()
+
+    # ✅ 디버깅 로그 추가
+    print("=" * 70)
+    print(f"[ANOMALY DEBUG] matcher 객체 확인")
+    print(f"  - matcher is None: {matcher is None}")
+    if matcher:
+        print(f"  - matcher 클래스: {type(matcher).__name__}")
+        print(f"  - index_built: {matcher.index_built}")
+        print(f"  - index_type: {getattr(matcher, 'index_type', 'N/A')}")
+        if hasattr(matcher, 'gallery_metadata'):
+            print(f"  - gallery_metadata 개수: {len(matcher.gallery_metadata) if matcher.gallery_metadata else 0}")
+            if matcher.gallery_metadata and len(matcher.gallery_metadata) > 0:
+                sample = matcher.gallery_metadata[0]
+                print(f"  - 첫 번째 이미지 타입: {sample.image_type}")
+                print(f"  - 첫 번째 이미지 제품: {sample.product_name}")
+        print(f"  - matcher 객체 ID: {id(matcher)}")
+    print("=" * 70)
     
     if detector is None:
         raise HTTPException(500, "이상 검출기가 초기화되지 않았습니다")
