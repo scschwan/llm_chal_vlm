@@ -6,6 +6,8 @@
 let uploadedImageData = null;
 let selectedMatchData = null;
 let detectionResult = null;
+let global_search_id = 0;
+let global_top1_similarity = 0;
 
 // DOM 요소
 const detectionProgress = document.getElementById('detectionProgress');
@@ -110,8 +112,12 @@ function restoreSessionData() {
 
     if (searchResults && searchResults.top1) {
         selectedMatchData = searchResults.top1;
+        global_search_id = searchResults.search_id
+        global_top1_similarity = searchResults.top1_similarity
     } else if (selectedMatch) {  // ✅ 추가
         selectedMatchData = selectedMatch;
+        global_search_id = searchResults.search_id
+        global_top1_similarity = searchResults.top1_similarity
     }
     
     
@@ -133,6 +139,8 @@ function restoreSessionData() {
         }, 2000);
         return;
     }
+
+    
     
     console.log('[ANOMALY] 데이터 복원 완료');
     console.log('  입력 이미지:', uploadedImageData.filename);
@@ -159,6 +167,13 @@ async function performDetection() {
      // ✅ search_id와 similarity 추출
     const searchId = selectedMatchData.search_id;
     const similarity = selectedMatchData.top1_similarity || selectedMatchData.similarity;
+    if(searchId == undefined) {
+        searchId = global_search_id
+    }
+
+     if(searsimilaritychId == undefined) {
+        similarity = global_top1_similarity
+    }
 
     console.log('[ANOMALY] searchId:', searchId);  // ✅ 추가
     console.log('[ANOMALY] similarity:', similarity);
