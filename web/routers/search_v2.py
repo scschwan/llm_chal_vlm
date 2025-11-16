@@ -14,6 +14,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 import tempfile
 import os
+import shutil
 
 router = APIRouter(prefix="/v2/search", tags=["search_v2"])
 
@@ -225,12 +226,47 @@ async def search_similar_images_v2(request: SearchRequestV2):
             file_name = Path(parsed_url.path).name
             temp_file_path = temp_dir / file_name
             
-            # Object Storage에서 다운로드
-            if not download_from_object_storage(query_image_path, str(temp_file_path)):
+           # Object Storage에서 다운로드
+            from web.utils.object_storage import get_obs_manager
+            from web.utils.session_helper import generate_session_id,create_obs_session_folder,upload_origin_to_obs
+            obs = get_obs_manager()
+            
+            # URL에서 s3_key 추출
+            path_parts = [p for p in parsed_url.path.split('/') if p]
+            # dm-obs 이후 경로
+            bucket_idx = path_parts.index(obs.bucket) if obs.bucket in path_parts else -1
+            if bucket_idx >= 0:
+                s3_key = '/'.join(path_parts[bucket_idx + 1:])
+            else:
+                s3_key = '/'.join(path_parts)
+            
+            if not obs.download_file(s3_key, str(temp_file_path)):
                 raise HTTPException(500, "Object Storage에서 이미지 다운로드 실패")
             
             query_path = temp_file_path
             print(f"[SEARCH V2] 임시 파일 생성: {query_path}")
+            
+            # 2. 세션 ID 생성
+            session_id = generate_session_id()
+            print(f"[SEARCH V2] 세션 생성: {session_id}")
+            
+            # 3. OBS에 세션 폴더 생성
+            create_obs_session_folder(session_id)
+            
+            # 4. origin.{확장자}로 OBS에 업로드
+            uploaded_origin_url = upload_origin_to_obs(str(temp_file_path), session_id)
+            print(f"[SEARCH V2] 원본 업로드: {uploaded_origin_url}")
+            
+            # 5. 로컬 세션 폴더에도 origin.{확장자}로 저장
+            session_dir = Path("/home/dmillion/llm_chal_vlm/uploads") / session_id
+            session_dir.mkdir(parents=True, exist_ok=True)
+            
+            file_ext = Path(file_name).suffix
+            origin_filename = f"origin{file_ext}"
+            origin_local_path = session_dir / origin_filename
+            shutil.copy(str(temp_file_path), str(origin_local_path))
+            
+            print(f"[SEARCH V2] 로컬 원본 저장: {origin_local_path}")
         
         else:
             # 로컬 경로 처리 (기존 로직)
@@ -255,6 +291,8 @@ async def search_similar_images_v2(request: SearchRequestV2):
         
         return JSONResponse(content={
             "status": "success",
+            "session_id": session_id,  # ← 추가
+            "uploaded_origin_url": uploaded_origin_url,  # ← 추가
             "query_image": str(query_path),
             "query_image_source": "object_storage" if temp_file_path else "local",
             "index_type": result.index_type,

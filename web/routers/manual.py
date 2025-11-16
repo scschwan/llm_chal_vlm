@@ -207,3 +207,167 @@ async def generate_manual(request: ManualGenerateRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(500, f"매뉴얼 생성 실패: {str(e)}")
+    
+
+from utils.session_helper import get_origin_image_path
+
+class ManualGenerateSessionRequest(BaseModel):
+    """매뉴얼 생성 요청 (세션 기반)"""
+    session_id: str = Field(..., description="세션 ID")
+    product: str = Field(..., description="제품명")
+    defect: str = Field(..., description="불량 유형")
+    anomaly_score: float = Field(..., description="이상 점수")
+    is_anomaly: bool = Field(..., description="이상 판정 여부")
+    model_type: str = Field("hyperclovax", description="모델 타입 (hyperclovax, exaone, llava)")
+
+
+@router.post("/generate-session")
+async def generate_manual_session(request: ManualGenerateSessionRequest):
+    """
+    대응 매뉴얼 생성 (세션 기반)
+    
+    Args:
+        request: 세션 기반 매뉴얼 생성 요청
+    
+    Returns:
+        생성된 매뉴얼 (4개 섹션)
+    """
+    mapper = get_mapper()
+    rag = get_rag()    
+    
+    if mapper is None:
+        raise HTTPException(500, "DefectMapper가 초기화되지 않았습니다")
+    
+    t0 = time.time()
+    
+    try:
+        # 1. 세션 폴더에서 origin 이미지 찾기
+        session_dir = Path("/home/dmillion/llm_chal_vlm/uploads") / request.session_id
+        
+        if not session_dir.exists():
+            raise HTTPException(404, f"세션을 찾을 수 없습니다: {request.session_id}")
+        
+        origin_path = get_origin_image_path(session_dir)
+        
+        print(f"[MANUAL-SESSION] 세션 ID: {request.session_id}")
+        print(f"[MANUAL-SESSION] 세션 폴더: {session_dir}")
+        print(f"[MANUAL-SESSION] 원본 이미지: {origin_path}")
+        print(f"[MANUAL-SESSION] 매뉴얼 생성 시작: {request.product}/{request.defect}")
+        print(f"[MANUAL-SESSION] 모델: {request.model_type}")
+        
+        # 2. 불량 정보 조회
+        defect_info = mapper.get_defect_info(request.product, request.defect)
+        
+        if not defect_info:
+            raise HTTPException(404, f"불량 정보를 찾을 수 없습니다: {request.product}/{request.defect}")
+        
+        # 3. RAG 매뉴얼 검색
+        manual_context = {"원인": [], "조치": []}
+        
+        if rag:
+            print(f"[MANUAL-SESSION] RAG 검색 시작: 제품={request.product}, 불량={request.defect}")
+            
+            manual_context = rag.search_defect_manual(
+                product=request.product,
+                defect=request.defect,
+                keywords=[defect_info.ko],
+                k=3
+            )
+            
+            print(f"[MANUAL-SESSION] RAG 검색 완료: 원인 {len(manual_context['원인'])}개, 조치 {len(manual_context['조치'])}개")
+            
+            if manual_context["원인"]:
+                print(f"[DEBUG] 원인 샘플: {manual_context['원인'][0][:100]}...")
+            if manual_context["조치"]:
+                print(f"[DEBUG] 조치 샘플: {manual_context['조치'][0][:100]}...")
+        else:
+            print("[MANUAL-SESSION] RAG 비활성화")
+        
+        # 4. LLM/VLM 호출
+        llm_analysis = None
+        
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            if request.model_type == "hyperclovax":
+                payload = {
+                    "product": request.product,
+                    "defect_en": defect_info.en,
+                    "defect_ko": defect_info.ko,
+                    "full_name_ko": defect_info.full_name_ko,
+                    "anomaly_score": float(request.anomaly_score),
+                    "is_anomaly": bool(request.is_anomaly),
+                    "manual_context": manual_context,
+                    "max_new_tokens": 768,
+                    "temperature": 0.3
+                }
+                
+                response = await client.post(f"{_llm_server_url}/analyze", json=payload)
+                
+            elif request.model_type == "exaone":
+                payload = {
+                    "product": request.product,
+                    "defect_en": defect_info.en,
+                    "defect_ko": defect_info.ko,
+                    "full_name_ko": defect_info.full_name_ko,
+                    "anomaly_score": float(request.anomaly_score),
+                    "is_anomaly": bool(request.is_anomaly),
+                    "manual_context": manual_context,
+                    "max_new_tokens": 1024,
+                    "temperature": 0.3,
+                    "top_p": 0.9,
+                    "repetition_penalty": 1.1
+                }
+                
+                response = await client.post(f"{_llm_server_url}/analyze_exaone", json=payload)
+                
+            elif request.model_type == "llava":
+                # VLM - 세션 폴더의 origin 이미지 사용
+                payload = {
+                    "image_path": str(origin_path),
+                    "product": request.product,
+                    "defect_en": defect_info.en,
+                    "defect_ko": defect_info.ko,
+                    "full_name_ko": defect_info.full_name_ko,
+                    "anomaly_score": float(request.anomaly_score),
+                    "is_anomaly": bool(request.is_anomaly),
+                    "manual_context": manual_context,
+                    "max_new_tokens": 1024,
+                    "temperature": 0.3
+                }
+                
+                response = await client.post(f"{_llm_server_url}/analyze_vlm", json=payload)
+                
+            else:
+                raise HTTPException(400, f"지원하지 않는 모델 타입: {request.model_type}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                llm_analysis = result.get("analysis", "")
+                print(f"[MANUAL-SESSION] LLM 분석 완료: {len(llm_analysis)} 문자")
+            else:
+                raise Exception(f"LLM 서버 오류: {response.status_code} - {response.text}")
+        
+        # 5. 결과 반환
+        processing_time = round(time.time() - t0, 2)
+        
+        return JSONResponse(content={
+            "status": "success",
+            "session_id": request.session_id,
+            "product": request.product,
+            "defect_en": defect_info.en,
+            "defect_ko": defect_info.ko,
+            "full_name_ko": defect_info.full_name_ko,
+            "manual_context": manual_context,
+            "llm_analysis": llm_analysis,
+            "anomaly_score": float(request.anomaly_score),
+            "is_anomaly": bool(request.is_anomaly),
+            "model_type": request.model_type,
+            "processing_time": processing_time
+        })
+        
+    except httpx.ConnectError:
+        raise HTTPException(503, "LLM 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.")
+    except Exception as e:
+        print(f"[MANUAL-SESSION] 매뉴얼 생성 실패: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"매뉴얼 생성 실패: {str(e)}")

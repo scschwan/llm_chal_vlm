@@ -51,6 +51,7 @@ def get_index_dir():
 class AnomalyDetectRequest(BaseModel):
     """이상 검출 요청"""
     test_image_path: str = Field(..., description="테스트 이미지 경로")
+    session_id : str = Field(..., description="session_id"),
     product_name: str = Field(..., description="제품명")
     # ✅ TOP-1 불량 이미지는 표시용으로만 사용
     top1_defect_image: Optional[str] = Field(None, description="TOP-1 불량 이미지 (표시용)")
@@ -198,6 +199,107 @@ async def detect_anomaly(request: AnomalyDetectRequest):
     
     except Exception as e:
         print(f"[ANOMALY] 이상 검출 실패: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"이상 검출 실패: {str(e)}")
+
+# 기존 import에 추가
+from web.utils.session_helper import get_origin_image_path, upload_session_file
+from web.utils.object_storage import get_obs_manager
+
+class AnomalyDetectSessionRequest(BaseModel):
+    """이상 검출 요청 (세션 기반)"""
+    session_id: str = Field(..., description="세션 ID")
+    product_name: str = Field(..., description="제품명")
+    top1_defect_image: Optional[str] = Field(None, description="TOP-1 불량 이미지 (표시용)")
+
+
+
+@router.post("/detect-session")
+async def detect_anomaly_session(request: AnomalyDetectSessionRequest):
+    """
+    이상 검출 수행 (세션 기반)
+    
+    Args:
+        request: 세션 기반 이상 검출 요청
+    
+    Returns:
+        이상 검출 결과 (OBS URL 포함)
+    """
+    detector = get_detector()
+    matcher = get_matcher()
+  
+    if detector is None:
+        raise HTTPException(500, "이상 검출기가 초기화되지 않았습니다")
+    
+    if matcher is None:
+        raise HTTPException(500, "유사도 매처가 초기화되지 않았습니다")
+    
+    try:
+        # 1. 세션 폴더에서 origin 이미지 찾기
+        session_dir = Path("/home/dmillion/llm_chal_vlm/uploads") / request.session_id
+        
+        if not session_dir.exists():
+            raise HTTPException(404, f"세션을 찾을 수 없습니다: {request.session_id}")
+        
+        origin_path = get_origin_image_path(session_dir)
+        
+        print(f"[ANOMALY-SESSION] 세션 ID: {request.session_id}")
+        print(f"[ANOMALY-SESSION] 세션 폴더: {session_dir}")
+        print(f"[ANOMALY-SESSION] 원본 이미지: {origin_path}")
+        print(f"[ANOMALY-SESSION] 제품명: {request.product_name}")
+        
+        # 2. 정상 이미지 인덱스로 전환
+        await switch_to_normal_index()
+        
+        # 3. 출력 디렉토리 생성 (세션 폴더 내)
+        output_dir = session_dir / "anomaly_results"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 4. 정상 이미지 기준으로 이상 검출 수행
+        result = detector.detect_with_normal_reference(
+            test_image_path=str(origin_path),
+            product_name=request.product_name,
+            similarity_matcher=matcher,
+            output_dir=str(output_dir)
+        )
+        
+        print(f"[ANOMALY-SESSION] 이상 검출 완료: score={result['image_score']:.4f}")
+        print(f"[ANOMALY-SESSION] 정상 기준 이미지: {result.get('reference_image_path', 'N/A')}")
+        
+        # 5. 생성된 이미지들 OBS에 업로드
+        obs = get_obs_manager()
+        base_obs_url = obs.get_url(f"uploads/{request.session_id}/origin.png")
+        
+        mask_path = output_dir / "mask.png"
+        overlay_path = output_dir / "overlay.png"
+        comparison_path = output_dir / "comparison.png"
+        
+        mask_url = upload_session_file(mask_path, base_obs_url, "mask.png")
+        overlay_url = upload_session_file(overlay_path, base_obs_url, "overlay.png")
+        comparison_url = upload_session_file(comparison_path, base_obs_url, "comparison.png")
+        
+        print(f"[ANOMALY-SESSION] OBS 업로드 완료")
+        
+        # 6. 결과 반환
+        return JSONResponse(content={
+            "status": "success",
+            "session_id": request.session_id,
+            "product_name": result["product_name"],
+            "image_score": float(result["image_score"]),
+            "pixel_tau": float(result["pixel_tau"]),
+            "image_tau": float(result["image_tau"]),
+            "is_anomaly": bool(result["is_anomaly"]),
+            # OBS URL 반환
+            "reference_normal_url": result.get("reference_image_url", ""),
+            "top1_defect_url": request.top1_defect_image,
+            "mask_url": mask_url,
+            "overlay_url": overlay_url,
+            "comparison_url": comparison_url
+        })
+    
+    except Exception as e:
+        print(f"[ANOMALY-SESSION] 이상 검출 실패: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(500, f"이상 검출 실패: {str(e)}")
