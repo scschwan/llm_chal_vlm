@@ -45,9 +45,11 @@
 ├── [  33K]  docs
 │   ├── [  14K]  API_명세서.md
 │   └── [  18K]  API_명세서.xlsx
-├── [  35K]  llm_server
+├── [  37K]  llm_server
 │   ├── [ 2.7K]  =4.54.0
 │   ├── [  692]  check_hyperclova.sh
+│   ├── [ 2.3K]  llm_server.log
+│   ├── [    7]  llm_server.pid
 │   ├── [  30K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
 ├── [  41M]  manual_store
@@ -335,11 +337,11 @@
     │       ├── [  16K]  search.js
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
-    ├── [  183]  uploads
+    ├── [    6]  uploads
     └── [  17K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  328M used in 98 directories, 244 files
+  328M used in 98 directories, 246 files
