@@ -194,9 +194,13 @@
 │   └── [    6]  normal
 ├── [    6]  uploads
 └── [  17M]  web
-    ├── [ 1.1K]  anomaly_outputs
+    ├── [ 5.4K]  anomaly_outputs
+    │   ├── [   82]  010
     │   ├── [   82]  carpet_color_018
+    │   ├── [   82]  carpet_metal_contamination_016
     │   ├── [   82]  carpet_thread_017
+    │   ├── [   82]  cast_def_0_1091
+    │   ├── [   82]  cast_def_0_122
     │   ├── [   82]  cast_def_0_146
     │   ├── [   82]  cast_def_0_231
     │   ├── [   82]  cast_def_0_240
@@ -204,6 +208,8 @@
     │   ├── [   82]  cast_def_0_430
     │   ├── [   82]  cast_def_0_604
     │   ├── [   82]  cast_def_0_619
+    │   ├── [   82]  grid_bent_010
+    │   ├── [   82]  grid_metal_contamination_009
     │   ├── [   82]  leather_color_017
     │   └── [   82]  leather_fold_014
     ├── [  35K]  api_server.py
@@ -257,7 +263,7 @@
     │   └── [ 4.7K]  upload.html.bak
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 173K]  routers
+    ├── [ 174K]  routers
     │   ├── [ 112K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
@@ -268,7 +274,7 @@
     │   │   ├── [ 9.7K]  model.py
     │   │   ├── [ 9.5K]  preprocessing.py
     │   │   └── [ 5.9K]  product.py
-    │   ├── [  19K]  anomaly.py
+    │   ├── [  20K]  anomaly.py
     │   ├── [ 2.5K]  auth.py
     │   ├── [  291]  __init__.py
     │   ├── [  18K]  manual.py
@@ -318,11 +324,11 @@
     │       ├── [  16K]  search.js
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
-    ├── [   33]  uploads
+    ├── [ 4.0K]  uploads
     └── [  17K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  328M used in 85 directories, 240 files
+  328M used in 91 directories, 240 files
