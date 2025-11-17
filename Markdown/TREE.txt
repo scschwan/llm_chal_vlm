@@ -227,10 +227,10 @@
     │   ├── [ 6.3M]  defect
     │   │   ├── [ 2.8M]  embeddings.pt
     │   │   ├── [ 2.8M]  faiss_index.bin
-    │   │   └── [ 651K]  metadata.json
-    │   └── [ 517K]  normal
-    │       ├── [ 234K]  embeddings.pt
-    │       ├── [ 232K]  faiss_index.bin
+    │   │   └── [ 652K]  metadata.json
+    │   └── [ 521K]  normal
+    │       ├── [ 236K]  embeddings.pt
+    │       ├── [ 234K]  faiss_index.bin
     │       └── [  51K]  metadata.json
     ├── [  14K]  matching.html
     ├── [ 121K]  pages
@@ -257,7 +257,7 @@
     │   └── [ 4.7K]  upload.html.bak
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 172K]  routers
+    ├── [ 173K]  routers
     │   ├── [ 112K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
@@ -318,7 +318,7 @@
     │       ├── [  16K]  search.js
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
-    ├── [   89]  uploads
+    ├── [   33]  uploads
     └── [  17K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
