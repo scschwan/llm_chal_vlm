@@ -282,18 +282,33 @@ async def detect_anomaly(request: AnomalyDetectRequest,  db: Session = Depends(g
         response_id = None
         
         try:
-            # response_history 테이블에 저장
-            response_history = ResponseHistory(
-                executed_at=datetime.now(),
-                search_id=request.search_id,  # 이전 페이지에서 전달받은 값
-                product_code=request.product_name,  # 한글 제품명
-                defect_code=request.defect_name,    # 한글 불량명
-                similarity_score=request.similarity_score,  # 이전 페이지에서 전달받은 값
-                anomaly_score=result['image_score'],
-                test_image_path=str(test_path)
-            )
+            # 기존 레코드 찾기
+            response_history = db.query(ResponseHistory).filter(
+                ResponseHistory.search_id == request.search_id
+            ).first()
             
-            db.add(response_history)
+            if response_history:
+                # ✅ 기존 레코드 업데이트
+                print(f"[ANOMALY] 기존 레코드 업데이트: search_id={request.search_id}")
+                response_history.executed_at = datetime.now()
+                response_history.product_code = request.product_name
+                response_history.defect_code = request.defect_name
+                response_history.similarity_score = request.similarity_score
+                response_history.anomaly_score = result['image_score']
+                response_history.test_image_path = str(test_path)
+            else:
+                # search_id는 있지만 레코드가 없는 경우 (새로 생성)
+                print(f"[ANOMALY] search_id={request.search_id} 레코드 없음, 새로 생성")
+                response_history = ResponseHistory(
+                    executed_at=datetime.now(),
+                    search_id=request.search_id,
+                    product_code=request.product_name,
+                    defect_code=request.defect_name,
+                    similarity_score=request.similarity_score,
+                    anomaly_score=result['image_score'],
+                    test_image_path=str(test_path)
+                )
+                db.add(response_history)
             db.commit()
             db.refresh(response_history)
             
