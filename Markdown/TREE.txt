@@ -189,11 +189,15 @@
 ├── [ 6.2K]  save_db_schema.sh
 ├── [  249]  save_tree.sh
 ├── [  335]  settings.config
+├── [   46]  temp_deploy
+│   ├── [    6]  defect
+│   └── [    6]  normal
 ├── [    6]  uploads
 └── [  17M]  web
-    ├── [  740]  anomaly_outputs
+    ├── [  844]  anomaly_outputs
     │   ├── [   82]  carpet_thread_017
     │   ├── [   82]  cast_def_0_146
+    │   ├── [   82]  cast_def_0_231
     │   ├── [   82]  cast_def_0_318
     │   ├── [   82]  cast_def_0_430
     │   ├── [   82]  cast_def_0_604
@@ -311,11 +315,11 @@
     │       ├── [  16K]  search.js
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
-    ├── [    6]  uploads
+    ├── [   59]  uploads
     └── [  17K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  325M used in 78 directories, 240 files
+  325M used in 82 directories, 240 files
