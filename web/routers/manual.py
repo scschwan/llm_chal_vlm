@@ -1,7 +1,7 @@
 """
 대응 매뉴얼 생성 관련 API 라우터
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException , Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
@@ -196,7 +196,8 @@ async def generate_manual(request: ManualGenerateRequest):
         
          # ========== DB 업데이트 ==========
         if request.response_id:
-            db: Session = next(get_db())
+            #db: Session = next(get_db())
+            db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
             
             try:
                 response_history = db.query(ResponseHistory).filter(
@@ -423,7 +424,8 @@ async def submit_feedback(request: FeedbackRequest):
     """
     작업자 피드백 등록
     """
-    db: Session = next(get_db())
+    #db: Session = next(get_db())
+    db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
     
     try:
         response_history = db.query(ResponseHistory).filter(

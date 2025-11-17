@@ -56,7 +56,8 @@ async def upload_manual(
     매뉴얼 업로드 (Object Storage)
     """
     # 제품 존재 확인
-    db = next(get_db())
+    #db = next(get_db())
+    db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
     product = crud.get_product(db, product_id)
     if not product:
         raise HTTPException(404, "제품을 찾을 수 없습니다")
@@ -240,7 +241,8 @@ async def sync_manual():
     mapping_file = project_root / "web" / "defect_mapping.json"
     
     # DB 연결
-    db = next(get_db())
+    #db = next(get_db())
+    db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
     
     try:
         # 1. 비동기화된 메뉴얼 조회

@@ -2,7 +2,7 @@
 메인 API 서버 - 라우터 통합
 """
 
-from fastapi import FastAPI, HTTPException, File, UploadFile, Form
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form , Depends
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -16,6 +16,7 @@ import torch
 from contextlib import asynccontextmanager
 import warnings
 import os
+from database.connection import get_db_context
 
 import subprocess
 
@@ -150,36 +151,13 @@ async def lifespan(app: FastAPI):
         normal_index_v2.mkdir(parents=True, exist_ok=True)
         
         try:
-            # DB 세션 생성
-            db = next(get_db())
+            # ✅ with 문으로 세션 자동 관리
+            with get_db_context() as db: 
             
-            # 1. 정상 이미지 인덱스 구축
-            print(f"\n[1/2] 정상 이미지 인덱스 구축 (DB 기반)...")
-             # V2 매처 생성
-            matcher_normal = create_matcher_v2(
-                model_id=f"{CLIP_MODEL}/{CLIP_PRETRAINED}",
-                device="auto",
-                use_fp16=CLIP_USE_FP16,
-                batch_size=CLIP_BATCH_SIZE,
-                num_workers=CLIP_NUM_WORKERS,
-                verbose=True
-            )
-            try:
-                info = matcher_normal.build_index_from_db(db, image_type='normal')
-                matcher_normal.save_index(str(normal_index_v2))
-                print(f"      ✅ 완료: {info['num_images']}개 이미지")
-            except Exception as e:
-                print(f"      ⚠️  실패: {e}")
-                # 저장된 인덱스 로드 시도
-                if (normal_index_v2 / "metadata.json").exists():
-                    print(f"      → 저장된 인덱스 로드 시도...")
-                    matcher_normal.load_index(str(normal_index_v2))
-                    print(f"      ✅ 저장된 인덱스 로드 완료")
-            
-            # 2. 불량 이미지 인덱스 구축
-            print(f"\n[2/2] 불량 이미지 인덱스 구축 (DB 기반)...")
-            try:
-                matcher_defect = create_matcher_v2(
+                # 1. 정상 이미지 인덱스 구축
+                print(f"\n[1/2] 정상 이미지 인덱스 구축 (DB 기반)...")
+                # V2 매처 생성
+                matcher_normal = create_matcher_v2(
                     model_id=f"{CLIP_MODEL}/{CLIP_PRETRAINED}",
                     device="auto",
                     use_fp16=CLIP_USE_FP16,
@@ -187,28 +165,53 @@ async def lifespan(app: FastAPI):
                     num_workers=CLIP_NUM_WORKERS,
                     verbose=True
                 )
-                info = matcher_defect.build_index_from_db(db, image_type='defect')
-                matcher_defect.save_index(str(defect_index_v2))
-                print(f"      ✅ 완료: {info['num_images']}개 이미지")
-            except Exception as e:
-                print(f"      ⚠️  실패: {e}")
-                # 저장된 인덱스 로드 시도
+                try:
+                    info = matcher_normal.build_index_from_db(db, image_type='normal')
+                    matcher_normal.save_index(str(normal_index_v2))
+                    print(f"      ✅ 완료: {info['num_images']}개 이미지")
+                except Exception as e:
+                    print(f"      ⚠️  실패: {e}")
+                    # 저장된 인덱스 로드 시도
+                    if (normal_index_v2 / "metadata.json").exists():
+                        print(f"      → 저장된 인덱스 로드 시도...")
+                        matcher_normal.load_index(str(normal_index_v2))
+                        print(f"      ✅ 저장된 인덱스 로드 완료")
+                
+                # 2. 불량 이미지 인덱스 구축
+                print(f"\n[2/2] 불량 이미지 인덱스 구축 (DB 기반)...")
+                try:
+                    matcher_defect = create_matcher_v2(
+                        model_id=f"{CLIP_MODEL}/{CLIP_PRETRAINED}",
+                        device="auto",
+                        use_fp16=CLIP_USE_FP16,
+                        batch_size=CLIP_BATCH_SIZE,
+                        num_workers=CLIP_NUM_WORKERS,
+                        verbose=True
+                    )
+                    info = matcher_defect.build_index_from_db(db, image_type='defect')
+                    matcher_defect.save_index(str(defect_index_v2))
+                    print(f"      ✅ 완료: {info['num_images']}개 이미지")
+                except Exception as e:
+                    print(f"      ⚠️  실패: {e}")
+                    # 저장된 인덱스 로드 시도
+                    if (defect_index_v2 / "metadata.json").exists():
+                        print(f"      → 저장된 인덱스 로드 시도...")
+                        matcher_defect.load_index(str(defect_index_v2))
+                        print(f"      ✅ 저장된 인덱스 로드 완료")
+                
+                # 3. 기본 인덱스를 불량 이미지로 설정
+                print("\n🔄 기본 인덱스 설정 (불량 이미지)...")
                 if (defect_index_v2 / "metadata.json").exists():
-                    print(f"      → 저장된 인덱스 로드 시도...")
                     matcher_defect.load_index(str(defect_index_v2))
-                    print(f"      ✅ 저장된 인덱스 로드 완료")
-            
-            # 3. 기본 인덱스를 불량 이미지로 설정
-            print("\n🔄 기본 인덱스 설정 (불량 이미지)...")
-            if (defect_index_v2 / "metadata.json").exists():
-                matcher_defect.load_index(str(defect_index_v2))
-                current_index_type = "defect"
-                print(f"✅ 불량 이미지 인덱스 로드 완료: {len(matcher_defect.gallery_metadata)}개")
-            
+                    current_index_type = "defect"
+                    print(f"✅ 불량 이미지 인덱스 로드 완료: {len(matcher_defect.gallery_metadata)}개")
+                
         except Exception as e:
             print(f"\n❌ V2 인덱스 구축 실패: {e}")
             import traceback
             traceback.print_exc()
+
+
         
         # V2 라우터 초기화
         from routers.search_v2 import init_search_v2_router

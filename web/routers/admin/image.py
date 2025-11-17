@@ -94,7 +94,8 @@ async def upload_normal_images(
     """
     정상 이미지 업로드 (다중 파일 또는 ZIP)
     """
-    db = next(get_db())
+    #db = next(get_db())
+    db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
     
     try:
         # 제품 존재 확인
@@ -713,7 +714,8 @@ async def sync_defect_images():
     )
     
     # DB 연결
-    db = next(get_db())
+    #db = next(get_db())
+    db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
     
     try:
         print("[SYNC-DEFECT] 불량 이미지 동기화 시작")

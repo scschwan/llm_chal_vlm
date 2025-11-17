@@ -183,7 +183,8 @@ async def search_similar_images_v2(request: SearchRequestV2):
 
 
         # ========== DB 저장 ==========
-        db: Session = next(get_db())
+        #db: Session = next(get_db())
+        db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
         search_id = None
         top1_similarity = None
         

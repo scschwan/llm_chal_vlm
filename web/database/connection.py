@@ -118,3 +118,22 @@ def dispose_engine():
     if engine:
         engine.dispose()
         print("✅ 데이터베이스 연결 풀 정리 완료")
+
+
+from contextlib import contextmanager
+
+@contextmanager
+def get_db_context():
+    """
+    Context Manager 방식의 DB 세션
+    
+    Usage:
+        with get_db_context() as db:
+            # DB 작업
+            db.query(...)
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

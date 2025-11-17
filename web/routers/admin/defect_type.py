@@ -240,7 +240,8 @@ async def refresh_mapping():
     mapping_file_path = project_root / "defect_mapping.json"
     
     # DB 연결
-    db = next(get_db())
+    #db = next(get_db())
+    db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
     
     try:
         print("[MAPPING] defect_mapping.json 재생성 시작")

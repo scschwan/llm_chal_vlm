@@ -1,7 +1,7 @@
 """
 이상 검출 관련 API 라우터
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException , Depends
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
@@ -127,7 +127,8 @@ async def switch_to_normal_index():
                 print(f"[ANOMALY V2] 정상 이미지 인덱스 구축 중 (DB 기반)...")
                 
                 # DB 세션 생성
-                db = next(get_db())
+                #db = next(get_db())
+                db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
                 
                 try:
                     # DB에서 normal 타입 이미지로 인덱스 구축
@@ -276,7 +277,8 @@ async def detect_anomaly(request: AnomalyDetectRequest):
         print(f"[ANOMALY] 정상 기준 이미지: {result.get('reference_image_path', 'N/A')}")
 
         # ========== DB 저장 ==========
-        db: Session = next(get_db())
+        #db: Session = next(get_db())
+        db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
         response_id = None
         
         try:
