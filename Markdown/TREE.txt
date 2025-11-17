@@ -38,8 +38,8 @@
 │       │   ├── [ 3.3M]  memory_bank.pt
 │       │   ├── [ 4.0K]  ok
 │       │   └── [   64]  tau.json
-│       └── [  162]  test6
-│           └── [  146]  ok
+│       └── [  198]  test6
+│           └── [  182]  ok
 ├── [  33K]  docs
 │   ├── [  14K]  API_명세서.md
 │   └── [  18K]  API_명세서.xlsx
@@ -48,7 +48,7 @@
 │   ├── [  692]  check_hyperclova.sh
 │   ├── [  30K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
-├── [  38M]  manual_store
+├── [  41M]  manual_store
 │   ├── [  19K]  carpet_manual.docx
 │   ├── [ 3.8M]  carpet_manual.pdf
 │   ├── [ 1.6K]  file_metadata.json
@@ -72,13 +72,13 @@
 │   ├── [ 671K]  test1_manual.pdf
 │   ├── [ 671K]  test2_manual.pdf
 │   ├── [ 671K]  Test3_manual.pdf
-│   ├── [ 671K]  test4_manual.pdf
+│   ├── [ 3.8M]  test4_manual.pdf
 │   ├── [ 671K]  test5_manual.pdf
 │   ├── [ 671K]  test6_manual.pdf
 │   ├── [ 671K]  test7_manual.pdf
-│   └── [ 3.0M]  unified_index
-│       ├── [ 2.5M]  index.faiss
-│       └── [ 483K]  index.pkl
+│   └── [ 2.6M]  unified_index
+│       ├── [ 2.2M]  index.faiss
+│       └── [ 418K]  index.pkl
 ├── [ 256K]  Markdown
 │   ├── [  86K]  admin_development_scope_v3.md
 │   ├── [  25K]  database_schema.md
@@ -194,22 +194,25 @@
 │   └── [    6]  normal
 ├── [    6]  uploads
 └── [  17M]  web
-    ├── [  844]  anomaly_outputs
+    ├── [ 1.1K]  anomaly_outputs
+    │   ├── [   82]  carpet_color_018
     │   ├── [   82]  carpet_thread_017
     │   ├── [   82]  cast_def_0_146
     │   ├── [   82]  cast_def_0_231
+    │   ├── [   82]  cast_def_0_240
     │   ├── [   82]  cast_def_0_318
     │   ├── [   82]  cast_def_0_430
     │   ├── [   82]  cast_def_0_604
     │   ├── [   82]  cast_def_0_619
-    │   └── [   82]  leather_color_017
-    ├── [  34K]  api_server.py
+    │   ├── [   82]  leather_color_017
+    │   └── [   82]  leather_fold_014
+    ├── [  35K]  api_server.py
     ├── [  48K]  database
-    │   ├── [ 3.0K]  connection.py
+    │   ├── [ 3.3K]  connection.py
     │   ├── [  26K]  crud.py
     │   ├── [  10K]  image_table_insert.py
     │   └── [ 8.4K]  models.py
-    ├── [ 1.9K]  defect_mapping.json
+    ├── [ 2.6K]  defect_mapping.json
     ├── [ 1.9K]  defect_mapping_origin.json
     ├── [ 9.4M]  index_cache
     │   ├── [ 8.3M]  defect
@@ -261,7 +264,7 @@
     │   │   ├── [  26K]  deployment.py
     │   │   ├── [  29K]  image.py
     │   │   ├── [  488]  __init__.py
-    │   │   ├── [  11K]  manual.py
+    │   │   ├── [  12K]  manual.py
     │   │   ├── [ 9.7K]  model.py
     │   │   ├── [ 9.5K]  preprocessing.py
     │   │   └── [ 5.9K]  product.py
@@ -270,7 +273,7 @@
     │   ├── [  291]  __init__.py
     │   ├── [  18K]  manual.py
     │   ├── [ 6.9K]  search.py
-    │   ├── [ 9.4K]  search_v2.py
+    │   ├── [ 9.5K]  search_v2.py
     │   └── [ 4.2K]  upload.py
     ├── [ 350K]  static
     │   ├── [ 166K]  admin
@@ -315,11 +318,11 @@
     │       ├── [  16K]  search.js
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
-    ├── [   59]  uploads
+    ├── [   89]  uploads
     └── [  17K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  325M used in 82 directories, 240 files
+  328M used in 85 directories, 240 files
