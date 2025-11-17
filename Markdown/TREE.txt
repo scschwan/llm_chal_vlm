@@ -38,8 +38,10 @@
 │       │   ├── [ 3.3M]  memory_bank.pt
 │       │   ├── [ 4.0K]  ok
 │       │   └── [   64]  tau.json
-│       └── [  198]  test6
-│           └── [  182]  ok
+│       ├── [  198]  test6
+│       │   └── [  182]  ok
+│       └── [   47]  test8
+│           └── [   31]  ok
 ├── [  33K]  docs
 │   ├── [  14K]  API_명세서.md
 │   └── [  18K]  API_명세서.xlsx
@@ -189,15 +191,18 @@
 ├── [ 6.2K]  save_db_schema.sh
 ├── [  249]  save_tree.sh
 ├── [  335]  settings.config
+├── [ 2.1K]  start_api_server.sh
+├── [ 2.1K]  start_llm_server.sh
 ├── [   46]  temp_deploy
 │   ├── [    6]  defect
 │   └── [    6]  normal
 ├── [    6]  uploads
 └── [  17M]  web
-    ├── [ 5.4K]  anomaly_outputs
+    ├── [ 5.7K]  anomaly_outputs
     │   ├── [   82]  010
     │   ├── [   82]  carpet_color_018
     │   ├── [   82]  carpet_metal_contamination_016
+    │   ├── [   82]  carpet_thread_016
     │   ├── [   82]  carpet_thread_017
     │   ├── [   82]  cast_def_0_1091
     │   ├── [   82]  cast_def_0_122
@@ -208,10 +213,16 @@
     │   ├── [   82]  cast_def_0_430
     │   ├── [   82]  cast_def_0_604
     │   ├── [   82]  cast_def_0_619
+    │   ├── [   82]  cast_def_0_786
     │   ├── [   82]  grid_bent_010
+    │   ├── [   82]  grid_glue_009
     │   ├── [   82]  grid_metal_contamination_009
     │   ├── [   82]  leather_color_017
-    │   └── [   82]  leather_fold_014
+    │   ├── [   82]  leather_fold_014
+    │   ├── [   82]  leather_fold_015
+    │   └── [    6]  leather_fold_016
+    ├── [ 1.6K]  api_server.log
+    ├── [    7]  api_server.pid
     ├── [  35K]  api_server.py
     ├── [  48K]  database
     │   ├── [ 3.3K]  connection.py
@@ -234,10 +245,10 @@
     │   │   ├── [ 2.8M]  embeddings.pt
     │   │   ├── [ 2.8M]  faiss_index.bin
     │   │   └── [ 652K]  metadata.json
-    │   └── [ 521K]  normal
-    │       ├── [ 236K]  embeddings.pt
-    │       ├── [ 234K]  faiss_index.bin
-    │       └── [  51K]  metadata.json
+    │   └── [ 525K]  normal
+    │       ├── [ 238K]  embeddings.pt
+    │       ├── [ 236K]  faiss_index.bin
+    │       └── [  52K]  metadata.json
     ├── [  14K]  matching.html
     ├── [ 121K]  pages
     │   ├── [  44K]  admin
@@ -324,11 +335,11 @@
     │       ├── [  16K]  search.js
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
-    ├── [ 4.0K]  uploads
+    ├── [  183]  uploads
     └── [  17K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  328M used in 91 directories, 240 files
+  328M used in 98 directories, 244 files
