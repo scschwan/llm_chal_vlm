@@ -75,7 +75,7 @@ class AnomalyDetectRequest(BaseModel):
 # 전역 변수에 현재 인덱스 타입 추가
 _current_index_type = None  # "defect" or "normal"
 
-async def switch_to_normal_index():
+async def switch_to_normal_index(db: Session = Depends(get_db)):
     """정상 이미지 인덱스로 전환 (V2 DB 기반)"""
     global _current_index_type
     
@@ -128,7 +128,7 @@ async def switch_to_normal_index():
                 
                 # DB 세션 생성
                 #db = next(get_db())
-                db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
+                #db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
                 
                 try:
                     # DB에서 normal 타입 이미지로 인덱스 구축
@@ -191,7 +191,7 @@ async def switch_to_normal_index():
         raise HTTPException(500, f"정상 인덱스 로드 실패: {str(e)}")
 
 @router.post("/detect")
-async def detect_anomaly(request: AnomalyDetectRequest):
+async def detect_anomaly(request: AnomalyDetectRequest,  db: Session = Depends(get_db)):
     """
     이상 검출 수행
     
@@ -278,7 +278,7 @@ async def detect_anomaly(request: AnomalyDetectRequest):
 
         # ========== DB 저장 ==========
         #db: Session = next(get_db())
-        db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
+        #db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
         response_id = None
         
         try:

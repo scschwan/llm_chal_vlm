@@ -89,13 +89,14 @@ def extract_zip(zip_path: Path, extract_to: Path) -> List[Path]:
 @router.post("/normal")
 async def upload_normal_images(
     product_id: int = Form(...),
-    files: List[UploadFile] = File(...)
+    files: List[UploadFile] = File(...),
+    db: Session = Depends(get_db)
 ):
     """
     정상 이미지 업로드 (다중 파일 또는 ZIP)
     """
     #db = next(get_db())
-    db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
+   # db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
     
     try:
         # 제품 존재 확인
@@ -511,7 +512,7 @@ def get_image_stats(db: Session = Depends(get_db)):
     
 
 @router.post("/sync-normal")
-async def sync_normal_images():
+async def sync_normal_images(db: Session = Depends(get_db)):
     """
     정상(normal) 이미지 Object Storage에서 다운로드
     
@@ -554,7 +555,7 @@ async def sync_normal_images():
     )
     
     # DB 연결
-    db = next(get_db())
+    #db = next(get_db())
     
     try:
         print("[SYNC-NORMAL] 정상 이미지 동기화 시작")
@@ -677,7 +678,7 @@ async def sync_normal_images():
         db.close()
 
 @router.post("/sync-defect")
-async def sync_defect_images():
+async def sync_defect_images(db: Session = Depends(get_db)):
     """
     불량(defect) 이미지 Object Storage에서 다운로드
     
@@ -715,7 +716,7 @@ async def sync_defect_images():
     
     # DB 연결
     #db = next(get_db())
-    db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
+    #db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
     
     try:
         print("[SYNC-DEFECT] 불량 이미지 동기화 시작")

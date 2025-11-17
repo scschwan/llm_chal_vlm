@@ -117,7 +117,7 @@ async def ensure_index_loaded(index_type: str):
 import json
 
 @router.post("/similarity")
-async def search_similar_images_v2(request: SearchRequestV2):
+async def search_similar_images_v2(request: SearchRequestV2,  db: Session = Depends(get_db)  ):
     """
     유사 이미지 검색 V2 (DB 메타데이터 기반)
     
@@ -184,7 +184,7 @@ async def search_similar_images_v2(request: SearchRequestV2):
 
         # ========== DB 저장 ==========
         #db: Session = next(get_db())
-        db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
+        #db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
         search_id = None
         top1_similarity = None
         

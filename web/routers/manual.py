@@ -59,7 +59,7 @@ class ManualGenerateRequest(BaseModel):
 
 
 @router.post("/generate")
-async def generate_manual(request: ManualGenerateRequest):
+async def generate_manual(request: ManualGenerateRequest,  db: Session = Depends(get_db)):
     """
     대응 매뉴얼 생성
     
@@ -197,7 +197,7 @@ async def generate_manual(request: ManualGenerateRequest):
          # ========== DB 업데이트 ==========
         if request.response_id:
             #db: Session = next(get_db())
-            db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
+            #db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
             
             try:
                 response_history = db.query(ResponseHistory).filter(
@@ -420,12 +420,12 @@ class FeedbackRequest(BaseModel):
     feedback_text: str = Field(..., description="피드백 내용")
 
 @router.post("/feedback")
-async def submit_feedback(request: FeedbackRequest):
+async def submit_feedback(request: FeedbackRequest ,  db: Session = Depends(get_db)):
     """
     작업자 피드백 등록
     """
     #db: Session = next(get_db())
-    db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
+    #db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
     
     try:
         response_history = db.query(ResponseHistory).filter(
