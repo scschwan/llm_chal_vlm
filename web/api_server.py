@@ -843,65 +843,6 @@ async def serve_image(image_path: str):
         raise HTTPException(500, str(e))
 
 
-@app.post("/register_defect")
-async def register_defect(
-    file: UploadFile = File(...),
-    product_name: str = Form(...),
-    defect_name: str = Form(...)
-):
-    """불량 이미지 등록"""
-    defect_dir = project_root / "data" / "def_split"
-    defect_dir.mkdir(parents=True, exist_ok=True)
-    
-    # 현재 등록된 파일 중 최대 seqno 찾기
-    existing_files = list(defect_dir.glob(f"{product_name}_{defect_name}_*"))
-    
-    max_seqno = 0
-    for existing_file in existing_files:
-        try:
-            stem = existing_file.stem
-            parts = stem.split('_')
-            if len(parts) >= 3:
-                seqno = int(parts[-1])
-                max_seqno = max(max_seqno, seqno)
-        except (ValueError, IndexError):
-            continue
-    
-    # 새로운 seqno
-    new_seqno = max_seqno + 1
-    
-    # 파일명 생성
-    ext = Path(file.filename).suffix
-    new_filename = f"{product_name}_{defect_name}_{new_seqno:03d}{ext}"
-    save_path = defect_dir / new_filename
-    
-    # 저장
-    with save_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    # 인덱스 재구축
-    index_rebuilt = False
-    if matcher and matcher.index_built:
-        try:
-            defect_index_path = INDEX_DIR / "defect"
-            matcher.build_index(str(defect_dir))
-            matcher.save_index(str(defect_index_path))
-            index_rebuilt = True
-        except Exception as e:
-            print(f"[REGISTER] 인덱스 재구축 실패: {e}")
-    
-    return JSONResponse(content={
-        "status": "success",
-        "saved_path": str(save_path),
-        "filename": new_filename,
-        "product_name": product_name,
-        "defect_name": defect_name,
-        "seqno": new_seqno,
-        "index_rebuilt": index_rebuilt
-    })
-
-
-
 ##추후 관리자페이지에서 사용 예정
 
 @app.get("/mapping/status")
