@@ -233,7 +233,7 @@
     │   ├── [   82]  leather_fold_014
     │   ├── [   82]  leather_fold_015
     │   └── [    6]  leather_fold_016
-    ├── [ 368K]  api_server.log
+    ├── [ 388K]  api_server.log
     ├── [    7]  api_server.pid
     ├── [  33K]  api_server.py
     ├── [ 3.5M]  data
@@ -260,7 +260,7 @@
     │   ├── [ 6.3M]  defect
     │   │   ├── [ 2.8M]  embeddings.pt
     │   │   ├── [ 2.8M]  faiss_index.bin
-    │   │   └── [ 653K]  metadata.json
+    │   │   └── [ 652K]  metadata.json
     │   └── [ 525K]  normal
     │       ├── [ 238K]  embeddings.pt
     │       ├── [ 236K]  faiss_index.bin
@@ -290,7 +290,7 @@
     │   └── [ 4.7K]  upload.html.bak
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 180K]  routers
+    ├── [ 179K]  routers
     │   ├── [ 112K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
@@ -306,7 +306,7 @@
     │   ├── [  291]  __init__.py
     │   ├── [  18K]  manual.py
     │   ├── [ 6.9K]  search.py
-    │   ├── [  16K]  search_v2.py
+    │   ├── [  15K]  search_v2.py
     │   └── [ 4.2K]  upload.py
     ├── [ 353K]  static
     │   ├── [ 166K]  admin
