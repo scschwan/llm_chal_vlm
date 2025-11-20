@@ -359,7 +359,7 @@ async def register_defect(
             print(f"  - new_filename: {new_filename}")
             
             # def_split 폴더로 복사
-            local_dir = Path("data/def_split")
+            local_dir = Path("../data/def_split")
             local_dir.mkdir(parents=True, exist_ok=True)
             local_path = local_dir / new_filename
             
@@ -386,7 +386,7 @@ async def register_defect(
             new_filename = f"{product_name}_{defect_type}_{current_time}{file_extension}"
             print(f"  - new_filename: {new_filename}")
             
-            local_dir = Path("data/def_split")
+            local_dir = Path("../data/def_split")
             local_dir.mkdir(parents=True, exist_ok=True)
             local_path = local_dir / new_filename
             
