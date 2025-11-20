@@ -81,6 +81,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 인덱스 상태 확인
     checkSearchIndexStatus();
+
+    //불량 데이터 목록 조회
+    loadDefectMapping();
 });
 
 /**
@@ -501,3 +504,56 @@ async function confirmRegister() {
         modalConfirmBtn.textContent = '등록';
     }
 }
+
+// defect_mapping.json 로드 및 select 박스 초기화
+let defectMapping = null;
+
+// 페이지 로드 시 defect_mapping.json 로드
+async function loadDefectMapping() {
+    try {
+        const response = await fetch('/defect_mapping.json');
+        defectMapping = await response.json();
+        initializeProductSelect();
+    } catch (error) {
+        console.error('defect_mapping.json 로드 실패:', error);
+        alert('제품 정보를 불러오는데 실패했습니다.');
+    }
+}
+
+// 제품명 select 박스 초기화
+function initializeProductSelect() {
+    const productSelect = document.getElementById('productSelect');
+    productSelect.innerHTML = '<option value="">선택하세요</option>';
+    
+    if (defectMapping && defectMapping.products) {
+        // products 객체의 키를 순회 (키가 곧 product_code)
+        Object.keys(defectMapping.products).forEach(productCode => {
+            const product = defectMapping.products[productCode];
+            const option = document.createElement('option');
+            option.value = productCode;  // 키 값이 product_code (예: "prod1")
+            option.textContent = `${productCode} (${product.name_ko})`;
+            productSelect.appendChild(option);
+        });
+    }
+}
+
+// 제품 선택 시 불량 유형 select 박스 업데이트
+document.getElementById('productSelect').addEventListener('change', function() {
+    const productCode = this.value;
+    const defectSelect = document.getElementById('defectSelect');
+    
+    defectSelect.innerHTML = '<option value="">선택하세요</option>';
+    
+    if (productCode && defectMapping && defectMapping.products[productCode]) {
+        const defects = defectMapping.products[productCode].defects;
+        
+        // defects 객체의 키를 순회 (키가 곧 defect_code)
+        Object.keys(defects).forEach(defectCode => {
+            const defect = defects[defectCode];
+            const option = document.createElement('option');
+            option.value = defectCode;  // 키 값이 defect_code (예: "hole", "burr")
+            option.textContent = `${defectCode} (${defect.ko})`;
+            defectSelect.appendChild(option);
+        });
+    }
+});

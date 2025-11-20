@@ -6,11 +6,12 @@
 - Object Storage URL 포함
 - 제품명, 불량명 등 풍부한 메타데이터 제공
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends , UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 from typing import Optional
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from web.database.connection import get_db
 from web.database.models import SearchHistory
@@ -302,3 +303,133 @@ async def switch_index_type(index_type: str):
         "gallery_count": result.get("gallery_count", 0),
         "cached": result.get("cached", False)
     }
+
+@router.post("/register_defect")
+async def register_defect(
+    product_name: str = Form(...),
+    defect_type: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    try:
+        # 1. product_id 조회
+        product_query = text("SELECT product_id FROM products WHERE product_code = :product_code")
+        product_result = db.execute(product_query, {"product_code": product_name}).fetchone()
+        
+        if not product_result:
+            raise HTTPException(status_code=404, detail=f"제품 '{product_name}'을 찾을 수 없습니다.")
+        
+        product_id = product_result[0]
+        
+        # 2. defect_type_id 조회
+        defect_query = text("""
+            SELECT defect_type_id 
+            FROM defect_types 
+            WHERE product_id = :product_id AND defect_code = :defect_code
+        """)
+        defect_result = db.execute(defect_query, {
+            "product_id": product_id,
+            "defect_code": defect_type
+        }).fetchone()
+        
+        if not defect_result:
+            raise HTTPException(status_code=404, detail=f"불량 유형 '{defect_type}'을 찾을 수 없습니다.")
+        
+        defect_type_id = defect_result[0]
+        
+        # 3. 파일명 생성 (중복 방지)
+        current_time = datetime.now().strftime("%Y%m%d%H%M%S")
+        file_extension = Path(file.filename).suffix
+        new_filename = f"{product_name}_{defect_type}_{current_time}{file_extension}"
+        
+        # 4. 로컬 저장
+        local_dir = Path("data/def_split")
+        local_dir.mkdir(parents=True, exist_ok=True)
+        local_path = local_dir / new_filename
+        
+        contents = await file.read()
+        with open(local_path, "wb") as f:
+            f.write(contents)
+        
+        file_size = len(contents)
+        
+        # file_path: 절대 경로 (full path)
+        absolute_file_path = str(local_path.absolute())
+        
+        # storage_url: 상대 경로 (/def_split/filename)
+        relative_storage_url = f"/def_split/{new_filename}"
+
+        # 5. Object Storage 업로드 (utils 사용)
+        from web.utils.object_storage import ObjectStorageManager
+        
+        obs_manager = ObjectStorageManager()
+        s3_key = f"def_split/{product_name}_{defect_type}/{new_filename}"
+        
+        # 임시 파일로 다시 저장 (boto3 upload_file은 파일 경로 필요)
+        temp_file_path = str(local_path)
+        
+        try:
+            success = obs_manager.upload_file(temp_file_path, s3_key)
+            if success:
+                storage_url = obs_manager.get_url(s3_key)
+            else:
+                storage_url = None
+        except Exception as e:
+            print(f"Object Storage 업로드 실패: {e}")
+            storage_url = None
+        
+        # 6. DB에 이미지 정보 저장
+        insert_query = text("""
+            INSERT INTO images (
+                product_id, 
+                image_type, 
+                defect_type_id, 
+                file_name, 
+                file_path, 
+                file_size, 
+                storage_url,
+                use_yn,
+                sync_yn
+            ) VALUES (
+                :product_id,
+                'defect',
+                :defect_type_id,
+                :file_name,
+                :file_path,
+                :file_size,
+                :storage_url,
+                1,
+                1
+            )
+        """)
+        
+        db.execute(insert_query, {
+            "product_id": product_id,
+            "defect_type_id": defect_type_id,
+            "file_name": new_filename,
+            #"file_path": str(local_path),
+            "file_path": absolute_file_path,
+            "file_size": file_size,
+            #"storage_url": storage_url
+            "storage_url": relative_storage_url
+        })
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "불량 이미지가 성공적으로 등록되었습니다.",
+            "filename": new_filename,
+            "product_id": product_id,
+            "defect_type_id": defect_type_id,
+            #"storage_url": storage_url
+            "file_path": absolute_file_path,
+            "storage_url": relative_storage_url
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"불량 이미지 등록 실패: {e}")
+        raise HTTPException(status_code=500, detail=f"이미지 등록 중 오류가 발생했습니다: {str(e)}")
