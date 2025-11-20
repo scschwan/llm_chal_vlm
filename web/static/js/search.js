@@ -484,7 +484,7 @@ async function confirmRegister() {
         alert('불량 이미지가 성공적으로 등록되었습니다.');
         
         // 모달 닫기 및 초기화
-        $('#registerModal').modal('hide');
+        registerModal.style.display = 'none';
         productSelect.value = '';
         defectSelect.innerHTML = '<option value="">먼저 제품을 선택하세요</option>';
         

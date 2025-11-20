@@ -345,34 +345,61 @@ async def register_defect(
         
         # 4. 파일 처리: 기존 파일 경로 사용 또는 새 파일 업로드
         if file_path:
+            print(f"\n[FILE_PATH 모드] 기존 파일 복사")
             # 기존 uploads 폴더의 파일 사용
             source_path = Path(file_path)
+            print(f"  - source_path: {source_path}")
+            print(f"  - source_path.exists(): {source_path.exists()}")
+            
             if not source_path.exists():
                 raise HTTPException(status_code=404, detail=f"파일을 찾을 수 없습니다: {file_path}")
             
             file_extension = source_path.suffix
             new_filename = f"{product_name}_{defect_type}_{current_time}{file_extension}"
+            print(f"  - new_filename: {new_filename}")
             
             # def_split 폴더로 복사
             local_dir = Path("data/def_split")
             local_dir.mkdir(parents=True, exist_ok=True)
             local_path = local_dir / new_filename
             
+            print(f"  - local_dir: {local_dir}")
+            print(f"  - local_dir.exists(): {local_dir.exists()}")
+            print(f"  - local_path: {local_path}")
+            
+            # 파일 복사 실행
+            print(f"  - 파일 복사 시작...")
             shutil.copy2(source_path, local_path)
-            file_size = source_path.stat().st_size
+            print(f"  - 파일 복사 완료")
+            print(f"  - local_path.exists(): {local_path.exists()}")
+            
+            if local_path.exists():
+                file_size = local_path.stat().st_size
+                print(f"  - file_size: {file_size}")
+            else:
+                print(f"  - 경고: 복사 후에도 파일이 존재하지 않음!")
+                file_size = source_path.stat().st_size
             
         elif file:
-            # 새 파일 업로드 (기존 로직)
+            print(f"\n[FILE 업로드 모드] 새 파일 저장")
             file_extension = Path(file.filename).suffix
             new_filename = f"{product_name}_{defect_type}_{current_time}{file_extension}"
+            print(f"  - new_filename: {new_filename}")
             
             local_dir = Path("data/def_split")
             local_dir.mkdir(parents=True, exist_ok=True)
             local_path = local_dir / new_filename
             
+            print(f"  - local_path: {local_path}")
+            
             contents = await file.read()
+            print(f"  - contents length: {len(contents)}")
+            
             with open(local_path, "wb") as f:
                 f.write(contents)
+            
+            print(f"  - 파일 쓰기 완료")
+            print(f"  - local_path.exists(): {local_path.exists()}")
             
             file_size = len(contents)
         else:
@@ -385,10 +412,10 @@ async def register_defect(
         # 6. Object Storage 업로드
         from web.utils.object_storage import ObjectStorageManager
         
-        obs_manager = ObjectStorageManager()
-        s3_key = f"images/defect/{product_name}_{defect_type}/{new_filename}"
         
         try:
+            obs_manager = ObjectStorageManager()
+            s3_key = f"def_split/{new_filename}"    
             success = obs_manager.upload_file(str(local_path), s3_key)
             if not success:
                 print(f"Object Storage 업로드 실패")
