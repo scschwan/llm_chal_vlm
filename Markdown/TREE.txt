@@ -233,9 +233,11 @@
     │   ├── [   82]  leather_fold_014
     │   ├── [   82]  leather_fold_015
     │   └── [    6]  leather_fold_016
-    ├── [ 260K]  api_server.log
+    ├── [ 278K]  api_server.log
     ├── [    7]  api_server.pid
     ├── [  33K]  api_server.py
+    ├── [   29]  data
+    │   └── [    6]  def_split
     ├── [  48K]  database
     │   ├── [ 3.3K]  connection.py
     │   ├── [  26K]  crud.py
@@ -355,4 +357,4 @@
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  330M used in 107 directories, 248 files
+  330M used in 109 directories, 248 files
