@@ -304,11 +304,13 @@ async def switch_index_type(index_type: str):
         "cached": result.get("cached", False)
     }
 
+
 @router.post("/register_defect")
 async def register_defect(
     product_name: str = Form(...),
     defect_type: str = Form(...),
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
+    file_path: Optional[str] = Form(None),  # 추가: 기존 파일 경로
     db: Session = Depends(get_db)
 ):
     try:
@@ -339,46 +341,60 @@ async def register_defect(
         
         # 3. 파일명 생성 (중복 방지)
         current_time = datetime.now().strftime("%Y%m%d%H%M%S")
-        file_extension = Path(file.filename).suffix
-        new_filename = f"{product_name}_{defect_type}_{current_time}{file_extension}"
         
-        # 4. 로컬 저장
-        local_dir = Path("data/def_split")
-        local_dir.mkdir(parents=True, exist_ok=True)
-        local_path = local_dir / new_filename
+        # 4. 파일 처리: 기존 파일 경로 사용 또는 새 파일 업로드
+        if file_path:
+            # 기존 uploads 폴더의 파일 사용
+            source_path = Path(file_path)
+            if not source_path.exists():
+                raise HTTPException(status_code=404, detail=f"파일을 찾을 수 없습니다: {file_path}")
+            
+            file_extension = source_path.suffix
+            new_filename = f"{product_name}_{defect_type}_{current_time}{file_extension}"
+            
+            # def_split 폴더로 복사
+            local_dir = Path("data/def_split")
+            local_dir.mkdir(parents=True, exist_ok=True)
+            local_path = local_dir / new_filename
+            
+            shutil.copy2(source_path, local_path)
+            file_size = source_path.stat().st_size
+            
+        elif file:
+            # 새 파일 업로드 (기존 로직)
+            file_extension = Path(file.filename).suffix
+            new_filename = f"{product_name}_{defect_type}_{current_time}{file_extension}"
+            
+            local_dir = Path("data/def_split")
+            local_dir.mkdir(parents=True, exist_ok=True)
+            local_path = local_dir / new_filename
+            
+            contents = await file.read()
+            with open(local_path, "wb") as f:
+                f.write(contents)
+            
+            file_size = len(contents)
+        else:
+            raise HTTPException(status_code=400, detail="파일 또는 파일 경로를 제공해야 합니다.")
         
-        contents = await file.read()
-        with open(local_path, "wb") as f:
-            f.write(contents)
-        
-        file_size = len(contents)
-        
-        # file_path: 절대 경로 (full path)
+        # 5. 경로 설정
         absolute_file_path = str(local_path.absolute())
-        
-        # storage_url: 상대 경로 (/def_split/filename)
         relative_storage_url = f"/def_split/{new_filename}"
-
-        # 5. Object Storage 업로드 (utils 사용)
+        
+        # 6. Object Storage 업로드
         from web.utils.object_storage import ObjectStorageManager
         
         obs_manager = ObjectStorageManager()
-        s3_key = f"def_split/{product_name}_{defect_type}/{new_filename}"
-        
-        # 임시 파일로 다시 저장 (boto3 upload_file은 파일 경로 필요)
-        temp_file_path = str(local_path)
+        s3_key = f"images/defect/{product_name}_{defect_type}/{new_filename}"
         
         try:
-            success = obs_manager.upload_file(temp_file_path, s3_key)
-            if success:
-                storage_url = obs_manager.get_url(s3_key)
-            else:
-                storage_url = None
+            success = obs_manager.upload_file(str(local_path), s3_key)
+            if not success:
+                print(f"Object Storage 업로드 실패")
         except Exception as e:
-            print(f"Object Storage 업로드 실패: {e}")
-            storage_url = None
+            print(f"Object Storage 업로드 예외: {e}")
         
-        # 6. DB에 이미지 정보 저장
+        # 7. DB에 이미지 정보 저장
         insert_query = text("""
             INSERT INTO images (
                 product_id, 
@@ -407,10 +423,8 @@ async def register_defect(
             "product_id": product_id,
             "defect_type_id": defect_type_id,
             "file_name": new_filename,
-            #"file_path": str(local_path),
             "file_path": absolute_file_path,
             "file_size": file_size,
-            #"storage_url": storage_url
             "storage_url": relative_storage_url
         })
         
@@ -422,7 +436,6 @@ async def register_defect(
             "filename": new_filename,
             "product_id": product_id,
             "defect_type_id": defect_type_id,
-            #"storage_url": storage_url
             "file_path": absolute_file_path,
             "storage_url": relative_storage_url
         }

@@ -440,8 +440,7 @@ async function confirmRegister() {
     const productSelect = document.getElementById('productSelect');
     const defectSelect = document.getElementById('defectSelect');
     
-    
-    if (!productSelect || !defectSelect ) {
+    if (!productSelect || !defectSelect) {
         alert('필수 요소를 찾을 수 없습니다.');
         return;
     }
@@ -449,20 +448,24 @@ async function confirmRegister() {
     const product = productSelect.value;
     const defect = defectSelect.value;
     
-    
-    if (!product || !defect ) {
+    if (!product || !defect || !uploadedImageData || !uploadedImageData.file_path) {
         alert('모든 필드를 입력해주세요.');
         return;
     }
     
-    const formData = new FormData();
-    formData.append('product_name', product);
-    formData.append('defect_type', defect);
-    formData.append('file', uploadedImageData);
-    
-    
     try {
-        console.log('[REGISTER] 등록 시작:', { product, defect, filename: uploadedImageData.name });
+        console.log('[REGISTER] 등록 시작:', { 
+            product, 
+            defect, 
+            filename: uploadedImageData.filename,
+            file_path: uploadedImageData.file_path
+        });
+        
+        // FormData 생성 - 파일 경로 전달
+        const formData = new FormData();
+        formData.append('product_name', product);
+        formData.append('defect_type', defect);
+        formData.append('file_path', uploadedImageData.file_path);
         
         const response = await fetch('/v2/search/register_defect', {
             method: 'POST',
@@ -471,6 +474,7 @@ async function confirmRegister() {
         
         if (!response.ok) {
             const errorData = await response.json();
+            console.error('[REGISTER] 서버 응답 에러:', errorData);
             throw new Error(errorData.detail || '등록 실패');
         }
         
