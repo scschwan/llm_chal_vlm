@@ -233,9 +233,9 @@
     │   ├── [   82]  leather_fold_014
     │   ├── [   82]  leather_fold_015
     │   └── [    6]  leather_fold_016
-    ├── [ 200K]  api_server.log
+    ├── [ 211K]  api_server.log
     ├── [    7]  api_server.pid
-    ├── [  35K]  api_server.py
+    ├── [  33K]  api_server.py
     ├── [  48K]  database
     │   ├── [ 3.3K]  connection.py
     │   ├── [  26K]  crud.py
@@ -347,7 +347,7 @@
     │       ├── [  18K]  search.js
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
-    ├── [  190]  uploads
+    ├── [    6]  uploads
     └── [  17K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
