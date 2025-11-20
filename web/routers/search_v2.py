@@ -397,7 +397,8 @@ async def register_defect(
             obs_manager = ObjectStorageManager()
             #s3_key = f"def_split/{new_filename}"    
             s3_key = "def_split"    
-            success = obs_manager.upload_file(str(Path(file_path)), s3_key)
+            #success = obs_manager.upload_file(str(Path(file_path)), s3_key)
+            success = obs_manager.upload_file(absolute_file_path, s3_key)
             if not success:
                 print(f"Object Storage 업로드 실패")
         except Exception as e:
