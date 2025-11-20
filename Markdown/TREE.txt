@@ -233,7 +233,7 @@
     │   ├── [   82]  leather_fold_014
     │   ├── [   82]  leather_fold_015
     │   └── [    6]  leather_fold_016
-    ├── [ 441K]  api_server.log
+    ├── [ 457K]  api_server.log
     ├── [    7]  api_server.pid
     ├── [  33K]  api_server.py
     ├── [ 3.5M]  data
@@ -260,7 +260,7 @@
     │   ├── [ 6.3M]  defect
     │   │   ├── [ 2.8M]  embeddings.pt
     │   │   ├── [ 2.8M]  faiss_index.bin
-    │   │   └── [ 653K]  metadata.json
+    │   │   └── [ 652K]  metadata.json
     │   └── [ 525K]  normal
     │       ├── [ 238K]  embeddings.pt
     │       ├── [ 236K]  faiss_index.bin
@@ -351,7 +351,7 @@
     │       ├── [  19K]  search.js
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
-    ├── [   34]  uploads
+    ├── [    6]  uploads
     └── [  17K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
