@@ -386,7 +386,7 @@ async def register_defect(
            raise HTTPException(status_code=400, detail="파일 또는 파일 경로를 제공해야 합니다.")
         
         # 5. 경로 설정
-        absolute_file_path = str(local_path.absolute().replace("/web/..",""))
+        absolute_file_path = str(local_path.absolute()).replace("/web/..","")
         relative_storage_url = f"/def_split/{new_filename}"
         
         # 6. Object Storage 업로드
