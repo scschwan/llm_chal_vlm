@@ -413,15 +413,14 @@ function goToNextPage() {
  * 불량 등록 모달 열기
  */
 function openRegisterModal() {
-   const modal = document.getElementById('registerModal');
-    if (modal) {
-        $(modal).modal('show');
-        
-        // select 박스 초기화
-        initializeProductSelect();
-        //updateFilenamePreview();
+   if (!uploadedImageData) {
+        showNotification('업로드된 이미지가 없습니다', 'error');
+        return;
     }
-    //updateFilenamePreview();
+    
+    registerModal.style.display = 'flex';
+    initializeProductSelect();
+    
 }
 
 /**
