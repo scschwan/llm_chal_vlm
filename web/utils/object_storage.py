@@ -72,7 +72,20 @@ class ObjectStorageManager:
             print(f"  - s3_key: {s3_key}")
             self.s3.upload_file(local_path, self.bucket, s3_key)
             print(f"✅ 업로드 완료: {s3_key}")
-            return True
+
+              # 업로드 후 파일 존재 확인
+            try:
+                response = self.s3.head_object(Bucket=self.bucket, Key=s3_key)
+                file_size = response['ContentLength']
+                last_modified = response['LastModified']
+                print(f"  ✅ Object Storage 확인 성공:")
+                print(f"    - 파일 크기: {file_size} bytes")
+                print(f"    - 수정 시간: {last_modified}")
+                return True
+            except Exception as verify_error:
+                print(f"  ❌ 업로드 후 확인 실패: {verify_error}")
+                return False
+            
         except ClientError as e:
             print(f"❌ 업로드 실패: {e}")
             return False
