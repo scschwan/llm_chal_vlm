@@ -16,7 +16,7 @@ class ObjectStorageManager:
     def __init__(self):
         # .env 파일 로드
         load_dotenv()
-        
+
         """초기화"""
         self.endpoint_url = "https://kr.object.ncloudstorage.com"
         self.region = "kr-standard"
@@ -67,6 +67,8 @@ class ObjectStorageManager:
             bool: 성공 여부
         """
         try:
+            print(f"  - local_path: {local_path}")
+            print(f"  - s3_key: {s3_key}")
             self.s3.upload_file(local_path, self.bucket, s3_key)
             print(f"✅ 업로드 완료: {s3_key}")
             return True
