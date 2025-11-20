@@ -68,6 +68,7 @@ class ObjectStorageManager:
         """
         try:
             print(f"  - local_path: {local_path}")
+            print(f"  - bucket: {self.bucket}")
             print(f"  - s3_key: {s3_key}")
             self.s3.upload_file(local_path, self.bucket, s3_key)
             print(f"✅ 업로드 완료: {s3_key}")
