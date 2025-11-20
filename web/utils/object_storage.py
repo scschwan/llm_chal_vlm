@@ -8,12 +8,15 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 from botocore.exceptions import ClientError
 import concurrent.futures
-
+from dotenv import load_dotenv
 
 class ObjectStorageManager:
     """Object Storage 관리 클래스"""
     
     def __init__(self):
+        # .env 파일 로드
+        load_dotenv()
+        
         """초기화"""
         self.endpoint_url = "https://kr.object.ncloudstorage.com"
         self.region = "kr-standard"
