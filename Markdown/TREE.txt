@@ -45,10 +45,10 @@
 ├── [  33K]  docs
 │   ├── [  14K]  API_명세서.md
 │   └── [  18K]  API_명세서.xlsx
-├── [  36K]  llm_server
+├── [ 153K]  llm_server
 │   ├── [ 2.7K]  =4.54.0
 │   ├── [  692]  check_hyperclova.sh
-│   ├── [ 1.8K]  llm_server.log
+│   ├── [ 118K]  llm_server.log
 │   ├── [    7]  llm_server.pid
 │   ├── [  30K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
@@ -201,12 +201,16 @@
 │   └── [    6]  normal
 ├── [    6]  uploads
 └── [  17M]  web
-    ├── [ 6.0K]  anomaly_outputs
+    ├── [ 6.4K]  anomaly_outputs
     │   ├── [   82]  001
+    │   ├── [   82]  002
+    │   ├── [   82]  003
     │   ├── [   82]  008
     │   ├── [   82]  010
     │   ├── [   82]  011
     │   ├── [   82]  012
+    │   ├── [   82]  013
+    │   ├── [   82]  016
     │   ├── [   82]  carpet_color_018
     │   ├── [   82]  carpet_metal_contamination_016
     │   ├── [   82]  carpet_thread_016
@@ -225,10 +229,11 @@
     │   ├── [   82]  grid_glue_009
     │   ├── [   82]  grid_metal_contamination_009
     │   ├── [   82]  leather_color_017
+    │   ├── [   82]  leather_cut_016
     │   ├── [   82]  leather_fold_014
     │   ├── [   82]  leather_fold_015
     │   └── [    6]  leather_fold_016
-    ├── [ 1.6K]  api_server.log
+    ├── [ 200K]  api_server.log
     ├── [    7]  api_server.pid
     ├── [  35K]  api_server.py
     ├── [  48K]  database
@@ -275,13 +280,13 @@
     │   ├── [ 6.3K]  anomaly.html
     │   ├── [ 7.9K]  login.html
     │   ├── [ 7.3K]  manual.html
-    │   ├── [ 9.5K]  search.html
+    │   ├── [ 9.1K]  search.html
     │   ├── [  19K]  search_v2_test.html
     │   ├── [ 4.6K]  upload.html
     │   └── [ 4.7K]  upload.html.bak
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 174K]  routers
+    ├── [ 178K]  routers
     │   ├── [ 112K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
@@ -297,9 +302,9 @@
     │   ├── [  291]  __init__.py
     │   ├── [  18K]  manual.py
     │   ├── [ 6.9K]  search.py
-    │   ├── [ 9.5K]  search_v2.py
+    │   ├── [  14K]  search_v2.py
     │   └── [ 4.2K]  upload.py
-    ├── [ 350K]  static
+    ├── [ 352K]  static
     │   ├── [ 166K]  admin
     │   │   ├── [  61K]  css
     │   │   │   ├── [ 4.5K]  admin_defect_type.css
@@ -332,21 +337,21 @@
     │   │   ├── [  13K]  matching.css
     │   │   ├── [ 8.0K]  search.css
     │   │   └── [ 3.3K]  upload.css
-    │   └── [ 146K]  js
+    │   └── [ 148K]  js
     │       ├── [  12K]  anomaly.js
     │       ├── [  12K]  anomaly.js.bak
     │       ├── [ 3.9K]  common.js
     │       ├── [  15K]  manual.js
     │       ├── [  15K]  manual.js.bak
     │       ├── [  45K]  matching.js
-    │       ├── [  16K]  search.js
+    │       ├── [  18K]  search.js
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
-    ├── [   66]  uploads
+    ├── [  190]  uploads
     └── [  17K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  328M used in 102 directories, 247 files
+  328M used in 107 directories, 247 files
