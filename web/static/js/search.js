@@ -413,7 +413,7 @@ function goToNextPage() {
  * 불량 등록 모달 열기
  */
 function openRegisterModal() {
-   const modal = document.getElementById('registerDefectModal');
+   const modal = document.getElementById('registerModal');
     if (modal) {
         $(modal).modal('show');
         
@@ -481,7 +481,7 @@ async function confirmRegister() {
         alert('불량 이미지가 성공적으로 등록되었습니다.');
         
         // 모달 닫기 및 초기화
-        $('#registerDefectModal').modal('hide');
+        $('#registerModal').modal('hide');
         productSelect.value = '';
         defectSelect.innerHTML = '<option value="">먼저 제품을 선택하세요</option>';
         
