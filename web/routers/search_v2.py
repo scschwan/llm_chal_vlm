@@ -381,29 +381,9 @@ async def register_defect(
                 file_size = source_path.stat().st_size
             
         elif file:
-            print(f"\n[FILE 업로드 모드] 새 파일 저장")
-            file_extension = Path(file.filename).suffix
-            new_filename = f"{product_name}_{defect_type}_{current_time}{file_extension}"
-            print(f"  - new_filename: {new_filename}")
-            
-            local_dir = Path("../data/def_split")
-            local_dir.mkdir(parents=True, exist_ok=True)
-            local_path = local_dir / new_filename
-            
-            print(f"  - local_path: {local_path}")
-            
-            contents = await file.read()
-            print(f"  - contents length: {len(contents)}")
-            
-            with open(local_path, "wb") as f:
-                f.write(contents)
-            
-            print(f"  - 파일 쓰기 완료")
-            print(f"  - local_path.exists(): {local_path.exists()}")
-            
-            file_size = len(contents)
+           raise HTTPException(status_code=400, detail="업로드 이미지가 존재하지 않습니다. 이미지 업로드를 다시 수행해주세요.")
         else:
-            raise HTTPException(status_code=400, detail="파일 또는 파일 경로를 제공해야 합니다.")
+           raise HTTPException(status_code=400, detail="파일 또는 파일 경로를 제공해야 합니다.")
         
         # 5. 경로 설정
         absolute_file_path = str(local_path.absolute())
@@ -416,7 +396,7 @@ async def register_defect(
         try:
             obs_manager = ObjectStorageManager()
             s3_key = f"def_split/{new_filename}"    
-            success = obs_manager.upload_file(absolute_file_path, s3_key)
+            success = obs_manager.upload_file(Path(file_path), s3_key)
             if not success:
                 print(f"Object Storage 업로드 실패")
         except Exception as e:
