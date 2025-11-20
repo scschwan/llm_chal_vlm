@@ -200,7 +200,7 @@
 │   ├── [    6]  defect
 │   └── [    6]  normal
 ├── [    6]  uploads
-└── [  19M]  web
+└── [  21M]  web
     ├── [ 6.4K]  anomaly_outputs
     │   ├── [   82]  001
     │   ├── [   82]  002
@@ -233,11 +233,12 @@
     │   ├── [   82]  leather_fold_014
     │   ├── [   82]  leather_fold_015
     │   └── [    6]  leather_fold_016
-    ├── [ 278K]  api_server.log
+    ├── [ 297K]  api_server.log
     ├── [    7]  api_server.pid
     ├── [  33K]  api_server.py
-    ├── [   29]  data
-    │   └── [    6]  def_split
+    ├── [ 1.8M]  data
+    │   └── [ 1.8M]  def_split
+    │       └── [ 1.8M]  carpet_hole_20251120185134.PNG
     ├── [  48K]  database
     │   ├── [ 3.3K]  connection.py
     │   ├── [  26K]  crud.py
@@ -354,7 +355,7 @@
     └── [  17K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
-        ├── [ 9.7K]  object_storage.py
+        ├── [ 9.8K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  330M used in 109 directories, 248 files
+  332M used in 109 directories, 249 files
