@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from web.database.connection import get_db
 from web.database.models import SearchHistory
 from datetime import datetime
+import shutil
 
 router = APIRouter(prefix="/v2/search", tags=["search_v2"])
 
