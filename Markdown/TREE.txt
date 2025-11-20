@@ -45,10 +45,10 @@
 ├── [  33K]  docs
 │   ├── [  14K]  API_명세서.md
 │   └── [  18K]  API_명세서.xlsx
-├── [ 161K]  llm_server
+├── [ 169K]  llm_server
 │   ├── [ 2.7K]  =4.54.0
 │   ├── [  692]  check_hyperclova.sh
-│   ├── [ 126K]  llm_server.log
+│   ├── [ 134K]  llm_server.log
 │   ├── [    7]  llm_server.pid
 │   ├── [  30K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
@@ -233,7 +233,7 @@
     │   ├── [   82]  leather_fold_014
     │   ├── [   82]  leather_fold_015
     │   └── [    6]  leather_fold_016
-    ├── [ 491K]  api_server.log
+    ├── [ 512K]  api_server.log
     ├── [    7]  api_server.pid
     ├── [  33K]  api_server.py
     ├── [ 3.5M]  data
@@ -352,10 +352,10 @@
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
     ├── [   33]  uploads
-    └── [  17K]  utils
+    └── [  18K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
-        ├── [ 9.9K]  object_storage.py
+        ├── [  11K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
   332M used in 109 directories, 249 files
