@@ -431,7 +431,7 @@ ANOMALY_OUTPUT_DIR.mkdir(exist_ok=True)
 
 # Static 파일 마운트
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-app.mount("/", StaticFiles(directory="web", html=True), name="web")
+
 
 # CORS 설정
 app.add_middleware(
