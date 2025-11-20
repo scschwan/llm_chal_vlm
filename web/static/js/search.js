@@ -511,7 +511,7 @@ let defectMapping = null;
 // 페이지 로드 시 defect_mapping.json 로드
 async function loadDefectMapping() {
     try {
-        const response = await fetch('/defect_mapping.json');
+        const response = await fetch('/api/defect_mapping');
         defectMapping = await response.json();
         initializeProductSelect();
     } catch (error) {

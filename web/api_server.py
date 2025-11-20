@@ -444,7 +444,19 @@ app.add_middleware(
 
 
 
+import json
 
+@app.get("/api/defect_mapping")
+async def get_defect_mapping():
+    """defect_mapping.json 데이터 반환 (JavaScript용)"""
+    try:
+        mapping_file = project_root / "web" / "defect_mapping.json"
+        with open(mapping_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"매핑 파일 로드 실패: {str(e)}")
+    
 
 def init_vlm_components():
     """VLM 컴포넌트 초기화 (서버 시작 시 1회)"""
