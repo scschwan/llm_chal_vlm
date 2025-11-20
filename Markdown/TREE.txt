@@ -200,7 +200,7 @@
 │   ├── [    6]  defect
 │   └── [    6]  normal
 ├── [    6]  uploads
-└── [  17M]  web
+└── [  19M]  web
     ├── [ 6.4K]  anomaly_outputs
     │   ├── [   82]  001
     │   ├── [   82]  002
@@ -233,7 +233,7 @@
     │   ├── [   82]  leather_fold_014
     │   ├── [   82]  leather_fold_015
     │   └── [    6]  leather_fold_016
-    ├── [ 211K]  api_server.log
+    ├── [ 232K]  api_server.log
     ├── [    7]  api_server.pid
     ├── [  33K]  api_server.py
     ├── [  48K]  database
@@ -347,11 +347,12 @@
     │       ├── [  18K]  search.js
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
-    ├── [    6]  uploads
+    ├── [ 1.8M]  uploads
+    │   └── [ 1.8M]  tmp3da7_hhw.PNG
     └── [  17K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
         ├── [ 9.7K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  328M used in 107 directories, 247 files
+  330M used in 107 directories, 248 files
