@@ -233,7 +233,7 @@
     │   ├── [   82]  leather_fold_014
     │   ├── [   82]  leather_fold_015
     │   └── [    6]  leather_fold_016
-    ├── [ 232K]  api_server.log
+    ├── [ 260K]  api_server.log
     ├── [    7]  api_server.pid
     ├── [  33K]  api_server.py
     ├── [  48K]  database
@@ -286,7 +286,7 @@
     │   └── [ 4.7K]  upload.html.bak
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 178K]  routers
+    ├── [ 179K]  routers
     │   ├── [ 112K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
@@ -302,9 +302,9 @@
     │   ├── [  291]  __init__.py
     │   ├── [  18K]  manual.py
     │   ├── [ 6.9K]  search.py
-    │   ├── [  14K]  search_v2.py
+    │   ├── [  15K]  search_v2.py
     │   └── [ 4.2K]  upload.py
-    ├── [ 352K]  static
+    ├── [ 353K]  static
     │   ├── [ 166K]  admin
     │   │   ├── [  61K]  css
     │   │   │   ├── [ 4.5K]  admin_defect_type.css
@@ -337,14 +337,14 @@
     │   │   ├── [  13K]  matching.css
     │   │   ├── [ 8.0K]  search.css
     │   │   └── [ 3.3K]  upload.css
-    │   └── [ 148K]  js
+    │   └── [ 149K]  js
     │       ├── [  12K]  anomaly.js
     │       ├── [  12K]  anomaly.js.bak
     │       ├── [ 3.9K]  common.js
     │       ├── [  15K]  manual.js
     │       ├── [  15K]  manual.js.bak
     │       ├── [  45K]  matching.js
-    │       ├── [  18K]  search.js
+    │       ├── [  19K]  search.js
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
     ├── [ 1.8M]  uploads
