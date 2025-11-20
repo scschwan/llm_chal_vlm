@@ -84,6 +84,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     //불량 데이터 목록 조회
     loadDefectMapping();
+
+    setupProductChangeListener();
 });
 
 /**
@@ -118,8 +120,8 @@ function initEventListeners() {
     modalConfirmBtn.addEventListener('click', confirmRegister);
     
     // 제품/불량 선택 시 파일명 미리보기 업데이트
-    productSelect.addEventListener('change', updateFilenamePreview);
-    defectSelect.addEventListener('change', updateFilenamePreview);
+    //productSelect.addEventListener('change', updateFilenamePreview);
+    //defectSelect.addEventListener('change', updateFilenamePreview);
 }
 
 /**
@@ -411,13 +413,15 @@ function goToNextPage() {
  * 불량 등록 모달 열기
  */
 function openRegisterModal() {
-    if (!uploadedImageData) {
-        showNotification('업로드된 이미지가 없습니다', 'error');
-        return;
+   const modal = document.getElementById('registerDefectModal');
+    if (modal) {
+        $(modal).modal('show');
+        
+        // select 박스 초기화
+        initializeProductSelect();
+        //updateFilenamePreview();
     }
-    
-    registerModal.style.display = 'flex';
-    updateFilenamePreview();
+    //updateFilenamePreview();
 }
 
 /**
@@ -429,79 +433,61 @@ function closeRegisterModal() {
     defectSelect.value = '';
 }
 
-/**
- * 파일명 미리보기 업데이트
- */
-function updateFilenamePreview() {
-    const product = productSelect.value || 'prod1';
-    const defect = defectSelect.value || 'hole';
-    
-    if (filenamePreview) {
-        filenamePreview.textContent = `${product}_${defect}_XXX.jpg`;
-    }
-}
 
 /**
  * 불량 등록 확인
  */
 async function confirmRegister() {
+    const productSelect = document.getElementById('productSelect');
+    const defectSelect = document.getElementById('defectSelect');
+    
+    
+    if (!productSelect || !defectSelect ) {
+        alert('필수 요소를 찾을 수 없습니다.');
+        return;
+    }
+    
     const product = productSelect.value;
     const defect = defectSelect.value;
     
-    if (!product || !defect) {
-        showNotification('제품명과 불량 유형을 선택해주세요', 'warning');
+    
+    if (!product || !defect ) {
+        alert('모든 필드를 입력해주세요.');
         return;
     }
     
-    if (!uploadedImageData || !uploadedImageData.file_path) {
-        showNotification('업로드된 이미지가 없습니다', 'error');
-        return;
-    }
+    const formData = new FormData();
+    formData.append('product_name', product);
+    formData.append('defect_type', defect);
+    formData.append('file', uploadedImageData);
+    
     
     try {
-        modalConfirmBtn.disabled = true;
-        modalConfirmBtn.textContent = '등록 중...';
+        console.log('[REGISTER] 등록 시작:', { product, defect, filename: uploadedImageData.name });
         
-        // 파일 경로에서 실제 파일 가져오기
-        const filePath = uploadedImageData.file_path;
-        const filename = filePath.split('/').pop();
-        
-        // 업로드 디렉토리에서 파일 읽기
-        const fileResponse = await fetch(`/api/image/${filePath}`);
-        const blob = await fileResponse.blob();
-        
-        // FormData 생성
-        const formData = new FormData();
-        formData.append('file', blob, filename);
-        formData.append('product_name', product);
-        formData.append('defect_name', defect);
-        
-        // 등록 요청
-        const response = await fetch(`${API_BASE_URL}/v2/search/register_defect`, {
+        const response = await fetch('/v2/search/register_defect', {
             method: 'POST',
             body: formData
         });
         
         if (!response.ok) {
-            throw new Error('등록 실패');
+            const errorData = await response.json();
+            throw new Error(errorData.detail || '등록 실패');
         }
         
-        const data = await response.json();
-        console.log('[REGISTER] 등록 완료:', data);
+        const result = await response.json();
+        console.log('[REGISTER] 등록 성공:', result);
         
-        showNotification(`불량 이미지 등록 완료: ${data.filename}`, 'success');
+        alert('불량 이미지가 성공적으로 등록되었습니다.');
         
-        closeRegisterModal();
-        
-        // 인덱스 상태 새로고침
-        await checkSearchIndexStatus();
+        // 모달 닫기 및 초기화
+        $('#registerDefectModal').modal('hide');
+        productSelect.value = '';
+        defectSelect.innerHTML = '<option value="">먼저 제품을 선택하세요</option>';
         
     } catch (error) {
         console.error('[REGISTER] 등록 실패:', error);
-        showNotification(`등록 실패: ${error.message}`, 'error');
-    } finally {
-        modalConfirmBtn.disabled = false;
-        modalConfirmBtn.textContent = '등록';
+        alert(`등록 실패: ${error.message}`);
     }
 }
 
@@ -523,6 +509,8 @@ async function loadDefectMapping() {
 // 제품명 select 박스 초기화
 function initializeProductSelect() {
     const productSelect = document.getElementById('productSelect');
+    if (!productSelect) return;
+
     productSelect.innerHTML = '<option value="">선택하세요</option>';
     
     if (defectMapping && defectMapping.products) {
@@ -536,6 +524,36 @@ function initializeProductSelect() {
         });
     }
 }
+
+// 제품 선택 시 불량 유형 select 박스 업데이트
+function setupProductChangeListener() {
+    const productSelect = document.getElementById('productSelect');
+    if (!productSelect) return;
+    
+    productSelect.addEventListener('change', function() {
+        const productCode = this.value;
+        const defectSelect = document.getElementById('defectSelect');
+        
+        if (!defectSelect) return;
+        
+        defectSelect.innerHTML = '<option value="">선택하세요</option>';
+        
+        if (productCode && defectMapping && defectMapping.products[productCode]) {
+            const defects = defectMapping.products[productCode].defects;
+            
+            Object.keys(defects).forEach(defectCode => {
+                const defect = defects[defectCode];
+                const option = document.createElement('option');
+                option.value = defectCode;
+                option.textContent = `${defectCode} (${defect.ko})`;
+                defectSelect.appendChild(option);
+            });
+        }
+        
+        //updateFilenamePreview();
+    });
+}
+
 
 // 제품 선택 시 불량 유형 select 박스 업데이트
 document.getElementById('productSelect').addEventListener('change', function() {
