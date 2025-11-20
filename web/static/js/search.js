@@ -477,7 +477,7 @@ async function confirmRegister() {
         formData.append('defect_name', defect);
         
         // 등록 요청
-        const response = await fetch(`${API_BASE_URL}/register_defect`, {
+        const response = await fetch(`${API_BASE_URL}/v2/search/register_defect`, {
             method: 'POST',
             body: formData
         });
