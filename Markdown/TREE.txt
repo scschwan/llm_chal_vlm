@@ -48,7 +48,7 @@
 ├── [  40K]  llm_server
 │   ├── [ 2.7K]  =4.54.0
 │   ├── [  692]  check_hyperclova.sh
-│   ├── [ 1.5K]  llm_server.log
+│   ├── [ 1.8K]  llm_server.log
 │   ├── [    5]  llm_server.pid
 │   ├── [  30K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
