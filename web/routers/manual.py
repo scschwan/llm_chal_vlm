@@ -22,29 +22,61 @@ _mapper_ref = None
 _rag_ref = None
 _project_root_ref = None
 _llm_server_url = "http://localhost:5001"
+_server_config = {}  # ✅ 추가: 서버 설정 저장
 
 
 def init_manual_router(mapper, rag, proj_root, llm_url=None):
     """라우터 초기화"""
-    global _mapper_ref, _rag_ref, _project_root_ref, _llm_server_url
+    global _mapper_ref, _rag_ref, _project_root_ref, _llm_server_url, _server_config
     _mapper_ref = mapper
     _rag_ref = rag
     _project_root_ref = proj_root
     if llm_url:
         _llm_server_url = llm_url
+    
+    # ✅ 추가: settings.config 로드
+    config_file = proj_root / "settings.config"
+    if config_file.exists():
+        with open(config_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    _server_config[key.strip()] = value.strip()
+        print(f"[MANUAL ROUTER] 설정 로드: IS_CPU_SERVER={_server_config.get('IS_CPU_SERVER', 'false')}")
+    else:
+        print(f"[MANUAL ROUTER] 설정 파일 없음, 기본값 사용")
+    
     print(f"[MANUAL ROUTER] 초기화 완료: mapper={_mapper_ref is not None}, rag={_rag_ref is not None}")
 
 
 def get_mapper():
     return _mapper_ref
 
-
 def get_rag():
     return _rag_ref
 
-
 def get_project_root():
     return _project_root_ref
+
+
+# ✅ 추가: 서버 설정 조회 API
+@router.get("/server-config")
+async def get_server_config():
+    """
+    서버 설정 조회 (프론트엔드용)
+    
+    Returns:
+        is_cpu_server: CPU 서버 여부
+        vlm_enabled: VLM 사용 가능 여부
+    """
+    is_cpu = _server_config.get('IS_CPU_SERVER', 'false').lower() == 'true'
+    
+    return JSONResponse(content={
+        "is_cpu_server": is_cpu,
+        "vlm_enabled": not is_cpu,  # CPU 서버면 VLM 비활성화
+        "timeout": 300 if is_cpu else 120  # CPU 서버는 300초, GPU는 120초
+    })
 
 
 class ManualGenerateRequest(BaseModel):
@@ -76,12 +108,24 @@ async def generate_manual(request: ManualGenerateRequest,  db: Session = Depends
     if mapper is None:
         raise HTTPException(500, "DefectMapper가 초기화되지 않았습니다")
     
+    # ✅ 추가: CPU 서버에서 LLaVA 요청 차단
+    is_cpu = _server_config.get('IS_CPU_SERVER', 'false').lower() == 'true'
+    if is_cpu and request.model_type == "llava":
+        raise HTTPException(
+            400, 
+            "CPU 서버에서는 VLM(LLaVA) 모델을 사용할 수 없습니다. "
+            "HyperCLOVAX 또는 EXAONE 모델을 선택해주세요."
+        )
+    
+    # ✅ 수정: timeout을 설정에 따라 동적으로 변경
+    timeout_seconds = 300.0 if is_cpu else 120.0
+    
     t0 = time.time()
     
     try:
         print(f"[MANUAL] 매뉴얼 생성 시작: {request.product}/{request.defect}")
         print(f"[MANUAL] 모델: {request.model_type}")
-        
+        print(f"[MANUAL] Timeout: {timeout_seconds}초")  # ✅ 추가
 
         # 1. 불량 정보 조회
         defect_info = mapper.get_defect_info(request.product, request.defect)
@@ -99,7 +143,6 @@ async def generate_manual(request: ManualGenerateRequest,  db: Session = Depends
             manual_context = rag.search_defect_manual(
                 product=request.product,
                 defect=request.defect,
-                #keywords=[defect_info.ko, defect_info.full_name_ko],
                 keywords=[defect_info.ko],  # ko만 사용 (자동 확장됨)
                 k=3
             )
@@ -117,7 +160,8 @@ async def generate_manual(request: ManualGenerateRequest,  db: Session = Depends
         # 3. LLM/VLM 호출
         llm_analysis = None
         
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        # ✅ 수정: timeout 변수 사용
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
             if request.model_type == "hyperclovax":
                 # HyperCLOVAX
                 payload = {
@@ -128,7 +172,6 @@ async def generate_manual(request: ManualGenerateRequest,  db: Session = Depends
                     "anomaly_score": float(request.anomaly_score),
                     "is_anomaly": bool(request.is_anomaly),
                     "manual_context": manual_context,
-                    #"max_new_tokens": 1024,
                     "max_new_tokens": 768,
                     "temperature": 0.3
                 }
@@ -196,9 +239,6 @@ async def generate_manual(request: ManualGenerateRequest,  db: Session = Depends
         
          # ========== DB 업데이트 ==========
         if request.response_id:
-            #db: Session = next(get_db())
-            #db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
-            
             try:
                 response_history = db.query(ResponseHistory).filter(
                     ResponseHistory.response_id == request.response_id
@@ -207,9 +247,9 @@ async def generate_manual(request: ManualGenerateRequest,  db: Session = Depends
                 if response_history:
                     response_history.model_type = request.model_type
                     if isinstance(manual_context, dict):
-                        response_history.guide_content = json.dumps(manual_context, ensure_ascii=False)  # 생성된 메뉴얼 내용
+                        response_history.guide_content = json.dumps(manual_context, ensure_ascii=False)
                     else:
-                        response_history.guide_content = str(manual_context)  # ✅ 문자열로 변환
+                        response_history.guide_content = str(manual_context)
                     response_history.guide_generated_at = datetime.now()
                     response_history.processing_time = processing_time
                     
@@ -277,6 +317,18 @@ async def generate_manual_session(request: ManualGenerateSessionRequest):
     if mapper is None:
         raise HTTPException(500, "DefectMapper가 초기화되지 않았습니다")
     
+    # ✅ 추가: CPU 서버에서 LLaVA 요청 차단
+    is_cpu = _server_config.get('IS_CPU_SERVER', 'false').lower() == 'true'
+    if is_cpu and request.model_type == "llava":
+        raise HTTPException(
+            400, 
+            "CPU 서버에서는 VLM(LLaVA) 모델을 사용할 수 없습니다. "
+            "HyperCLOVAX 또는 EXAONE 모델을 선택해주세요."
+        )
+    
+    # ✅ 수정: timeout을 설정에 따라 동적으로 변경
+    timeout_seconds = 300.0 if is_cpu else 120.0
+    
     t0 = time.time()
     
     try:
@@ -293,6 +345,7 @@ async def generate_manual_session(request: ManualGenerateSessionRequest):
         print(f"[MANUAL-SESSION] 원본 이미지: {origin_path}")
         print(f"[MANUAL-SESSION] 매뉴얼 생성 시작: {request.product}/{request.defect}")
         print(f"[MANUAL-SESSION] 모델: {request.model_type}")
+        print(f"[MANUAL-SESSION] Timeout: {timeout_seconds}초")  # ✅ 추가
         
         # 2. 불량 정보 조회
         defect_info = mapper.get_defect_info(request.product, request.defect)
@@ -325,7 +378,8 @@ async def generate_manual_session(request: ManualGenerateSessionRequest):
         # 4. LLM/VLM 호출
         llm_analysis = None
         
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        # ✅ 수정: timeout 변수 사용
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
             if request.model_type == "hyperclovax":
                 payload = {
                     "product": request.product,
@@ -424,9 +478,6 @@ async def submit_feedback(request: FeedbackRequest ,  db: Session = Depends(get_
     """
     작업자 피드백 등록
     """
-    #db: Session = next(get_db())
-    #db: Session = Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
-    
     try:
         response_history = db.query(ResponseHistory).filter(
             ResponseHistory.response_id == request.response_id

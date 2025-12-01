@@ -471,6 +471,7 @@ async def load_models_on_startup():
 
     # ---- VLM (LLaVA) ----
     try:
+        #vlm_name = os.getenv("VLM_MODEL", "llava-hf/llava-1.5-7b-hf")
         vlm_name = os.getenv("VLM_MODEL", "llava-hf/llava-1.5-7b-hf")
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\n[3/3] VLM 로드 시도: {vlm_name}")
 

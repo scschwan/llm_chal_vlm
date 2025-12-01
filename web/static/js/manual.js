@@ -9,6 +9,7 @@ let anomalyResultData = null;
 let selectedModel = null;
 let selectedRating = null;
 let generatedManual = null;
+let serverConfig = null;  // ✅ 추가: 서버 설정
 
 // DOM 요소
 const top1Image = document.getElementById('top1Image');
@@ -68,12 +69,57 @@ document.addEventListener('DOMContentLoaded', async () => {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[MANUAL] 페이지 로드 완료');
     
+    // ✅ 추가: 서버 설정 로드
+    loadServerConfig();
+    
     // 세션에서 데이터 복원
     restoreSessionData();
     
     // 이벤트 리스너 등록
     initEventListeners();
 });
+
+/**
+ * ✅ 추가: 서버 설정 로드
+ */
+async function loadServerConfig() {
+    try {
+        const response = await fetch('/manual/server-config');
+        const data = await response.json();
+        
+        serverConfig = data;
+        console.log('[MANUAL] 서버 설정 로드:', serverConfig);
+        
+        // VLM 비활성화 처리
+        if (!serverConfig.vlm_enabled) {
+            const llavaBtn = document.querySelector('[data-model="llava"]');
+            if (llavaBtn) {
+                llavaBtn.disabled = true;
+                llavaBtn.style.opacity = '0.5';
+                llavaBtn.style.cursor = 'not-allowed';
+                llavaBtn.title = 'CPU 서버에서는 VLM 모델을 사용할 수 없습니다';
+                
+                // 버튼에 비활성화 표시 추가
+                const badge = document.createElement('span');
+                badge.className = 'badge badge-warning';
+                badge.textContent = 'CPU 전용 서버';
+                badge.style.marginLeft = '8px';
+                badge.style.fontSize = '0.75rem';
+                llavaBtn.appendChild(badge);
+            }
+            console.log('[MANUAL] VLM 버튼 비활성화 (CPU 서버)');
+        }
+        
+    } catch (error) {
+        console.error('[MANUAL] 서버 설정 로드 실패:', error);
+        // 기본값 사용
+        serverConfig = {
+            is_cpu_server: false,
+            vlm_enabled: true,
+            timeout: 120
+        };
+    }
+}
 
 /**
  * 이벤트 리스너 초기화
@@ -188,6 +234,16 @@ function displayImages() {
  * 모델 선택
  */
 function selectModel(model) {
+    // ✅ 추가: VLM 선택 차단
+    if (model === 'llava' && serverConfig && !serverConfig.vlm_enabled) {
+        showNotification(
+            'CPU 서버에서는 VLM(LLaVA) 모델을 사용할 수 없습니다. ' +
+            'HyperCLOVAX 또는 EXAONE 모델을 선택해주세요.',
+            'warning'
+        );
+        return;
+    }
+    
     selectedModel = model;
     
     // UI 업데이트
@@ -215,7 +271,7 @@ async function generateManual() {
     }
     
     console.log('[MANUAL] 매뉴얼 생성 시작:', selectedModel);
-    console.log('[MANUAL] response_id:', anomalyResultData.response_id);  // ✅ 추가
+    console.log('[MANUAL] response_id:', anomalyResultData.response_id);
     
     try {
         // UI 상태 변경
@@ -226,23 +282,19 @@ async function generateManual() {
         progressText.textContent = `${getModelDisplayName(selectedModel)} 모델로 분석 중...`;
         
         // 매뉴얼 생성 요청
-        //const response = await fetch(`${API_BASE_URL}/manual/generate`, {
-        // ✅ 상대 경로로 수정
         const response = await fetch('/manual/generate', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                //product: anomalyResultData.product,
-                //defect: anomalyResultData.defect,
                 product: anomalyResultData.product_code,
                 defect: anomalyResultData.defect_code,
                 anomaly_score: anomalyResultData.image_score,
                 is_anomaly: anomalyResultData.is_anomaly,
                 model_type: selectedModel,
                 image_path: uploadedImageData.file_path,
-                response_id: anomalyResultData.response_id  // ✅ 추가
+                response_id: anomalyResultData.response_id
             })
         });
         
@@ -253,7 +305,7 @@ async function generateManual() {
         
         const data = await response.json();
         console.log('[MANUAL] 매뉴얼 생성 완료:', data);
-        console.log('[MANUAL] response_id 확인:', data.response_id);  // ✅ 추가
+        console.log('[MANUAL] response_id 확인:', data.response_id);
         
         // 결과 저장
         generatedManual = data;
