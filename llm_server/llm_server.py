@@ -543,7 +543,7 @@ def analyze(req: AnalysisRequest):
         do_sample=do_sample,
         repetition_penalty=1.3,
         num_beams=1,  # Beam search 비활성화 (속도 2-3배 향상)
-        early_stopping=True,  # EOS 토큰 발견 시 즉시 중단
+        #early_stopping=True,  # EOS 토큰 발견 시 즉시 중단
     )
     if do_sample:
         gen_kwargs.update(dict(top_p=0.9))
@@ -662,7 +662,7 @@ def analyze_exaone(req: ExaoneAnalysisRequest):
         repetition_penalty=req.repetition_penalty,
         eos_token_id=exaone_tokenizer.eos_token_id,
         num_beams=1,  # Beam search 비활성화 (속도 2-3배 향상)
-        early_stopping=True,  # EOS 토큰 발견 시 즉시 중단
+        #early_stopping=True,  # EOS 토큰 발견 시 즉시 중단
     )
     if do_sample:
         gen_kwargs.update(dict(top_p=req.top_p))
@@ -781,7 +781,7 @@ def analyze_vlm(req: VLMAnalysisRequest):
             temperature=float(max(min(req.temperature, 1.5), 0.0)),
             do_sample=do_sample,
             num_beams=1,  # Beam search 비활성화 (속도 2-3배 향상)
-            early_stopping=True,  # EOS 토큰 발견 시 즉시 중단
+            #early_stopping=True,  # EOS 토큰 발견 시 즉시 중단
         )
         if do_sample:
             gen_kwargs.update(dict(top_p=0.9))
