@@ -243,8 +243,8 @@
     │   ├── [    6]  leather_fold_016
     │   ├── [   82]  leather_glue_017
     │   └── [   82]  leather_poke_017
-    ├── [  78K]  api_server.log
-    ├── [    5]  api_server.pid
+    ├── [ 1.6K]  api_server.log
+    ├── [    6]  api_server.pid
     ├── [  33K]  api_server.py
     ├── [ 3.5M]  data
     │   └── [ 3.5M]  def_split
@@ -361,7 +361,7 @@
     │       ├── [  19K]  search.js
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
-    ├── [   34]  uploads
+    ├── [    6]  uploads
     └── [  18K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
