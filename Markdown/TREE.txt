@@ -1,10 +1,10 @@
 .
-├── [  29K]  admin
+├── [  33K]  admin
 │   ├── [  16K]  defect_mapping_manager.py
 │   └── [  13K]  DEFECT_MAPPING_QUICKSTART.md
 ├── [  300]  build_patchcore.sh
 ├── [  42M]  data
-│   ├── [  84K]  def_split
+│   ├── [ 108K]  def_split
 │   │   └── [   67]  change_name.sh
 │   └── [  42M]  patchCore
 │       ├── [ 7.8M]  carpet
@@ -38,18 +38,18 @@
 │       │   ├── [ 3.3M]  memory_bank.pt
 │       │   ├── [ 4.0K]  ok
 │       │   └── [   64]  tau.json
-│       ├── [  198]  test6
-│       │   └── [  182]  ok
-│       └── [   47]  test8
-│           └── [   31]  ok
-├── [  33K]  docs
+│       ├── [ 8.0K]  test6
+│       │   └── [ 4.0K]  ok
+│       └── [ 8.0K]  test8
+│           └── [ 4.0K]  ok
+├── [  37K]  docs
 │   ├── [  14K]  API_명세서.md
 │   └── [  18K]  API_명세서.xlsx
-├── [ 169K]  llm_server
+├── [  40K]  llm_server
 │   ├── [ 2.7K]  =4.54.0
 │   ├── [  692]  check_hyperclova.sh
-│   ├── [ 134K]  llm_server.log
-│   ├── [    7]  llm_server.pid
+│   ├── [ 1.5K]  llm_server.log
+│   ├── [    5]  llm_server.pid
 │   ├── [  30K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
 ├── [  41M]  manual_store
@@ -96,18 +96,18 @@
 │   ├── [ 4.5K]  TOP-K TEST_GUIDE.md
 │   ├── [    0]  TREE.txt
 │   └── [ 7.0K]  USAGE_GUIDE.md
-├── [ 155K]  modules
+├── [ 167K]  modules
 │   ├── [  17K]  anomaly_detector.py
 │   ├── [ 3.9K]  augment_images.py
 │   ├── [    0]  __init__.py
-│   ├── [  43K]  patchCore
+│   ├── [  47K]  patchCore
 │   │   ├── [  15K]  build_bank.py
 │   │   ├── [ 2.3K]  compare_diff.py
 │   │   ├── [  11K]  infer.py
 │   │   └── [  15K]  patchcore_demo.py
 │   ├── [  12K]  similarity_matcher.py
 │   ├── [  15K]  similarity_matcher_v2.py
-│   └── [  65K]  vlm
+│   └── [  69K]  vlm
 │       ├── [  10K]  defect_mapper.py
 │       ├── [  488]  __init__.py
 │       ├── [  11K]  llm_inference.py
@@ -115,7 +115,7 @@
 │       ├── [ 6.4K]  rag_manager.py
 │       ├── [  20K]  rag.py
 │       └── [  11K]  vlm_inference.py
-├── [ 7.1K]  object_storage
+├── [  11K]  object_storage
 │   ├── [  477]  file_delete_sample.py
 │   ├── [  517]  file_download_sample.py
 │   ├── [ 2.2K]  file_search_sample.py
@@ -145,9 +145,9 @@
 │   │   │   └── [  39M]  weights
 │   │   │       ├── [  20M]  best.pt
 │   │   │       └── [  20M]  last.pt
-│   │   ├── [ 1.6K]  bolt_model4
+│   │   ├── [ 5.6K]  bolt_model4
 │   │   │   └── [ 1.6K]  args.yaml
-│   │   ├── [ 1.6K]  bolt_model5
+│   │   ├── [ 5.6K]  bolt_model5
 │   │   │   └── [ 1.6K]  args.yaml
 │   │   ├── [  37M]  bolt_model6
 │   │   │   ├── [ 1.6K]  args.yaml
@@ -161,7 +161,7 @@
 │   │   │   └── [  37M]  weights
 │   │   │       ├── [  18M]  best.pt
 │   │   │       └── [  18M]  last.pt
-│   │   ├── [ 1.6K]  bolt_model8
+│   │   ├── [ 5.6K]  bolt_model8
 │   │   │   └── [ 1.6K]  args.yaml
 │   │   └── [  37M]  bolt_model9
 │   │       ├── [ 1.6K]  args.yaml
@@ -169,7 +169,7 @@
 │   │       └── [  37M]  weights
 │   │           ├── [  18M]  best.pt
 │   │           └── [  18M]  last.pt
-│   └── [  58K]  modules
+│   └── [  62K]  modules
 │       ├── [ 8.4K]  clip_search.py
 │       ├── [ 6.5K]  evaluate_yolo_seg.py
 │       ├── [ 1.4K]  image_processor.py
@@ -183,11 +183,13 @@
 │       ├── [ 6.3K]  train_val_pipeline.py
 │       ├── [  11K]  train_yolo_seg.py
 │       └── [ 3.8K]  vlm_local.py
-├── [  628]  requirements_llm.txt
-├── [  354]  requirements_patchcore.txt
+├── [ 1.4K]  requirements_llm.txt
+├── [  628]  requirements_llm.txt_251111
+├── [ 2.7K]  requirements_patchcore.txt
+├── [  354]  requirements_patchcore.txt_251108
 ├── [  200]  requirements_vlm_add.txt
-├── [ 5.1K]  results
-│   ├── [ 1.0K]  eval_test
+├── [  13K]  results
+│   ├── [ 5.0K]  eval_test
 │   │   └── [  979]  metrics_summary.json
 │   └── [ 4.0K]  roi
 ├── [ 6.2K]  save_db_schema.sh
@@ -196,51 +198,55 @@
 ├── [  335]  settings.config
 ├── [ 2.1K]  start_api_server.sh
 ├── [ 2.1K]  start_llm_server.sh
-├── [   46]  temp_deploy
-│   ├── [    6]  defect
-│   └── [    6]  normal
-├── [    6]  uploads
+├── [  12K]  temp_deploy
+│   ├── [ 4.0K]  defect
+│   └── [ 4.0K]  normal
+├── [ 4.0K]  uploads
 └── [  21M]  web
-    ├── [ 6.4K]  anomaly_outputs
-    │   ├── [   82]  001
-    │   ├── [   82]  002
-    │   ├── [   82]  003
-    │   ├── [   82]  008
-    │   ├── [   82]  010
-    │   ├── [   82]  011
-    │   ├── [   82]  012
-    │   ├── [   82]  013
-    │   ├── [   82]  016
-    │   ├── [   82]  carpet_color_018
-    │   ├── [   82]  carpet_metal_contamination_016
-    │   ├── [   82]  carpet_thread_016
-    │   ├── [   82]  carpet_thread_017
-    │   ├── [   82]  cast_def_0_1091
-    │   ├── [   82]  cast_def_0_122
-    │   ├── [   82]  cast_def_0_146
-    │   ├── [   82]  cast_def_0_231
-    │   ├── [   82]  cast_def_0_240
-    │   ├── [   82]  cast_def_0_318
-    │   ├── [   82]  cast_def_0_430
-    │   ├── [   82]  cast_def_0_604
-    │   ├── [   82]  cast_def_0_619
-    │   ├── [   82]  cast_def_0_786
-    │   ├── [   82]  grid_bent_010
-    │   ├── [   82]  grid_glue_009
-    │   ├── [   82]  grid_metal_contamination_009
-    │   ├── [   82]  leather_color_017
-    │   ├── [   82]  leather_cut_016
-    │   ├── [   82]  leather_fold_014
-    │   ├── [   82]  leather_fold_015
-    │   └── [    6]  leather_fold_016
-    ├── [ 512K]  api_server.log
-    ├── [    7]  api_server.pid
+    ├── [ 144K]  anomaly_outputs
+    │   ├── [ 4.0K]  001
+    │   ├── [ 4.0K]  002
+    │   ├── [ 4.0K]  003
+    │   ├── [ 4.0K]  006
+    │   ├── [ 4.0K]  008
+    │   ├── [ 4.0K]  010
+    │   ├── [ 4.0K]  011
+    │   ├── [ 4.0K]  012
+    │   ├── [ 4.0K]  013
+    │   ├── [ 4.0K]  016
+    │   ├── [ 4.0K]  carpet_color_017
+    │   ├── [ 4.0K]  carpet_color_018
+    │   ├── [ 4.0K]  carpet_metal_contamination_016
+    │   ├── [ 4.0K]  carpet_thread_016
+    │   ├── [ 4.0K]  carpet_thread_017
+    │   ├── [ 4.0K]  cast_def_0_1091
+    │   ├── [ 4.0K]  cast_def_0_122
+    │   ├── [ 4.0K]  cast_def_0_146
+    │   ├── [ 4.0K]  cast_def_0_231
+    │   ├── [ 4.0K]  cast_def_0_240
+    │   ├── [ 4.0K]  cast_def_0_318
+    │   ├── [ 4.0K]  cast_def_0_380
+    │   ├── [ 4.0K]  cast_def_0_430
+    │   ├── [ 4.0K]  cast_def_0_604
+    │   ├── [ 4.0K]  cast_def_0_619
+    │   ├── [ 4.0K]  cast_def_0_786
+    │   ├── [ 4.0K]  grid_bent_010
+    │   ├── [ 4.0K]  grid_glue_009
+    │   ├── [ 4.0K]  grid_metal_contamination_009
+    │   ├── [ 4.0K]  leather_color_017
+    │   ├── [ 4.0K]  leather_cut_016
+    │   ├── [ 4.0K]  leather_cut_018
+    │   ├── [ 4.0K]  leather_fold_014
+    │   ├── [ 4.0K]  leather_fold_015
+    │   └── [ 4.0K]  leather_fold_016
+    ├── [ 1.6K]  api_server.log
+    ├── [    5]  api_server.pid
     ├── [  33K]  api_server.py
     ├── [ 3.5M]  data
     │   └── [ 3.5M]  def_split
     │       ├── [ 1.8M]  carpet_hole_20251120185134.PNG
     │       └── [ 1.8M]  carpet_metal_20251120191558.PNG
-    ├── [  48K]  database
+    ├── [  52K]  database
     │   ├── [ 3.3K]  connection.py
     │   ├── [  26K]  crud.py
     │   ├── [  10K]  image_table_insert.py
@@ -253,7 +259,7 @@
     │   │   └── [ 4.2M]  index_data.pt
     │   ├── [ 260K]  faiss_index.bin
     │   ├── [ 268K]  index_data.pt
-    │   └── [ 605K]  normal
+    │   └── [ 609K]  normal
     │       ├── [ 296K]  faiss_index.bin
     │       └── [ 309K]  index_data.pt
     ├── [ 6.8M]  index_cache_v2
@@ -261,13 +267,13 @@
     │   │   ├── [ 2.8M]  embeddings.pt
     │   │   ├── [ 2.8M]  faiss_index.bin
     │   │   └── [ 652K]  metadata.json
-    │   └── [ 525K]  normal
+    │   └── [ 529K]  normal
     │       ├── [ 238K]  embeddings.pt
     │       ├── [ 236K]  faiss_index.bin
     │       └── [  52K]  metadata.json
     ├── [  14K]  matching.html
-    ├── [ 121K]  pages
-    │   ├── [  44K]  admin
+    ├── [ 129K]  pages
+    │   ├── [  48K]  admin
     │   │   ├── [ 3.7K]  admin_defect_type.html
     │   │   ├── [ 3.4K]  admin_deploy_clip.html
     │   │   ├── [ 3.4K]  admin_deploy_patchcore.html
@@ -290,8 +296,8 @@
     │   └── [ 4.7K]  upload.html.bak
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 179K]  routers
-    │   ├── [ 112K]  admin
+    ├── [ 187K]  routers
+    │   ├── [ 116K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
     │   │   ├── [  26K]  deployment.py
@@ -308,9 +314,9 @@
     │   ├── [ 6.9K]  search.py
     │   ├── [  15K]  search_v2.py
     │   └── [ 4.2K]  upload.py
-    ├── [ 353K]  static
-    │   ├── [ 166K]  admin
-    │   │   ├── [  61K]  css
+    ├── [ 376K]  static
+    │   ├── [ 177K]  admin
+    │   │   ├── [  65K]  css
     │   │   │   ├── [ 4.5K]  admin_defect_type.css
     │   │   │   ├── [ 3.6K]  admin_deploy_clip.css
     │   │   │   ├── [ 5.0K]  admin_deploy_patchcore.css
@@ -322,7 +328,7 @@
     │   │   │   ├── [ 7.0K]  admin_preprocessing.css
     │   │   │   ├── [ 3.9K]  admin_product.css
     │   │   │   └── [ 6.0K]  dashboard.css
-    │   │   └── [ 104K]  js
+    │   │   └── [ 108K]  js
     │   │       ├── [ 7.8K]  admin_defect_type.js
     │   │       ├── [ 7.6K]  admin_deploy_clip.js
     │   │       ├── [ 9.9K]  admin_deploy_patchcore.js
@@ -334,14 +340,14 @@
     │   │       ├── [  16K]  admin_preprocessing.js
     │   │       ├── [ 5.5K]  admin_product.js
     │   │       └── [ 8.8K]  dashboard.js
-    │   ├── [  38K]  css
+    │   ├── [  42K]  css
     │   │   ├── [ 4.6K]  anomaly.css
     │   │   ├── [ 3.3K]  common.css
     │   │   ├── [ 5.7K]  manual.css
     │   │   ├── [  13K]  matching.css
     │   │   ├── [ 8.0K]  search.css
     │   │   └── [ 3.3K]  upload.css
-    │   └── [ 149K]  js
+    │   └── [ 153K]  js
     │       ├── [  12K]  anomaly.js
     │       ├── [  12K]  anomaly.js.bak
     │       ├── [ 3.9K]  common.js
@@ -351,11 +357,11 @@
     │       ├── [  19K]  search.js
     │       ├── [  17K]  search.js.bak
     │       └── [ 9.8K]  upload.js
-    ├── [   33]  uploads
-    └── [  18K]  utils
+    ├── [ 4.0K]  uploads
+    └── [  22K]  utils
         ├── [ 2.2K]  auth.py
         ├── [    0]  __init__.py
         ├── [  11K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  332M used in 109 directories, 249 files
+  332M used in 113 directories, 251 files
