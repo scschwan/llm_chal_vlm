@@ -9,6 +9,7 @@ import torch
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from PIL import Image
+from pathlib import Path  # ✅ 추가
 
 from transformers import (
     AutoModelForCausalLM,
@@ -22,6 +23,12 @@ from transformers import (
 # FastAPI
 # =========================
 app = FastAPI(title="LLM/VLM Server", version="2.0")
+
+
+# =========================
+# ✅ 서버 설정 저장용 전역 변수
+# =========================
+_server_config = {}
 
 # =========================
 # 전역 모델 핸들
@@ -88,6 +95,45 @@ class VLMAnalysisRequest(BaseModel):
     prompt: Optional[str] = None  # ✅ Optional로 변경
     max_new_tokens: int = 1024
     temperature: float = 0.7
+
+
+# =========================
+# ✅ 설정 파일 로드 함수
+# =========================
+def load_server_config():
+    """settings.config 파일 로드"""
+    global _server_config
+    
+    # llm_server/ 기준으로 상위 디렉토리의 settings.config
+    config_file = Path(__file__).parent.parent / "settings.config"
+    
+    print(f"[CONFIG] 설정 파일 확인: {config_file}")
+    
+    if not config_file.exists():
+        print(f"[CONFIG] ⚠️ 설정 파일 없음 - 기본값 사용")
+        _server_config["IS_CPU_SERVER"] = "false"
+        return
+    
+    try:
+        with open(config_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                # 주석이나 빈 줄 무시
+                if not line or line.startswith('#'):
+                    continue
+                # KEY=VALUE 형식 파싱
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    _server_config[key.strip()] = value.strip()
+        
+        is_cpu = _server_config.get('IS_CPU_SERVER', 'false').lower() == 'true'
+        print(f"[CONFIG] ✅ 설정 로드 완료")
+        print(f"[CONFIG]    IS_CPU_SERVER = {is_cpu}")
+        
+    except Exception as e:
+        print(f"[CONFIG] ⚠️ 설정 로드 실패: {e}")
+        _server_config["IS_CPU_SERVER"] = "false"
+
 
 # =========================
 # 유틸: 프롬프트 빌더(LLM)
@@ -397,6 +443,12 @@ async def load_models_on_startup():
     global exaone_name, exaone_model, exaone_tokenizer
     global vlm_name, vlm_model, vlm_processor
 
+
+  
+    # ✅ 1. 설정 파일 로드
+    load_server_config()
+    is_cpu_server = _server_config.get('IS_CPU_SERVER', 'false').lower() == 'true'
+    
     print("\n" + "="*60)
     print("LLM/VLM 서버 시작")
     print("="*60)
@@ -470,23 +522,30 @@ async def load_models_on_startup():
         exaone_tokenizer = None
 
     # ---- VLM (LLaVA) ----
-    try:
-        vlm_name = os.getenv("VLM_MODEL", "llava-hf/llava-1.5-7b-hf")
-        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\n[3/3] VLM 로드 시도: {vlm_name}")
-
-        vlm_model = LlavaForConditionalGeneration.from_pretrained(
-            vlm_name,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-            device_map="auto",
-        )
-        vlm_processor = AutoProcessor.from_pretrained(vlm_name)
-        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]✅ VLM 로드 완료")
-        
-    except Exception as e:
-        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]⚠️ VLM 로드 실패: {e}")
+    if is_cpu_server:
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\n[3/3] VLM 로드 스킵 - CPU 서버 모드")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]⚠️ LLaVA 모델은 CPU 서버에서 비활성화됩니다")
         vlm_name = None
         vlm_model = None
         vlm_processor = None
+    else:
+        try:
+            vlm_name = os.getenv("VLM_MODEL", "llava-hf/llava-1.5-7b-hf")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\n[3/3] VLM 로드 시도: {vlm_name}")
+
+            vlm_model = LlavaForConditionalGeneration.from_pretrained(
+                vlm_name,
+                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                device_map="auto",
+            )
+            vlm_processor = AutoProcessor.from_pretrained(vlm_name)
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]✅ VLM 로드 완료")
+            
+        except Exception as e:
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]⚠️ VLM 로드 실패: {e}")
+            vlm_name = None
+            vlm_model = None
+            vlm_processor = None
     
     print("\n" + "="*60)
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]서버 초기화 완료")
@@ -497,13 +556,17 @@ async def load_models_on_startup():
 # =========================
 @app.get("/")
 def root():
+    is_cpu = _server_config.get('IS_CPU_SERVER', 'false').lower() == 'true'
+    
     return {
         "service": "LLM/VLM Server",
+        "server_type": "CPU" if is_cpu else "GPU",
         "models": {
-            "llm": llm_name,
-            "vlm": vlm_name,
+            "hyperclovax": hyperclovax_name,
+            "exaone": exaone_name,
+            "vlm": vlm_name if not is_cpu else "disabled (CPU server)",
         },
-        "endpoints": ["/analyze", "/analyze_vlm", "/health"],
+        "endpoints": ["/analyze", "/analyze_exaone", "/analyze_vlm", "/health"],
     }
 
 
@@ -714,6 +777,18 @@ def analyze_vlm(req: VLMAnalysisRequest):
     print("\n" + "="*60)
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][VLM ANALYZE] 요청 시작")
     print("="*60)
+
+     
+    # ✅ CPU 서버 체크
+    is_cpu_server = _server_config.get('IS_CPU_SERVER', 'false').lower() == 'true'
+    
+    if is_cpu_server:
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][ERROR] CPU 서버에서 VLM 호출 시도")
+        raise HTTPException(
+            status_code=503,
+            detail="CPU 서버에서는 VLM(LLaVA) 모델을 사용할 수 없습니다. GPU 서버를 이용하거나 HyperCLOVAX/EXAONE 모델을 사용하세요."
+        )
+    
     
     if vlm_model is None or vlm_processor is None:
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][ERROR] VLM 모델이 로드되지 않음")
