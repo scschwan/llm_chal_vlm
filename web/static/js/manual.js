@@ -102,7 +102,7 @@ async function loadServerConfig() {
                 // 버튼에 비활성화 표시 추가
                 const badge = document.createElement('span');
                 badge.className = 'badge badge-warning';
-                badge.textContent = 'CPU 전용 서버';
+                badge.textContent = '사용 불가';
                 badge.style.marginLeft = '8px';
                 badge.style.fontSize = '0.75rem';
                 llavaBtn.appendChild(badge);
