@@ -9,4 +9,4 @@ similar_image_search_web/
 .venv_patch/
 .venv-patchcore/
 .idea
-settings.config
+.settings.config
