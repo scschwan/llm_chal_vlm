@@ -281,42 +281,71 @@ async function generateManual() {
         
         progressText.textContent = `${getModelDisplayName(selectedModel)} 모델로 분석 중...`;
         
-        // 매뉴얼 생성 요청
-        const response = await fetch('/manual/generate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                product: anomalyResultData.product_code,
-                defect: anomalyResultData.defect_code,
-                anomaly_score: anomalyResultData.image_score,
-                is_anomaly: anomalyResultData.is_anomaly,
-                model_type: selectedModel,
-                image_path: uploadedImageData.file_path,
-                response_id: anomalyResultData.response_id
-            })
-        });
+         
+        // ✅ 추가: AbortController로 timeout 구현
+        // 서버 timeout + 30초 여유분 (서버: 300초 → 클라이언트: 330초)
+        const timeoutMs = (serverConfig?.timeout || 120) * 1000 + 30000;
+        console.log(`[MANUAL] Fetch timeout: ${timeoutMs / 1000}초`);
         
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || '매뉴얼 생성 실패');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+            console.error('[MANUAL] Timeout 발생');
+        }, timeoutMs)
+
+        try {
+             // 매뉴얼 생성 요청
+            const response = await fetch('/manual/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    product: anomalyResultData.product_code,
+                    defect: anomalyResultData.defect_code,
+                    anomaly_score: anomalyResultData.image_score,
+                    is_anomaly: anomalyResultData.is_anomaly,
+                    model_type: selectedModel,
+                    image_path: uploadedImageData.file_path,
+                    response_id: anomalyResultData.response_id
+                }),
+                signal: controller.signal  // ✅ AbortSignal 추가
+            });
+
+
+                
+            clearTimeout(timeoutId);  // ✅ timeout 타이머 해제
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || '매뉴얼 생성 실패');
+            }
+            
+            const data = await response.json();
+            console.log('[MANUAL] 매뉴얼 생성 완료:', data);
+            console.log('[MANUAL] response_id 확인:', data.response_id);
+            
+            // 결과 저장
+            generatedManual = data;
+            
+            // 결과 표시
+            displayManual(data);
+            
+            // 작업자 입력 섹션 표시
+            workerInputSection.style.display = 'block';
+            
+            showNotification('매뉴얼 생성 완료', 'success');
+        }catch (fetchError) {
+            clearTimeout(timeoutId);
+            
+            // ✅ Timeout 에러와 네트워크 에러 구분
+            if (fetchError.name === 'AbortError') {
+                throw new Error(`요청 시간 초과 (${timeoutMs / 1000}초). CPU 서버에서 모델 추론이 지연되고 있습니다.`);
+            } else {
+                throw fetchError;
+            }
         }
-        
-        const data = await response.json();
-        console.log('[MANUAL] 매뉴얼 생성 완료:', data);
-        console.log('[MANUAL] response_id 확인:', data.response_id);
-        
-        // 결과 저장
-        generatedManual = data;
-        
-        // 결과 표시
-        displayManual(data);
-        
-        // 작업자 입력 섹션 표시
-        workerInputSection.style.display = 'block';
-        
-        showNotification('매뉴얼 생성 완료', 'success');
+       
         
     } catch (error) {
         console.error('[MANUAL] 매뉴얼 생성 실패:', error);
