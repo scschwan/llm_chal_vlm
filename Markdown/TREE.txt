@@ -57,10 +57,10 @@
 ├── [  37K]  docs
 │   ├── [  14K]  API_명세서.md
 │   └── [  18K]  API_명세서.xlsx
-├── [  44K]  llm_server
+├── [  50K]  llm_server
 │   ├── [ 2.7K]  =4.54.0
 │   ├── [  692]  check_hyperclova.sh
-│   ├── [ 2.4K]  llm_server.log
+│   ├── [ 8.5K]  llm_server.log
 │   ├── [    6]  llm_server.pid
 │   ├── [  32K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
@@ -213,7 +213,7 @@
 │   └── [ 4.0K]  normal
 ├── [ 4.0K]  uploads
 └── [  22M]  web
-    ├── [ 152K]  anomaly_outputs
+    ├── [ 156K]  anomaly_outputs
     │   ├── [ 4.0K]  001
     │   ├── [ 4.0K]  002
     │   ├── [ 4.0K]  003
@@ -245,13 +245,14 @@
     │   ├── [ 4.0K]  grid_glue_009
     │   ├── [ 4.0K]  grid_metal_contamination_009
     │   ├── [ 4.0K]  insect4
+    │   ├── [ 4.0K]  insect5
     │   ├── [ 4.0K]  leather_color_017
     │   ├── [ 4.0K]  leather_cut_016
     │   ├── [ 4.0K]  leather_cut_018
     │   ├── [ 4.0K]  leather_fold_014
     │   ├── [ 4.0K]  leather_fold_015
     │   └── [ 4.0K]  leather_fold_016
-    ├── [ 131K]  api_server.log
+    ├── [ 1.6K]  api_server.log
     ├── [    6]  api_server.pid
     ├── [  33K]  api_server.py
     ├── [ 3.5M]  data
@@ -278,7 +279,7 @@
     │   ├── [ 7.1M]  defect
     │   │   ├── [ 3.2M]  embeddings.pt
     │   │   ├── [ 3.2M]  faiss_index.bin
-    │   │   └── [ 733K]  metadata.json
+    │   │   └── [ 731K]  metadata.json
     │   └── [ 765K]  normal
     │       ├── [ 344K]  embeddings.pt
     │       ├── [ 342K]  faiss_index.bin
@@ -376,4 +377,4 @@
         ├── [  11K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  347M used in 117 directories, 259 files
+  347M used in 118 directories, 259 files
