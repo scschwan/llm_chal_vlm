@@ -4,10 +4,10 @@
 │   ├── [  16K]  defect_mapping_manager.py
 │   └── [  13K]  DEFECT_MAPPING_QUICKSTART.md
 ├── [  300]  build_patchcore.sh
-├── [ 121M]  data
+├── [ 126M]  data
 │   ├── [ 132K]  def_split
 │   │   └── [   67]  change_name.sh
-│   └── [ 121M]  patchCore
+│   └── [ 126M]  patchCore
 │       ├── [  27M]  Allswell-Border
 │       │   ├── [  154]  bank_config.json
 │       │   ├── [  27M]  memory_bank.pt
@@ -18,9 +18,9 @@
 │       │   ├── [  27M]  memory_bank.pt
 │       │   ├── [  12K]  ok
 │       │   └── [   64]  tau.json
-│       ├── [  22M]  Allswell-Top
+│       ├── [  27M]  Allswell-Top
 │       │   ├── [  154]  bank_config.json
-│       │   ├── [  22M]  memory_bank.pt
+│       │   ├── [  27M]  memory_bank.pt
 │       │   ├── [ 4.0K]  ok
 │       │   └── [   64]  tau.json
 │       ├── [ 7.8M]  carpet
@@ -67,11 +67,11 @@
 ├── [  37K]  docs
 │   ├── [  14K]  API_명세서.md
 │   └── [  18K]  API_명세서.xlsx
-├── [  50K]  llm_server
+├── [  43K]  llm_server
 │   ├── [ 2.7K]  =4.54.0
 │   ├── [  692]  check_hyperclova.sh
-│   ├── [ 9.0K]  llm_server.log
-│   ├── [    6]  llm_server.pid
+│   ├── [ 1.5K]  llm_server.log
+│   ├── [    5]  llm_server.pid
 │   ├── [  32K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
 ├── [ 4.0K]  logs
@@ -223,8 +223,8 @@
 │   ├── [ 4.0K]  defect
 │   └── [ 4.0K]  normal
 ├── [ 4.0K]  uploads
-└── [  22M]  web
-    ├── [ 156K]  anomaly_outputs
+└── [  24M]  web
+    ├── [ 160K]  anomaly_outputs
     │   ├── [ 4.0K]  001
     │   ├── [ 4.0K]  002
     │   ├── [ 4.0K]  003
@@ -262,9 +262,10 @@
     │   ├── [ 4.0K]  leather_cut_018
     │   ├── [ 4.0K]  leather_fold_014
     │   ├── [ 4.0K]  leather_fold_015
-    │   └── [ 4.0K]  leather_fold_016
+    │   ├── [ 4.0K]  leather_fold_016
+    │   └── [ 4.0K]  seam7
     ├── [ 1.6K]  api_server.log
-    ├── [    6]  api_server.pid
+    ├── [    5]  api_server.pid
     ├── [  33K]  api_server.py
     ├── [ 3.5M]  data
     │   └── [ 3.5M]  def_split
@@ -286,15 +287,15 @@
     │   └── [ 609K]  normal
     │       ├── [ 296K]  faiss_index.bin
     │       └── [ 309K]  index_data.pt
-    ├── [ 7.8M]  index_cache_v2
-    │   ├── [ 7.1M]  defect
-    │   │   ├── [ 3.2M]  embeddings.pt
-    │   │   ├── [ 3.2M]  faiss_index.bin
-    │   │   └── [ 731K]  metadata.json
-    │   └── [ 765K]  normal
-    │       ├── [ 344K]  embeddings.pt
-    │       ├── [ 342K]  faiss_index.bin
-    │       └── [  76K]  metadata.json
+    ├── [  11M]  index_cache_v2
+    │   ├── [ 8.1M]  defect
+    │   │   ├── [ 3.6M]  embeddings.pt
+    │   │   ├── [ 3.6M]  faiss_index.bin
+    │   │   └── [ 837K]  metadata.json
+    │   └── [ 2.5M]  normal
+    │       ├── [ 1.1M]  embeddings.pt
+    │       ├── [ 1.1M]  faiss_index.bin
+    │       └── [ 265K]  metadata.json
     ├── [  14K]  matching.html
     ├── [ 129K]  pages
     │   ├── [  48K]  admin
@@ -388,4 +389,4 @@
         ├── [  11K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  402M used in 123 directories, 265 files
+  410M used in 124 directories, 265 files
