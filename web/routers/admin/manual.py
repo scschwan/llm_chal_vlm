@@ -50,14 +50,15 @@ class ManualResponse(BaseModel):
 @router.post("")
 async def upload_manual(
     product_id: int = Form(...),
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
 ):
     """
     매뉴얼 업로드 (Object Storage)
     """
     # 제품 존재 확인
     #db = next(get_db())
-    db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
+     # ✅ FastAPI가 자동으로 세션 관리
     product = crud.get_product(db, product_id)
     if not product:
         raise HTTPException(404, "제품을 찾을 수 없습니다")
@@ -206,7 +207,7 @@ def delete_manual(manual_id: int, db: Session = Depends(get_db)):
     
 
 @router.post("/sync-manual")
-async def sync_manual():
+async def sync_manual(db: Session = Depends(get_db)):
     """
     비동기화된 메뉴얼 파일 Object Storage에서 다운로드 후 RAG 재수행
     """
@@ -242,7 +243,7 @@ async def sync_manual():
     
     # DB 연결
     #db = next(get_db())
-    db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
+    #db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
     
     try:
         # 1. 비동기화된 메뉴얼 조회
