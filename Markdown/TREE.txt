@@ -45,10 +45,10 @@
 ├── [  37K]  docs
 │   ├── [  14K]  API_명세서.md
 │   └── [  18K]  API_명세서.xlsx
-├── [  51K]  llm_server
+├── [  53K]  llm_server
 │   ├── [ 2.7K]  =4.54.0
 │   ├── [  692]  check_hyperclova.sh
-│   ├── [ 9.6K]  llm_server.log
+│   ├── [  12K]  llm_server.log
 │   ├── [    5]  llm_server.pid
 │   ├── [  32K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
@@ -242,7 +242,7 @@
     │   ├── [ 4.0K]  leather_fold_014
     │   ├── [ 4.0K]  leather_fold_015
     │   └── [ 4.0K]  leather_fold_016
-    ├── [ 156K]  api_server.log
+    ├── [ 190K]  api_server.log
     ├── [    5]  api_server.pid
     ├── [  33K]  api_server.py
     ├── [ 3.5M]  data
@@ -269,11 +269,11 @@
     │   ├── [ 6.3M]  defect
     │   │   ├── [ 2.8M]  embeddings.pt
     │   │   ├── [ 2.8M]  faiss_index.bin
-    │   │   └── [ 652K]  metadata.json
-    │   └── [ 529K]  normal
-    │       ├── [ 238K]  embeddings.pt
-    │       ├── [ 236K]  faiss_index.bin
-    │       └── [  52K]  metadata.json
+    │   │   └── [ 650K]  metadata.json
+    │   └── [ 498K]  normal
+    │       ├── [ 224K]  embeddings.pt
+    │       ├── [ 222K]  faiss_index.bin
+    │       └── [  49K]  metadata.json
     ├── [  14K]  matching.html
     ├── [ 129K]  pages
     │   ├── [  48K]  admin
