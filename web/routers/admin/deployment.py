@@ -392,6 +392,12 @@ import json
 async def patchcore_build_task(task_id: str):
     """PatchCore 메모리뱅크 생성 백그라운드 작업"""
     deploy_id = None
+
+    # 로그 파일 경로 설정
+    log_dir = Path("/home/dmillion/llm_chal_vlm/logs")
+    log_dir.mkdir(exist_ok=True)
+    log_file = log_dir / f"patchcore_{task_id}.log"
+
     try:
         deployment_tasks[task_id] = {
             'status': 'running',
@@ -461,6 +467,12 @@ async def patchcore_build_task(task_id: str):
             if log_line:
                 deployment_tasks[task_id]['logs'].append(log_line)
                 
+                print(log_line)
+                
+                 # 파일에도 저장
+                with open(log_file, 'a', encoding='utf-8') as f:
+                    f.write(f"{datetime.now().isoformat()} - {log_line}\n")
+
                 # 제품별 진행 상태 파싱
                 product_match = re.search(r'Building.*for\s+(\w+)', log_line, re.IGNORECASE)
                 if product_match:
