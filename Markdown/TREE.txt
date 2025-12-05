@@ -1,14 +1,18 @@
 .
+├── [  928]  1
 ├── [  33K]  admin
 │   ├── [  16K]  defect_mapping_manager.py
 │   └── [  13K]  DEFECT_MAPPING_QUICKSTART.md
 ├── [  300]  build_patchcore.sh
-├── [  42M]  data
-│   ├── [ 108K]  def_split
+├── [  66M]  data
+│   ├── [ 124K]  def_split
 │   │   └── [   67]  change_name.sh
-│   └── [  42M]  patchCore
-│       ├── [ 8.0K]  Allswell-Top
-│       │   └── [ 4.0K]  ok
+│   └── [  66M]  patchCore
+│       ├── [  22M]  Allswell-Top
+│       │   ├── [  154]  bank_config.json
+│       │   ├── [  22M]  memory_bank.pt
+│       │   ├── [ 4.0K]  ok
+│       │   └── [   64]  tau.json
 │       ├── [ 7.8M]  carpet
 │       │   ├── [  154]  bank_config.json
 │       │   ├── [ 7.8M]  memory_bank.pt
@@ -40,27 +44,33 @@
 │       │   ├── [ 3.3M]  memory_bank.pt
 │       │   ├── [ 4.0K]  ok
 │       │   └── [   64]  tau.json
-│       ├── [ 8.0K]  test6
-│       │   └── [ 4.0K]  ok
-│       └── [ 8.0K]  test8
-│           └── [ 4.0K]  ok
+│       ├── [ 1.7M]  test6
+│       │   ├── [  154]  bank_config.json
+│       │   ├── [ 1.7M]  memory_bank.pt
+│       │   ├── [ 4.0K]  ok
+│       │   └── [   64]  tau.json
+│       └── [ 290K]  test8
+│           ├── [  154]  bank_config.json
+│           ├── [ 282K]  memory_bank.pt
+│           ├── [ 4.0K]  ok
+│           └── [   64]  tau.json
 ├── [  37K]  docs
 │   ├── [  14K]  API_명세서.md
 │   └── [  18K]  API_명세서.xlsx
-├── [  53K]  llm_server
+├── [  50K]  llm_server
 │   ├── [ 2.7K]  =4.54.0
 │   ├── [  692]  check_hyperclova.sh
-│   ├── [  12K]  llm_server.log
-│   ├── [    5]  llm_server.pid
+│   ├── [ 8.5K]  llm_server.log
+│   ├── [    6]  llm_server.pid
 │   ├── [  32K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
-├── [  34M]  manual_store
-│   ├── [ 136K]  Allswell_Border_Manual.pdf
-│   ├── [ 141K]  Allswell_Bottom_Manual.pdf
-│   ├── [ 197K]  Allswell_Top_Manual.pdf
+├── [  31M]  manual_store
+│   ├── [ 136K]  Allswell-Border_manual.pdf
+│   ├── [ 141K]  Allswell-Bottom_manual.pdf
+│   ├── [ 197K]  Allswell-Top_manual.pdf
 │   ├── [  19K]  carpet_manual.docx
 │   ├── [ 3.8M]  carpet_manual.pdf
-│   ├── [ 1.6K]  file_metadata.json
+│   ├── [ 1.1K]  file_metadata.json
 │   ├── [  19K]  grid_manual.docx
 │   ├── [ 3.8M]  grid_manual.pdf
 │   ├── [ 9.0K]  index.faiss
@@ -78,9 +88,9 @@
 │   │   └── [ 3.8M]  prod1_menual.pdf
 │   ├── [  18K]  prod1_menual.docx
 │   ├── [ 3.8M]  prod1_menual.pdf
-│   └── [ 2.6M]  unified_index
-│       ├── [ 2.2M]  index.faiss
-│       └── [ 418K]  index.pkl
+│   └── [ 119K]  unified_index
+│       ├── [  93K]  index.faiss
+│       └── [  22K]  index.pkl
 ├── [ 328K]  Markdown
 │   ├── [  86K]  admin_development_scope_v3.md
 │   ├── [  34K]  admin_final_architecture.md
@@ -202,8 +212,8 @@
 │   ├── [ 4.0K]  defect
 │   └── [ 4.0K]  normal
 ├── [ 4.0K]  uploads
-└── [  21M]  web
-    ├── [ 148K]  anomaly_outputs
+└── [  22M]  web
+    ├── [ 156K]  anomaly_outputs
     │   ├── [ 4.0K]  001
     │   ├── [ 4.0K]  002
     │   ├── [ 4.0K]  003
@@ -234,6 +244,8 @@
     │   ├── [ 4.0K]  grid_bent_010
     │   ├── [ 4.0K]  grid_glue_009
     │   ├── [ 4.0K]  grid_metal_contamination_009
+    │   ├── [ 4.0K]  insect4
+    │   ├── [ 4.0K]  insect5
     │   ├── [ 4.0K]  leather_color_017
     │   ├── [ 4.0K]  leather_cut_016
     │   ├── [ 4.0K]  leather_cut_018
@@ -252,7 +264,7 @@
     │   ├── [  26K]  crud.py
     │   ├── [  10K]  image_table_insert.py
     │   └── [ 8.4K]  models.py
-    ├── [ 1.9K]  defect_mapping.json
+    ├── [ 2.8K]  defect_mapping.json
     ├── [ 1.9K]  defect_mapping_origin.json
     ├── [ 9.4M]  index_cache
     │   ├── [ 8.3M]  defect
@@ -263,15 +275,15 @@
     │   └── [ 609K]  normal
     │       ├── [ 296K]  faiss_index.bin
     │       └── [ 309K]  index_data.pt
-    ├── [ 6.8M]  index_cache_v2
-    │   ├── [ 6.3M]  defect
-    │   │   ├── [ 2.8M]  embeddings.pt
-    │   │   ├── [ 2.8M]  faiss_index.bin
-    │   │   └── [ 650K]  metadata.json
-    │   └── [ 498K]  normal
-    │       ├── [ 224K]  embeddings.pt
-    │       ├── [ 222K]  faiss_index.bin
-    │       └── [  49K]  metadata.json
+    ├── [ 7.8M]  index_cache_v2
+    │   ├── [ 7.1M]  defect
+    │   │   ├── [ 3.2M]  embeddings.pt
+    │   │   ├── [ 3.2M]  faiss_index.bin
+    │   │   └── [ 731K]  metadata.json
+    │   └── [ 765K]  normal
+    │       ├── [ 344K]  embeddings.pt
+    │       ├── [ 342K]  faiss_index.bin
+    │       └── [  76K]  metadata.json
     ├── [  14K]  matching.html
     ├── [ 129K]  pages
     │   ├── [  48K]  admin
@@ -297,11 +309,11 @@
     │   └── [ 4.7K]  upload.html.bak
     ├── [  11K]  README.md
     ├── [   67]  requirements.txt
-    ├── [ 189K]  routers
-    │   ├── [ 116K]  admin
+    ├── [ 190K]  routers
+    │   ├── [ 117K]  admin
     │   │   ├── [ 6.9K]  dashboard.py
     │   │   ├── [  12K]  defect_type.py
-    │   │   ├── [  26K]  deployment.py
+    │   │   ├── [  27K]  deployment.py
     │   │   ├── [  29K]  image.py
     │   │   ├── [  488]  __init__.py
     │   │   ├── [  12K]  manual.py
@@ -365,4 +377,4 @@
         ├── [  11K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  325M used in 116 directories, 249 files
+  347M used in 118 directories, 259 files
