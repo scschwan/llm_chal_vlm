@@ -7,6 +7,8 @@
 │   ├── [ 108K]  def_split
 │   │   └── [   67]  change_name.sh
 │   └── [  42M]  patchCore
+│       ├── [ 8.0K]  Allswell-Top
+│       │   └── [ 4.0K]  ok
 │       ├── [ 7.8M]  carpet
 │       │   ├── [  154]  bank_config.json
 │       │   ├── [ 7.8M]  memory_bank.pt
@@ -52,7 +54,10 @@
 │   ├── [    5]  llm_server.pid
 │   ├── [  32K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
-├── [  41M]  manual_store
+├── [  34M]  manual_store
+│   ├── [ 136K]  Allswell_Border_Manual.pdf
+│   ├── [ 141K]  Allswell_Bottom_Manual.pdf
+│   ├── [ 197K]  Allswell_Top_Manual.pdf
 │   ├── [  19K]  carpet_manual.docx
 │   ├── [ 3.8M]  carpet_manual.pdf
 │   ├── [ 1.6K]  file_metadata.json
@@ -73,13 +78,6 @@
 │   │   └── [ 3.8M]  prod1_menual.pdf
 │   ├── [  18K]  prod1_menual.docx
 │   ├── [ 3.8M]  prod1_menual.pdf
-│   ├── [ 671K]  test1_manual.pdf
-│   ├── [ 671K]  test2_manual.pdf
-│   ├── [ 671K]  Test3_manual.pdf
-│   ├── [ 3.8M]  test4_manual.pdf
-│   ├── [ 671K]  test5_manual.pdf
-│   ├── [ 671K]  test6_manual.pdf
-│   ├── [ 671K]  test7_manual.pdf
 │   └── [ 2.6M]  unified_index
 │       ├── [ 2.2M]  index.faiss
 │       └── [ 418K]  index.pkl
@@ -367,4 +365,4 @@
         ├── [  11K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  332M used in 114 directories, 253 files
+  325M used in 116 directories, 249 files
