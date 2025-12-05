@@ -224,6 +224,11 @@ async def sync_manual(db: Session = Depends(get_db)):
     secret_key = os.getenv('NCP_SECRET_KEY', '')
     bucket_name = os.getenv('NCP_BUCKET', 'dm-obs')
     region_name = 'kr-standard'
+
+    print(f"endpoint_url : {endpoint_url}")
+    print(f"access_key : {access_key}")
+    print(f"secret_key : {secret_key}")
+    print(f"bucket_name : {bucket_name}")
     
     # boto3 S3 클라이언트 생성
     s3_client = boto3.client(
