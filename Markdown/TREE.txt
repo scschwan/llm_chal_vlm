@@ -4,10 +4,20 @@
 │   ├── [  16K]  defect_mapping_manager.py
 │   └── [  13K]  DEFECT_MAPPING_QUICKSTART.md
 ├── [  300]  build_patchcore.sh
-├── [  66M]  data
-│   ├── [ 124K]  def_split
+├── [ 121M]  data
+│   ├── [ 132K]  def_split
 │   │   └── [   67]  change_name.sh
-│   └── [  66M]  patchCore
+│   └── [ 121M]  patchCore
+│       ├── [  27M]  Allswell-Border
+│       │   ├── [  154]  bank_config.json
+│       │   ├── [  27M]  memory_bank.pt
+│       │   ├── [  12K]  ok
+│       │   └── [   64]  tau.json
+│       ├── [  27M]  Allswell-Bottom
+│       │   ├── [  154]  bank_config.json
+│       │   ├── [  27M]  memory_bank.pt
+│       │   ├── [  12K]  ok
+│       │   └── [   64]  tau.json
 │       ├── [  22M]  Allswell-Top
 │       │   ├── [  154]  bank_config.json
 │       │   ├── [  22M]  memory_bank.pt
@@ -60,10 +70,11 @@
 ├── [  50K]  llm_server
 │   ├── [ 2.7K]  =4.54.0
 │   ├── [  692]  check_hyperclova.sh
-│   ├── [ 8.5K]  llm_server.log
+│   ├── [ 9.0K]  llm_server.log
 │   ├── [    6]  llm_server.pid
 │   ├── [  32K]  llm_server.py
 │   └── [ 1.4K]  requirements_backup.txt
+├── [ 4.0K]  logs
 ├── [  31M]  manual_store
 │   ├── [ 136K]  Allswell-Border_manual.pdf
 │   ├── [ 141K]  Allswell-Bottom_manual.pdf
@@ -264,7 +275,7 @@
     │   ├── [  26K]  crud.py
     │   ├── [  10K]  image_table_insert.py
     │   └── [ 8.4K]  models.py
-    ├── [ 2.8K]  defect_mapping.json
+    ├── [ 3.2K]  defect_mapping.json
     ├── [ 1.9K]  defect_mapping_origin.json
     ├── [ 9.4M]  index_cache
     │   ├── [ 8.3M]  defect
@@ -377,4 +388,4 @@
         ├── [  11K]  object_storage.py
         └── [ 5.0K]  session_helper.py
 
-  347M used in 118 directories, 259 files
+  402M used in 123 directories, 265 files
