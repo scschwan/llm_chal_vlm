@@ -242,8 +242,8 @@
     │   ├── [ 4.0K]  leather_fold_014
     │   ├── [ 4.0K]  leather_fold_015
     │   └── [ 4.0K]  leather_fold_016
-    ├── [ 190K]  api_server.log
-    ├── [    5]  api_server.pid
+    ├── [ 1.6K]  api_server.log
+    ├── [    6]  api_server.pid
     ├── [  33K]  api_server.py
     ├── [ 3.5M]  data
     │   └── [ 3.5M]  def_split
