@@ -91,6 +91,45 @@
           "ko": "찌름·압흔"
         }
       }
+    },
+    "Allswell-Border": {
+      "name_ko": "Allswell 측면",
+      "defects": {
+        "Open_Seam": {
+          "en": "Open_Seam",
+          "ko": "측면뜯김"
+        }
+      }
+    },
+    "Allswell-Bottom": {
+      "name_ko": "Allswell 하단",
+      "defects": {
+        "Long_Thread": {
+          "en": "Long_Thread",
+          "ko": "하단실밥"
+        }
+      }
+    },
+    "Allswell-Top": {
+      "name_ko": "Allswell 상단",
+      "defects": {
+        "Insect": {
+          "en": "Insect",
+          "ko": "벌레"
+        },
+        "Top_Quilting_Tearing": {
+          "en": "Top_Quilting_Tearing",
+          "ko": "원단 찢김"
+        },
+        "Pin_Needle": {
+          "en": "Pin_Needle",
+          "ko": "바늘"
+        },
+        "Jump_Stitch": {
+          "en": "Jump_Stitch",
+          "ko": "박음질불량"
+        }
+      }
     }
   }
 }

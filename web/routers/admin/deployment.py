@@ -387,6 +387,7 @@ async def clip_rebuild_task(
 # ========================================
 # PatchCore 함수들
 # ========================================
+import json
 
 async def patchcore_build_task(task_id: str):
     """PatchCore 메모리뱅크 생성 백그라운드 작업"""
@@ -402,7 +403,20 @@ async def patchcore_build_task(task_id: str):
         }
         
         # 제품 목록 초기화
-        products = ['prod1', 'prod2', 'prod3', 'leather', 'grid', 'carpet']
+        #products = ['prod1', 'prod2', 'prod3', 'leather', 'grid', 'carpet']
+
+        # defect_mapping.json에서 제품 목록 로드
+        mapping_file = Path(__file__).parent.parent.parent / "defect_mapping.json"
+        with open(mapping_file, 'r', encoding='utf-8') as f:
+            mapping_data = json.load(f)
+        products = list(mapping_data.get('products', {}).keys())
+        
+        if not products:
+            raise Exception("defect_mapping.json에서 제품 목록을 찾을 수 없습니다")
+        
+        deployment_tasks[task_id]['logs'].append(f"제품 목록 로드 완료: {', '.join(products)}")
+
+
         for product in products:
             deployment_tasks[task_id]['products'][product] = 'pending'
         

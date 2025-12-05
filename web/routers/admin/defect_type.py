@@ -221,7 +221,7 @@ def delete_defect_type(defect_type_id: int, db: Session = Depends(get_db)):
         raise HTTPException(500, f"불량 유형 삭제 실패: {str(e)}")
     
 @router.post("/refresh-mapping")
-async def refresh_mapping():
+async def refresh_mapping(db: Session = Depends(get_db)):
     """
     DB 기반으로 defect_mapping.json 파일 재생성 및 리로드
     
@@ -241,7 +241,7 @@ async def refresh_mapping():
     
     # DB 연결
     #db = next(get_db())
-    db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
+    #db= Depends(get_db)  # ✅ FastAPI가 자동으로 세션 관리
     
     try:
         print("[MAPPING] defect_mapping.json 재생성 시작")
