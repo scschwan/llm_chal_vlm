@@ -6,9 +6,23 @@ from typing import Optional
 from datetime import datetime, timedelta
 
 # 사용자 정보
+'''
 USERS = {
     "admin": {
         "password": "admin",
+        "user_type": "admin",
+        "full_name": "시스템 관리자"
+    },
+    "worker": {
+        "password": "worker",
+        "user_type": "worker",
+        "full_name": "작업자"
+    }
+}
+'''
+USERS = {
+    "dmillion": {
+        "password": "dm250120@",
         "user_type": "admin",
         "full_name": "시스템 관리자"
     },
