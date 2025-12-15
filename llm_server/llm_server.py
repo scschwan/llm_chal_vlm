@@ -39,7 +39,16 @@ app = FastAPI(title="LLM/VLM Server", version="2.0")
 _server_config = {}
 
 #2번째 GPU (INDEX : 1)를 사요하도록 강제
-gpu_count = torch.cuda.device_count()
+#gpu_count = torch.cuda.device_count()
+try:
+    import subprocess
+    result = subprocess.run(['nvidia-smi', '-L'], capture_output=True, text=True)
+    gpu_count = len([line for line in result.stdout.split('\n') if 'GPU' in line])
+    print(f"🔍 감지된 GPU 개수: {gpu_count}")
+except:
+    gpu_count = 1
+    print(f"⚠️ nvidia-smi 실행 실패, GPU 1개로 가정")
+    
 
 if gpu_count >= 2:
     # GPU 2개 이상: GPU 1번만 사용 (0번은 API 서버용)
