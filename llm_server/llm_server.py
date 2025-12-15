@@ -16,8 +16,16 @@ from transformers import (
     AutoTokenizer,
     AutoProcessor,
     LlavaForConditionalGeneration,
+    BitsAndBytesConfig,
 )
 
+
+# ===== 8bit 양자화 설정 =====
+quantization_config = BitsAndBytesConfig(
+    load_in_8bit=True,
+    llm_int8_threshold=6.0,
+    llm_int8_enable_fp32_cpu_offload=False
+)
 
 # =========================
 # FastAPI
@@ -31,7 +39,18 @@ app = FastAPI(title="LLM/VLM Server", version="2.0")
 _server_config = {}
 
 #2번째 GPU (INDEX : 1)를 사요하도록 강제
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"  # 파일 맨 위에 추가
+gpu_count = torch.cuda.device_count()
+
+if gpu_count >= 2:
+    # GPU 2개 이상: GPU 1번만 사용 (0번은 API 서버용)
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    print(f"🔧 GPU 2개 감지 - LLM 서버는 GPU 1번 사용")
+elif gpu_count == 1:
+    # GPU 1개: 단일 GPU 사용
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    print(f"🔧 GPU 1개 감지 - LLM 서버는 GPU 0번 사용")
+else:
+    print(f"❌ GPU 없음 - CPU 모드로 실행")
 
 # =========================
 # 전역 모델 핸들
@@ -482,6 +501,7 @@ async def load_models_on_startup():
 
         hyperclovax_model = AutoModelForCausalLM.from_pretrained(
             hyperclovax_name,
+            quantization_config=quantization_config,  # 8bit 양자화
             torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
             #device_map="auto",
             device_map="cuda:0",  # auto 대신 cuda:0 (CUDA_VISIBLE_DEVICES 설정으로 실제 GPU 1)
@@ -513,6 +533,7 @@ async def load_models_on_startup():
 
         exaone_model = AutoModelForCausalLM.from_pretrained(
             exaone_name,
+            quantization_config=quantization_config,  # 8bit 양자화
             torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
             #device_map="auto",
             device_map="cuda:0",  # auto 대신 cuda:0 (CUDA_VISIBLE_DEVICES 설정으로 실제 GPU 1)
@@ -540,6 +561,7 @@ async def load_models_on_startup():
 
             vlm_model = LlavaForConditionalGeneration.from_pretrained(
                 vlm_name,
+                quantization_config=quantization_config,  # 8bit 양자화
                 torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
                 #device_map="auto",
                 device_map="cuda:0",  # auto 대신 cuda:0 (CUDA_VISIBLE_DEVICES 설정으로 실제 GPU 1)
