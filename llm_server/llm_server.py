@@ -943,6 +943,8 @@ if __name__ == "__main__":
         "llm_server:app",
         host="0.0.0.0",
         port=5001,
-        reload=True,
+        #reload=True 면 개발 모드로, 파일 변경을 감지하기 위해 자동으로 여러 프로세스를 생성
+        #reload=True,
+        reload=False,
         log_level="info"
     )
