@@ -30,6 +30,9 @@ app = FastAPI(title="LLM/VLM Server", version="2.0")
 # =========================
 _server_config = {}
 
+#2번째 GPU (INDEX : 1)를 사요하도록 강제
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"  # 파일 맨 위에 추가
+
 # =========================
 # 전역 모델 핸들
 # =========================
@@ -480,7 +483,8 @@ async def load_models_on_startup():
         hyperclovax_model = AutoModelForCausalLM.from_pretrained(
             hyperclovax_name,
             torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-            device_map="auto",
+            #device_map="auto",
+            device_map="cuda:0",  # auto 대신 cuda:0 (CUDA_VISIBLE_DEVICES 설정으로 실제 GPU 1)
             trust_remote_code=True,
         )
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]✅ LLM 로드 완료")
@@ -510,7 +514,8 @@ async def load_models_on_startup():
         exaone_model = AutoModelForCausalLM.from_pretrained(
             exaone_name,
             torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
-            device_map="auto",
+            #device_map="auto",
+            device_map="cuda:0",  # auto 대신 cuda:0 (CUDA_VISIBLE_DEVICES 설정으로 실제 GPU 1)
             trust_remote_code=True,
         )
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]✅ EXAONE 3.5 로드 완료")
@@ -536,7 +541,8 @@ async def load_models_on_startup():
             vlm_model = LlavaForConditionalGeneration.from_pretrained(
                 vlm_name,
                 torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-                device_map="auto",
+                #device_map="auto",
+                device_map="cuda:0",  # auto 대신 cuda:0 (CUDA_VISIBLE_DEVICES 설정으로 실제 GPU 1)
             )
             vlm_processor = AutoProcessor.from_pretrained(vlm_name)
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]✅ VLM 로드 완료")
